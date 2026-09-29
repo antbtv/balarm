@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "mobile-mcp": {
+      "command": "npx",
+      "args": ["-y", "@mobilenext/mobile-mcp@1.0.5"],
+      "env": {
+        "ANDROID_HOME": "${ANDROID_HOME:-/home/anton/Android/Sdk}",
+        "PATH": "${ANDROID_HOME:-/home/anton/Android/Sdk}/platform-tools:${PATH}",
+        "MOBILEMCP_LEGACY_ROBOT": "1"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}

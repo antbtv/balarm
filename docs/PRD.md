@@ -1,3 +1,4 @@
+
 # Balarm — Product Requirements Document
 
 | | |
@@ -26,7 +27,8 @@
 | G2 | Нельзя отключить не проснувшись | Отключение только через миссию; бездействие в миссии возвращает звук |
 | G3 | Утро начинается с мотивации | Цитата на экране звонка/миссии/«Доброе утро» |
 | G4 | Ощущение «как Alarmy» | Тёмный UI, крупные цифры, красный акцент, миссии полноэкранные |
-| G5 | Без рекламы, без аккаунтов, без сети | Приложение работает полностью офлайн, не требует INTERNET в MVP |
+| G5 | Без рекламы, без аккаунтов, без трекинга | Сеть используется только для прогноза погоды (FR-TTS); без сети всё, кроме погоды, работает полностью |
+| G6 | Утро начинается с информации голосом | После отключения будильника приложение озвучивает день, дату и погоду в Москве (FR-TTS) |
 
 ### 1.3 Не-цели (v1)
 Трекинг сна, звуки для сна, облачная синхронизация, аккаунты, реклама, подписки, iOS, Wear OS, фото-миссия, защита от выключения телефона.
@@ -70,6 +72,7 @@
 * **FR-EDIT-7** Snooze: выкл / интервал 1,3,5,10,15,20,30 мин; лимит 1,2,3,5,10,∞.
 * **FR-EDIT-8** Цитаты: показывать цитату вкл/выкл; (S) источник — все / только мои / категория.
 * **FR-EDIT-9** (S) Wake-up check: выкл / через 3/5/10 мин.
+* **FR-EDIT-12** Утренняя озвучка (FR-TTS): вкл/выкл для будильника, по умолчанию вкл.
 * **FR-EDIT-10** Кнопки «Сохранить», «Тест» (запуск полного сценария звонка через 5 с), «Удалить» (для существующего).
 * **FR-EDIT-11** При сохранении — тост «Будильник зазвонит через 7 ч 12 мин».
 * **AC:** несохранённые изменения при «Назад» → диалог «Отменить изменения?».
@@ -83,7 +86,7 @@
 * **FR-RING-6** Автостоп: если никто не взаимодействует 30 мин — будильник замолкает, уведомление «Пропущенный будильник». (настройка в глобальных настройках: 5/10/15/30 мин/никогда).
 * **FR-RING-7** Если одновременно срабатывают 2 будильника — второй встаёт в очередь и начинает звонить после завершения первого (не более одного экрана звонка).
 * **FR-RING-8** Если идёт телефонный звонок — будильник вибрирует/тихо звучит и полноценно начинает после окончания вызова.
-* **FR-RING-9** После отключения → экран «Доброе утро» (S; в MVP — просто закрытие с тостом и цитатой).
+* **FR-RING-9** После отключения → экран «Доброе утро» (S; в MVP — просто закрытие с тостом и цитатой). Если у будильника включена озвучка, запускается FR-TTS.
 * **AC:** время от срабатывания `AlarmManager` до начала звука ≤ 2 с на эталонном устройстве, в т.ч. в Doze (`adb shell dumpsys deviceidle force-idle`).
 
 ### 3.4 Мелодии
@@ -140,18 +143,79 @@
 * **FR-REL-2** Перезагрузка: ресиверы `LOCKED_BOOT_COMPLETED` (directBootAware) и `BOOT_COMPLETED` перепланируют все активные будильники. Расписание и мелодии лежат в **device-protected storage**, поэтому будильник сработает **даже если телефон перезагрузился ночью и не был разблокирован**.
 * **FR-REL-3** Ресиверы `TIME_SET`, `TIMEZONE_CHANGED`, `MY_PACKAGE_REPLACED`, `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`, `LOCALE_CHANGED` (для текста уведомлений) → перепланирование.
 * **FR-REL-4** Будильник хранит время как «локальное время + дни недели»; момент срабатывания вычисляется через `java.time` в текущей зоне → корректен при переходе на летнее/зимнее время (несуществующее время 02:30 → 03:00; дублированное → первое наступление).
-* **FR-REL-5** Звонок проигрывается в foreground service (тип по ADR-002: `mediaPlayback` или `systemExempted`), с `WakeLock` на время старта; экран — Activity с `setShowWhenLocked(true)`, `setTurnScreenOn(true)`, запущенная через full-screen intent и дублирующе через `startActivity` при наличии overlay-разрешения.
+* **FR-REL-5** Звонок проигрывается в foreground service (тип `systemExempted` — ADR-002; на API 26–33 `startForeground` без типа), с `WakeLock` на время старта; экран — Activity с `setShowWhenLocked(true)`, `setTurnScreenOn(true)`, запущенная через full-screen intent и дублирующе через `startActivity` при наличии overlay-разрешения.
 * **FR-REL-6** Пропущенный будильник: если при загрузке обнаружен будильник, время которого прошло < 2 ч назад и он не отработал — уведомление «Пропущен будильник 07:00» (S).
 * **FR-REL-8** Звук — `AudioAttributes.USAGE_ALARM`, `CONTENT_TYPE_SONIFICATION`; audio focus `AUDIOFOCUS_GAIN_TRANSIENT`.
 * **FR-REL-9** Наушники: звук идёт через динамик и наушники одновременно (как у системного будильника, поведение USAGE_ALARM) — зафиксировать в тестах.
 
 ### 3.9 Настройки (глобальные)
-Тема (тёмная/светлая/системная; по умолчанию тёмная), язык, формат цитат, автостоп звонка, таймер бездействия миссий, громкость миссии, первый день недели, «Здоровье будильника», о приложении/лицензии мелодий, (C) бэкап/восстановление.
+Тема (тёмная/светлая/системная; по умолчанию тёмная), язык, формат цитат, озвучка (скорость речи 0.8–1.2, громкость, «читать цитату дня» вкл/выкл, кнопка «Прослушать пример»), автостоп звонка, таймер бездействия миссий, громкость миссии, первый день недели, «Здоровье будильника», о приложении/лицензии мелодий, (C) бэкап/восстановление.
 
 ### 3.10 Экран «Доброе утро» (S)
-После отключения: приветствие по времени суток, дата, цитата крупно (кнопка «в избранное»), «Вы проснулись с N-й попытки», кнопка «Закрыть». (C) погода.
+После отключения: приветствие по времени суток, дата, **погода в Москве** (иконка, температура сейчас, мин/макс за день, осадки), цитата крупно (кнопка «в избранное»), «Вы проснулись с N-й попытки», кнопки «Повторить озвучку» / «Замолчать» и «Закрыть». В MVP (до M7) озвучка идёт без этого экрана, поверх тоста.
+
+### 3.11 Утренняя озвучка: день и погода (FR-TTS)
+После успешного отключения будильника (миссия пройдена или миссии нет) телефон голосом произносит, какой сегодня день и какая погода в Москве.
+
+* **FR-TTS-1 Текст озвучки** (RU; EN при английском языке приложения):
+  > «Доброе утро! Сегодня понедельник, двадцать девятое сентября. В Москве сейчас плюс восемь, облачно. Днём до плюс четырнадцати, вероятность дождя тридцать процентов.»
+  * Приветствие зависит от времени: утро (04–11), день (12–16), вечер (17–22), ночь.
+  * Дата — день недели + число + месяц, числа и температура прописью (правильные падежи и склонения: «плюс один градус / два градуса / пять градусов» — это делает TTS-движок, мы передаём формулировку «+8 °C» → «плюс восемь»).
+  * Погода: температура сейчас (округлённая), описание по WMO-коду (ясно / облачно / туман / дождь / снег / гроза…), максимум за день, осадки, если вероятность ≥ 30 %. Сильный ветер (≥ 10 м/с) и мороз (≤ −15 °C) — отдельной фразой-предупреждением.
+  * (опц., настройка) В конце — цитата дня: «Цитата дня: …, автор …».
+* **FR-TTS-2 Конфиг города (захардкожен).** Город, координаты и часовой пояс задаются в конфиге сборки, не в UI:
+  ```properties
+  # gradle.properties
+  balarm.weather.city=Москва
+  balarm.weather.lat=55.7558
+  balarm.weather.lon=37.6173
+  balarm.weather.timezone=Europe/Moscow
+  ```
+  → `BuildConfig` модуля `:core:weather` → `WeatherConfig`. Геолокация пользователя **не** используется, разрешения на локацию нет. Выбор города в настройках — (C) позже.
+* **FR-TTS-3 Источник погоды — Open-Meteo** (`api.open-meteo.com/v1/forecast`, бесплатно, без API-ключа и регистрации): `current=temperature_2m,weather_code,wind_speed_10m`, `daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max`, `timezone` из конфига, единицы — °C, м/с.
+* **FR-TTS-4 Когда загружается погода.**
+  1. При старте звонка (`RingingService`) запускается фоновая загрузка с таймаутом 10 с — пока человек решает миссию, погода успевает прийти. Загрузка изолирована: её ошибка или зависание **никак не влияет** на звук и миссию.
+  2. Результат кешируется в device-protected storage с временем получения.
+  3. Если к моменту озвучки свежих данных нет — используется кеш не старше 3 ч; иначе погода пропускается фразой «Прогноз погоды сейчас недоступен» и озвучивается только день.
+* **FR-TTS-5 Воспроизведение.** Android `TextToSpeech` (системный движок, офлайн-голоса), язык = язык приложения. Озвучка начинается через ≤ 1 с после остановки мелодии; громкость — из настроек озвучки на потоке будильника (`USAGE_ALARM`), чтобы было слышно в беззвучном режиме. Говорит один раз; кнопка «Повторить» — на экране «Доброе утро».
+* **FR-TTS-6 Прерывание.** Озвучку можно остановить кнопкой «Замолчать», кнопками громкости или закрытием экрана; во время телефонного звонка — не начинается/прерывается (audio focus).
+* **FR-TTS-7 Отказоустойчивость.** Нет TTS-движка или нет голоса для языка → текст показывается на экране «Доброе утро», в настройках — подсказка «Установите голосовой движок» с переходом в системные настройки TTS. В Direct Boot (телефон не разблокирован после перезагрузки) TTS-движок может быть недоступен → то же поведение, без ошибок.
+* **FR-TTS-8 Приватность.** В запросе к Open-Meteo — только захардкоженные координаты Москвы; никаких идентификаторов устройства/пользователя; HTTPS only (`usesCleartextTraffic=false`).
+* **AC:**
+  * с сетью: после отключения будильника в течение 2 с звучит фраза с днём и погодой, значения совпадают с ответом API;
+  * в режиме полёта: звучит день + «прогноз недоступен» (или погода из кеша ≤ 3 ч);
+  * API отвечает 20 с / 500 / битый JSON: будильник звонит и отключается штатно, озвучивается только день;
+  * смена конфига в `gradle.properties` → другой город в озвучке и запросе без правок кода.
 
 ---
+
+### 3.12 Feature flags (FR-FLAG)
+Любую пользовательскую фичу можно выключить без правки кода.
+
+* **FR-FLAG-1 Источник.** Единый файл `config/features.properties` (`feature.<name>=true|false`). При сборке задача `generateFeatureFlags` (плагин `balarm.featureflags`) генерирует `enum class Feature(key, defaultEnabled)` в `:core:model`; проверка — только через `FeatureFlagProvider.isEnabled(Feature.X)`. Неверный формат, дубликат ключа или коллизия имён → ошибка сборки; обращение к удалённому флагу → ошибка компиляции.
+* **FR-FLAG-2 Реестр флагов (стартовый):**
+
+  | Ключ | Фича | По умолчанию |
+  |---|---|---|
+  | `feature.quotes` | Цитаты (экран, показ на звонке) | true |
+  | `feature.morningBriefing` | Утренняя озвучка FR-TTS | true |
+  | `feature.weather` | Погода в озвучке и на «Доброе утро» (зависит от `morningBriefing` или `goodMorningScreen`) | true |
+  | `feature.mission.math` / `.memory` / `.typing` | Миссии | true |
+  | `feature.mission.shake` | Миссия Shake | false до M7 |
+  | `feature.multiMission` | Несколько миссий подряд | false до M7 |
+  | `feature.snooze` | Отложить | true |
+  | `feature.wakeUpCheck` | Wake-up check | false до M7 |
+  | `feature.skipNext` | Пропустить следующее | false до M7 |
+  | `feature.goodMorningScreen` | Экран «Доброе утро» | false до M7 |
+  | `feature.customSounds` | Свои мелодии | true |
+  | `feature.lightTheme` | Выбор светлой темы | false до M7 |
+
+  Новая фича добавляется в реестр в том же этапе, в котором появляется её первый код (правило `plan-milestone`), со значением `false`, пока этап не завершён.
+* **FR-FLAG-3 Поведение выключенной фичи:** скрыты все точки входа (экраны, пункты навигации, настройки, чипы); её код не вызывается (use case возвращает «недоступно», DI может не создавать тяжёлые объекты); сохранённые данные не удаляются и не ломаются. Будильник, ссылающийся на выключенную фичу, работает с безопасным поведением: выключенная миссия → Math уровня 2 ×3 (если выключена и Math — без миссии), выключенный snooze → кнопки «Отложить» нет, выключенные цитаты → блок цитаты скрыт, выключенная погода → озвучивается только день.
+* **FR-FLAG-4 Неотключаемое ядро.** Флагами **нельзя** управлять: планированием (`AlarmScheduler`), ресиверами перезапуска, `RingingService` и звуком, экраном звонка, онбордингом/здоровьем разрешений, хранением. Попытка добавить флаг на ядро — блокирующее замечание ревьюера.
+* **FR-FLAG-5 Debug-переопределение.** Только в debug-сборке: скрытый экран «Feature flags» (7 тапов по версии в «О приложении» или `adb shell am start -n com.antbtv.balarm/.debug.FeatureFlagsActivity`) — переключение флагов на лету, хранение в DataStore, кнопка «Сбросить к конфигу». Переопределения хранятся в SharedPreferences на device-protected storage (синхронное чтение, работает в Direct Boot); значение, равное конфигу, не хранится. В release-сборке экрана и переопределений нет, значения только из конфига.
+* **FR-FLAG-6 Разрешения.** Флаг не удаляет разрешения из манифеста (например, `INTERNET` при `feature.weather=false`). Физическое удаление — отдельный build flavor, вне скоупа v1.
+* **AC:** `feature.quotes=false` → после пересборки нет вкладки «Цитаты», нет блока цитаты на звонке, нет пункта в редакторе; будильники с `showQuote=true` звонят без ошибок. Unit-тест генерации: каждый ключ файла → поле `FeatureFlags`, и наоборот.
 
 ## 4. UX / UI
 
@@ -167,12 +231,14 @@
 | `background` | `#0E0F14` | `#F5F6FA` |
 | `surface` (карточки) | `#1B1D26` | `#FFFFFF` |
 | `surfaceVariant` | `#262936` | `#ECEEF4` |
-| `primary` (акцент) | `#FF4D4F` | `#F0383B` |
+| `primary` (акцент) | `#FF4D4F` ¹ | `#D32F2F` |
 | `onPrimary` | `#FFFFFF` | `#FFFFFF` |
 | `textPrimary` | `#FFFFFF` | `#14161F` |
-| `textSecondary` | `#8B8FA3` | `#6B6F80` |
+| `textSecondary` | `#8B8FA3` | `#646879` |
 | `success` | `#3DD68C` | `#1FAF6A` |
 | `warning` | `#FFB020` | `#E08E00` |
+
+¹ Белый текст на тёмном `#FF4D4F` — 3.27:1, поэтому подписи на красных кнопках только крупные: ≥ 19sp Bold (стиль `buttonLarge`, норма WCAG 3:1 для крупного текста). `success`/`warning` — только для иконок и крупных элементов, не для мелкого текста. Контраст проверяется тестом `ContrastTest`.
 
 * **Типографика:** время в карточке — 44sp Bold, на экране звонка — 96sp Bold (моноширинные цифры, `fontFeatureSettings = "tnum"`); заголовки 22sp SemiBold; текст 16sp.
 * **Формы:** карточки radius 20dp, кнопки radius 16dp высотой 56dp, FAB 64dp круглый.
@@ -202,10 +268,10 @@
 ## 5. Нефункциональные требования
 | ID | Требование |
 |---|---|
-| NFR-1 | minSdk 26 (Android 8.0), targetSdk / compileSdk = последний стабильный (36) |
+| NFR-1 | minSdk 26 (Android 8.0), targetSdk / compileSdk = 37 (Android 17), ADR-003 |
 | NFR-2 | Холодный старт главного экрана ≤ 800 мс на среднем устройстве |
 | NFR-3 | APK ≤ 15 МБ (мелодии — OGG/Opus) |
-| NFR-4 | Нет разрешения `INTERNET` в MVP; нет аналитики; все данные локальны |
+| NFR-4 | Единственное сетевое обращение — Open-Meteo для погоды (FR-TTS); разрешение `INTERNET` добавляется в этапе, где реализуется FR-TTS, и только оно; нет аналитики, трекеров, аккаунтов; все пользовательские данные локальны. Сеть никогда не находится на пути, от которого зависит звонок |
 | NFR-5 | Crash-free ≥ 99.5 %; падение внутри миссии не должно глушить будильник (звук в сервисе, отдельно от UI) |
 | NFR-6 | Покрытие unit-тестами доменного слоя ≥ 80 % (планировщик, генераторы миссий, выбор цитат) |
 | NFR-7 | Локализация RU (основная) + EN; никаких захардкоженных строк |
@@ -217,7 +283,7 @@
 ## 6. Архитектура (верхнеуровнево; детали — в ADR агента architect)
 
 ### 6.1 Стек
-Kotlin 2.x · Jetpack Compose + Material 3 · Navigation Compose (type-safe) · Hilt · Room · DataStore (Preferences) · Coroutines/Flow · kotlinx.serialization · java.time · Media3/MediaPlayer (ADR) · CameraX + ML Kit (только C-миссии) · Gradle Version Catalog + convention plugins · detekt + ktlint · JUnit4 + Truth + Turbine + MockK · Robolectric · Compose UI Test · (опц.) Paparazzi/Roborazzi скриншот-тесты.
+Kotlin 2.x · Jetpack Compose + Material 3 · Navigation Compose или Navigation3 (выбор — ADR в M2) · Hilt · Room · DataStore (Preferences) · Coroutines/Flow · kotlinx.serialization · java.time · Media3/MediaPlayer (ADR) · CameraX + ML Kit (только C-миссии) · Gradle Version Catalog + convention plugins · detekt + ktlint · JUnit4 + Truth + Turbine + MockK · Robolectric · Compose UI Test · (опц.) Paparazzi/Roborazzi скриншот-тесты.
 
 ### 6.2 Модули
 ```
@@ -228,6 +294,8 @@ Kotlin 2.x · Jetpack Compose + Material 3 · Navigation Compose (type-safe) · 
 :core:designsystem        — тема, токены, базовые компоненты (TimeWheel, DayChips…)
 :core:alarm               — AlarmScheduler, ресиверы, RingingService, AudioPlayer, Vibrator
 :core:permissions         — PermissionHealthChecker, OEM-интенты
+:core:weather             — WeatherConfig (BuildConfig), Open-Meteo клиент, кеш, WMO-коды → текст
+:core:speech              — MorningBriefingComposer (текст, чистый Kotlin в :core:domain) + TtsSpeaker (TextToSpeech)
 :feature:alarmlist
 :feature:alarmedit
 :feature:ringing          — экран звонка + хост миссий
@@ -241,7 +309,7 @@ Kotlin 2.x · Jetpack Compose + Material 3 · Navigation Compose (type-safe) · 
 Архитектурный паттерн UI — MVVM/UDF (`UiState` + `onEvent`), однонаправленный поток данных.
 
 ### 6.3 Хранение и Direct Boot
-* Room-БД и DataStore создаются в `context.createDeviceProtectedStorageContext()`; Application и компоненты будильника — `android:directBootAware="true"`.
+* Room-БД и DataStore создаются в `context.createDeviceProtectedStorageContext()`; `android:directBootAware="true"` ставится на каждый компонент цепочки звонка (ресиверы, сервис, экран звонка), а не на `<application>`; `Application.onCreate` и eager-синглтоны безопасны для Direct Boot (ADR-001).
 * Кастомные мелодии копируются в device-protected `files/sounds/`.
 * Данные не секретные (время, текст цитат), поэтому device-protected хранение допустимо — фиксируется в ADR-001.
 
@@ -250,7 +318,9 @@ Kotlin 2.x · Jetpack Compose + Material 3 · Navigation Compose (type-safe) · 
 Alarm(id, hour, minute, daysOfWeek: Set<DayOfWeek>, date: LocalDate?, label,
       enabled, soundId, volume, fadeInSec, vibrate,
       snoozeIntervalMin, snoozeLimit, missions: List<MissionConfig>,
-      showQuote, quoteSource, wakeUpCheckMin, skipNextUntil: Instant?)
+      showQuote, quoteSource, wakeUpCheckMin, skipNextUntil: Instant?,
+      morningBriefing: Boolean)
+WeatherSnapshot(fetchedAt: Instant, tempNow, weatherCode, windSpeed, tempMax, tempMin, precipProbability)
 AlarmRuntimeState(alarmId, nextTriggerAt, snoozeCount, isRinging, lastFiredAt)
 Sound(id, title, type: BUILTIN|CUSTOM|SYSTEM, uri/path, durationMs)
 Quote(id, text, author, category, lang, isBuiltin, isHidden, isFavorite, lastShownAt)
@@ -264,14 +334,16 @@ setAlarmClock ─► AlarmReceiver (directBootAware)
          ├─ WakeLock, AudioPlayer(fade-in), Vibrator
          ├─ Notification(fullScreenIntent → RingingActivity, CATEGORY_ALARM)
          └─ if canDrawOverlays → startActivity(RingingActivity)
+         └─ (изолированно) WeatherRepository.prefetch(timeout 10 s) → кеш
 RingingActivity ─► Dismiss ─► MissionHost ─► success ─► RingingService.stop()
-                                                   └─► schedule next / wake-up check
+                                                   ├─► schedule next / wake-up check
+                                                   └─► MorningBriefing: compose(дата, погода|кеш|нет) → TTS
 ```
 
 ---
 
 ## 7. Разрешения в манифесте
-`POST_NOTIFICATIONS`, `USE_EXACT_ALARM`, `SCHEDULE_EXACT_ALARM` (maxSdkVersion 32), `USE_FULL_SCREEN_INTENT`, `SYSTEM_ALERT_WINDOW`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`, `VIBRATE`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (или `_SYSTEM_EXEMPTED` — ADR-002), `READ_PHONE_STATE`? — **нет**, для FR-RING-8 используем audio focus. (C) `CAMERA`, `ACTIVITY_RECOGNITION`.
+`POST_NOTIFICATIONS`, `USE_EXACT_ALARM`, `SCHEDULE_EXACT_ALARM` (maxSdkVersion 32), `USE_FULL_SCREEN_INTENT`, `SYSTEM_ALERT_WINDOW`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`, `VIBRATE`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` (ADR-002), `READ_PHONE_STATE`? — **нет**, для FR-RING-8 используем audio focus. `INTERNET` — только для погоды (FR-TTS, с этапа M6). Разрешений на геолокацию нет. (C) `CAMERA`, `ACTIVITY_RECOGNITION`.
 
 Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-разрешения, декларируются в Play Console как «приложение-будильник» (основная функция).
 
@@ -282,13 +354,13 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 
 | # | Этап | Содержание | Результат (Definition of Done) |
 |---|---|---|---|
-| M0 | Фундамент | Android-проект, модули, version catalog, convention plugins, Hilt, Compose, тема/токены, detekt/ktlint, CI (GitHub Actions: build+test+lint), `.mcp.json` проверен | `./gradlew build` зелёный, пустое приложение с тёмной темой запускается на эмуляторе |
+| M0 | Фундамент | Android-проект, модули, version catalog, convention plugins, Hilt, Compose, тема/токены, feature flags (FR-FLAG), detekt/ktlint, CI (GitHub Actions: build+test+lint), `.mcp.json` проверен | `./gradlew build` зелёный, пустое приложение с тёмной темой запускается на эмуляторе |
 | M1 | Движок будильника | Модель, Room (device-protected), `NextTriggerCalculator`, `AlarmScheduler`, ресиверы (boot/locked boot/time/tz/update), `RingingService`, минимальный `RingingActivity` | Будильник звенит в Doze, после `adb reboot` до разблокировки, после смены TZ |
 | M2 | UI списка и редактора | Главный экран, карточки, редактор, колесо времени, дни, snooze-настройки, «через X ч Y мин» | E2E: создать → включить → звонит |
 | M3 | Онбординг и здоровье | Онбординг 7 шагов, `PermissionHealthChecker`, баннер, OEM-интенты, экран здоровья, тестовый будильник | Все статусы корректны на API 26/31/34/36 |
 | M4 | Звуки | Встроенные мелодии, SAF-импорт с копированием, библиотека, громкость, fade-in, вибрация, резервный звук | Кастомная мелодия играет после перезагрузки до разблокировки |
 | M5 | Миссии | Контракт миссий, хост, таймер бездействия, Math, Memory, Typing, превью | Нельзя отключить без миссии; бездействие → громко |
-| M6 | Цитаты | Asset-пакет, сидинг, экран цитат, CRUD, выбор без повторов, показ на звонке | FR-QOT-1…5 |
+| M6 | Цитаты и утренняя озвучка | Цитаты: asset-пакет, сидинг, экран цитат, CRUD, выбор без повторов, показ на звонке. Озвучка: `:core:weather` (конфиг, Open-Meteo, кеш), `MorningBriefingComposer`, `TtsSpeaker`, настройки озвучки, `INTERNET` в манифесте | FR-QOT-1…5, FR-TTS-1…8 |
 | M7 | v1.0-функции | Shake, мульти-миссии, wake-up check, skip next, дата, Доброе утро, пропущенный будильник, светлая тема | Все S-пункты |
 | M8 | Качество и релиз | Тестовая матрица §9 на реальных устройствах, a11y, производительность, иконка, Play-декларации, подпись, R8 | Release candidate |
 
@@ -324,9 +396,12 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 | R16 | Бездействие в миссии | не трогать 20 с | громкость 100 %, сброс |
 | R17 | Back / Home / Recents во время миссии | | нельзя уйти, экран возвращается |
 | R18 | Энергосбережение OEM (Xiaomi/Samsung) | реальное устройство, ночь | звонок |
+| R19 | Android 17 background audio hardening | API 37: `adb shell cmd audio set-enable-hardening throw`; звонок из фона | звук есть, исключений нет; `dumpsys audio \| grep AudioHardening` без нарушений |
+| R20 | Погода недоступна | режим полёта / `adb shell svc wifi disable; svc data disable`; подменный API с таймаутом | звонок и миссия штатно; озвучен день (+ кеш ≤ 3 ч или «прогноз недоступен») |
+| R21 | Озвучка в беззвучном режиме и при звонке | беззвучный режим; `adb emu gsm call` во время озвучки | озвучка слышна; при звонке прерывается |
 
 ### 9.3 Устройства
-Эмуляторы API 26, 29, 31, 33, 34, 36 (Pixel) + минимум одно реальное устройство (желательно Xiaomi или Samsung).
+Эмуляторы API 26, 29, 31, 33, 34, 36, 37 (Pixel; основной — `balarm_api37`) + минимум одно реальное устройство (желательно Xiaomi или Samsung).
 
 ---
 
@@ -339,6 +414,9 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 | Direct Boot забыт в каком-то компоненте | средняя | критично | чек-лист ревьюера, тест R3 |
 | Google Play отклонит restricted-разрешения | низкая | среднее | приложение — будильник по сути; корректные декларации |
 | Лицензии на мелодии/цитаты | средняя | среднее | только CC0/public domain, файл `docs/LICENSES.md` |
+| Сетевой запрос погоды ломает/задерживает звонок | низкая | критично | загрузка изолирована от звука и миссии, таймаут, кеш; тест R20; ревьюер проверяет, что сеть не на критическом пути |
+| Нет русского голоса TTS на устройстве | средняя | низкое | текст на экране + подсказка установить голос (FR-TTS-7) |
+| Open-Meteo изменит API / лимиты | низкая | низкое | клиент за интерфейсом `WeatherSource`, при ошибке — только день; атрибуция Open-Meteo в «О приложении» (CC BY 4.0) |
 
 ---
 

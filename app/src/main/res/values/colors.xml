@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Совпадает с BalarmColors.background (тёмная тема): окно до первого кадра Compose, без белой вспышки. -->
+    <color name="window_background">#FF0E0F14</color>
+    <color name="ic_launcher_background">#FF0E0F14</color>
+</resources>

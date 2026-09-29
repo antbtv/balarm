@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Balarm</string>
+    <string name="placeholder_subtitle">Alarms are coming soon</string>
+    <string name="placeholder_time_description">Current time: %1$s</string>
+</resources>

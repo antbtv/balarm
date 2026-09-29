@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Balarm</string>
+    <string name="placeholder_subtitle">Будильники скоро появятся</string>
+    <string name="placeholder_time_description">Текущее время: %1$s</string>
+</resources>

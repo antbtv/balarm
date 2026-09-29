@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="debug_flags_title">Feature flags (debug)</string>
+    <string name="debug_flags_reset">Reset to config</string>
+    <string name="debug_flags_overridden">Overridden, config: %1$s</string>
+</resources>

@@ -1,0 +1,29 @@
+# Поверх дефолтной конфигурации detekt (buildUponDefaultConfig = true).
+naming:
+  FunctionNaming:
+    # @Composable-функции называются с заглавной буквы
+    ignoreAnnotated:
+      - Composable
+  TopLevelPropertyNaming:
+    constantPattern: "[A-Z][A-Za-z0-9_]*"
+
+style:
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreAnnotated:
+      - Preview
+    excludes:
+      - "**/test/**"
+      - "**/androidTest/**"
+      - "**/designsystem/**"
+  UnusedPrivateFunction:
+    ignoreAnnotated:
+      - Preview
+
+complexity:
+  LongParameterList:
+    allowedFunctionParameters: 8
+    ignoreDefaultParameters: true
+    ignoreAnnotated:
+      - Composable

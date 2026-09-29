@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Только debug-сборка: экран feature flags (FR-FLAG-5). Exported — для запуска через adb. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".debug.FeatureFlagsActivity"
+            android:exported="true"
+            android:label="@string/debug_flags_title" />
+    </application>
+</manifest>
