@@ -17,6 +17,10 @@ android {
 dependencies {
     implementation(projects.core.model)
     implementation(projects.core.designsystem)
+    implementation(projects.core.domain)
+    implementation(projects.core.data)
+    implementation(projects.core.alarm)
+    implementation(projects.feature.ringing)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -28,4 +32,7 @@ dependencies {
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.androidx.test.espresso.core)
+    testImplementation(libs.hilt.android.testing)
+    testImplementation(testFixtures(projects.core.domain))
+    kspTest(libs.hilt.compiler)
 }

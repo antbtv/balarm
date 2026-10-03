@@ -3,16 +3,17 @@ package com.antbtv.balarm.core.alarm
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.antbtv.balarm.core.domain.alarm.AlarmEngine
+import androidx.annotation.VisibleForTesting
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.RescheduleReason
+import com.antbtv.balarm.core.domain.di.ApplicationScope
 import dagger.hilt.android.AndroidEntryPoint
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -22,31 +23,41 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class RescheduleReceiver : BroadcastReceiver() {
 
-    @Inject lateinit var engine: AlarmEngine
+    @Inject lateinit var rescheduler: SafeRescheduler
 
     @Inject lateinit var log: AlarmEventLog
 
-    @Suppress("TooGenericExceptionCaught") // любая ошибка: залогировать и отпустить broadcast, не падать на загрузке
+    @Inject @field:ApplicationScope
+    lateinit var scope: CoroutineScope
+
     override fun onReceive(context: Context, intent: Intent) {
         val reason = reasonOf(intent.action) ?: return
         val pending = goAsync()
+        val finished = AtomicBoolean(false)
+        val finish = { if (finished.compareAndSet(false, true)) pending.finish() }
+        // Операции движка не отменяются (NonCancellable), поэтому не withTimeout, а сторож: broadcast
+        // отпускается вовремя (иначе ANR на загрузке), а перепланирование доделывается в общем скоупе.
+        val watchdog = scope.launch {
+            delay(broadcastBudget.toMillis())
+            if (!finished.get()) {
+                runCatching { log.log(AlarmEvent.RescheduleAllFailed(reason, "BroadcastTimeout")) }
+                finish()
+            }
+        }
         scope.launch {
             try {
-                engine.rescheduleAll(reason)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Сбой самого лога не должен уронить процесс на загрузке.
-                runCatching { log.log(AlarmEvent.RescheduleAllFailed(reason, e.javaClass.simpleName)) }
+                rescheduler.reschedule(reason)
             } finally {
-                pending.finish()
+                watchdog.cancel()
+                finish()
             }
         }
     }
 
     internal companion object {
-        // Живёт вместе с процессом; goAsync держит процесс до finish(). Заменится @ApplicationScope в M1-T14.
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        /** Запас до лимита `goAsync` (~10 с для системных broadcast). */
+        @VisibleForTesting
+        var broadcastBudget: Duration = Duration.ofSeconds(8)
 
         fun reasonOf(action: String?): RescheduleReason? = when (action) {
             Intent.ACTION_LOCKED_BOOT_COMPLETED -> RescheduleReason.LOCKED_BOOT

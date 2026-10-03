@@ -13,7 +13,9 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import java.io.IOException
+import java.time.Duration
 import javax.inject.Inject
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -84,6 +86,22 @@ class RescheduleReceiverTest {
         assertThat(recording.events).containsExactly(
             AlarmEvent.RescheduleAllFailed(RescheduleReason.TIMEZONE_CHANGED, "IOException"),
         )
+    }
+
+    @Test
+    fun `hung database - broadcast is released in time, work continues`() {
+        val gate = CompletableDeferred<Unit>()
+        repository.transactionGate = gate
+        RescheduleReceiver.broadcastBudget = Duration.ofMillis(100)
+        try {
+            deliver(Intent(Intent.ACTION_BOOT_COMPLETED)) // вернулся — значит, finish() вызвал сторож
+
+            assertThat(recording.events)
+                .contains(AlarmEvent.RescheduleAllFailed(RescheduleReason.BOOT, "BroadcastTimeout"))
+        } finally {
+            RescheduleReceiver.broadcastBudget = Duration.ofSeconds(8)
+            gate.complete(Unit)
+        }
     }
 
     private fun deliver(intent: Intent) = RescheduleReceiver().deliverAndAwaitFinish(app, intent, TIMEOUT_S)

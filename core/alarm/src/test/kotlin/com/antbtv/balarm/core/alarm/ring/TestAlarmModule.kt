@@ -7,6 +7,7 @@ import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
+import com.antbtv.balarm.core.domain.di.ApplicationScope
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.MutableClock
@@ -19,6 +20,9 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Граф Hilt-тестов `:core:alarm`: вместо [AlarmModule] — настоящий [AlarmEngine] на фейках из
@@ -73,4 +77,7 @@ object TestAlarmModule {
 
     @Provides
     fun uiIntents(): AlarmUiIntents = FakeUiIntents()
+
+    @Provides @Singleton @ApplicationScope
+    fun applicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 }
