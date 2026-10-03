@@ -10,6 +10,9 @@ object BalarmDimens {
     val CardRadius = 20.dp
     val ButtonRadius = 16.dp
     val ButtonHeight = 56.dp
+
+    /** Кнопки экранов звонка и миссий: сонный палец должен попасть с первого раза. */
+    val ButtonHeightLarge = 64.dp
     val Fab = 64.dp
     val ScreenPadding = 20.dp
     val CardGap = 12.dp

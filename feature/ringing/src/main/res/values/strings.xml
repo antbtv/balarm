@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ringing_activity_label">Alarm</string>
+    <string name="ringing_dismiss">Dismiss</string>
+    <string name="ringing_snooze">Snooze</string>
+    <string name="ringing_snooze_left">Snooze (%1$d)</string>
+</resources>

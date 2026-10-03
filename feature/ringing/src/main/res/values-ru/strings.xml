@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ringing_activity_label">Будильник</string>
+    <string name="ringing_dismiss">Отключить</string>
+    <string name="ringing_snooze">Отложить</string>
+    <string name="ringing_snooze_left">Отложить (%1$d)</string>
+</resources>

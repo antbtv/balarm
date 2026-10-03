@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ADR-007 §10: экран звонка. showWhenLocked/turnScreenOn/keepScreenOn и скрытие баров — в RingingActivity.onCreate.
+     directBootAware: звонок после перезагрузки до разблокировки (ADR-001). Открывается только интентом
+     из уведомления сервиса (fullScreenIntent/contentIntent) → exported=false. Своя задача без следа в Recents. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name=".RingingActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/ringing_activity_label"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.ringing"
+            android:theme="@style/Theme.Balarm.Ringing" />
+    </application>
+</manifest>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Только фон окна до первого кадра Compose; = BalarmColors.background тёмной темы (:core:designsystem). -->
+    <color name="ringing_window_background">#FF0E0F14</color>
+</resources>
