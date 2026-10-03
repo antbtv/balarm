@@ -1,7 +1,10 @@
 package com.antbtv.balarm.core.domain.alarm
 
 import com.antbtv.balarm.core.model.Alarm
+import com.antbtv.balarm.core.model.AlarmId
 import java.time.Instant
+import java.time.LocalTime
+import java.time.temporal.ChronoUnit
 
 /** Что делать, когда `AlarmManager` разбудил приложение (ADR-006 §6). */
 sealed interface FireDecision {
@@ -10,7 +13,17 @@ sealed interface FireDecision {
      * [degraded] — хранилище недоступно, звоним с настройками по умолчанию («в сомнении — звони»).
      */
     data class Ring(val alarm: Alarm, val canSnooze: Boolean, val snoozesLeft: Int?, val degraded: Boolean = false) :
-        FireDecision
+        FireDecision {
+        companion object {
+            /** Звонок без данных будильника: время — текущая минута, без «Отложить». */
+            fun degraded(id: AlarmId, now: LocalTime) = Ring(
+                alarm = Alarm(id = id, time = now.truncatedTo(ChronoUnit.MINUTES)),
+                canSnooze = false,
+                snoozesLeft = 0,
+                degraded = true,
+            )
+        }
+    }
 
     data class Skip(val reason: SkipReason) : FireDecision
 }

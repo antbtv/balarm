@@ -131,6 +131,29 @@ class AlarmEngineRobustnessTest {
     }
 
     @Test
+    fun `degraded ring of a one-shot is recorded once the engine is free`() = runTest {
+        val id = engine.save(Alarm(time = LocalTime.of(6, 30)))
+        clock.now = local("2026-09-28T06:30")
+        val gate = CompletableDeferred<Unit>()
+        repository.transactionGate = gate
+        launch { engine.rescheduleAll(RescheduleReason.BOOT) }
+        advanceUntilIdle()
+        val decision = async { engine.onFired(id, clock.now, FireKind.REGULAR) }
+        advanceUntilIdle()
+        assertThat((decision.await() as FireDecision.Ring).degraded).isTrue()
+
+        val record = async { engine.recordDegraded(id, clock.now, FireKind.REGULAR) }
+        repository.transactionGate = null
+        gate.complete(Unit)
+        record.await()
+
+        assertThat(repository.get(id)?.enabled).isFalse() // завтра не зазвонит
+        assertThat(repository.getRuntime(id)?.lastFiredAt).isEqualTo(clock.now)
+        // повторная доставка того же срабатывания (например, CATCH_UP после reboot) — дубликат
+        assertThat(engine.onFired(id, clock.now, FireKind.REGULAR)).isEqualTo(FireDecision.Skip(SkipReason.DUPLICATE))
+    }
+
+    @Test
     fun `pending snooze is pulled back when the clock is set back a day`() = runTest {
         val id = engine.save(daily)
         repository.updateRuntime(AlarmRuntimeState(id, local("2026-09-29T06:35"), TriggerKind.SNOOZE, snoozeCount = 1))

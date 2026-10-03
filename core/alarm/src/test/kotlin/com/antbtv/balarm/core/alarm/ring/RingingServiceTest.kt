@@ -10,9 +10,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.core.alarm.AlarmIntents
 import com.antbtv.balarm.core.alarm.notification.AlarmNotificationChannels
 import com.antbtv.balarm.core.alarm.notification.AlarmNotifications
+import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.DismissReason
 import com.antbtv.balarm.core.domain.alarm.FireKind
+import com.antbtv.balarm.core.domain.alarm.RescheduleReason
 import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
@@ -32,6 +34,9 @@ import java.time.Instant
 import java.time.LocalTime
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -53,6 +58,8 @@ class RingingServiceTest {
     val hilt = HiltAndroidRule(this)
 
     @Inject lateinit var repository: FakeAlarmRepository
+
+    @Inject lateinit var engine: AlarmEngine
 
     @Inject lateinit var scheduler: FakeAlarmScheduler
 
@@ -495,6 +502,26 @@ class RingingServiceTest {
 
         assertThat(shadowOf(notificationManager).activeNotifications.map { it.tag })
             .doesNotContain(AlarmNotifications.missedTag(ALARM.id))
+    }
+
+    @Test
+    fun `degraded ring is recorded once the busy engine frees up`() {
+        val gate = CompletableDeferred<Unit>()
+        repository.transactionGate = gate
+        CoroutineScope(Dispatchers.Main).launch { engine.rescheduleAll(RescheduleReason.DEBUG) } // держит движок
+        idle()
+
+        start(ringIntent(ALARM.id))
+        idle(RingingService.FIRST_SOUND_DEADLINE)
+        assertThat(events).contains(AlarmEvent.FireDegraded(ALARM.id, "EngineBusy"))
+        assertThat(fakeSound.playing).isTrue()
+
+        repository.transactionGate = null
+        gate.complete(Unit)
+        idle()
+
+        assertThat(events.filterIsInstance<AlarmEvent.Fired>().map { it.id }).contains(ALARM.id)
+        assertThat(runBlocking { repository.get(ALARM.id) }?.enabled).isFalse() // разовый не зазвонит завтра
     }
 
     private fun assertStoppedAndReleased() {

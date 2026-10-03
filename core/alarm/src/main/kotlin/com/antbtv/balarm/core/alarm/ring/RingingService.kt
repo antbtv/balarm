@@ -25,14 +25,11 @@ import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.SnoozeResult
-import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalTime
-import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -202,7 +199,7 @@ class RingingService : Service() {
         try {
             val watchdog = if (current == null) scope.launch { startEarly(request.alarmId) } else null
             val decision = try {
-                decide(request)
+                engine.onFired(request.alarmId, request.triggerAt, request.kind) // сам не бросает: деградирует
             } finally {
                 watchdog?.cancel()
             }
@@ -213,28 +210,22 @@ class RingingService : Service() {
                     next()
                 }
 
-                is FireDecision.Ring -> if (current == null) ring(decision) else queue(decision)
+                is FireDecision.Ring -> {
+                    if (current == null) ring(decision) else queue(decision)
+                    // Движок был занят — срабатывание не записано: дописать, когда освободится.
+                    if (decision.degraded) {
+                        scope.launch {
+                            record("record_fire") {
+                                engine.recordDegraded(request.alarmId, request.triggerAt, request.kind)
+                            }
+                        }
+                    }
+                }
             }
         } finally {
             deciding = null
             updateRearmIds()
         }
-    }
-
-    /** Движок сам деградирует при сбоях; перехват здесь — последняя страховка «в сомнении — звони». */
-    @Suppress("TooGenericExceptionCaught")
-    private suspend fun decide(request: ScheduleRequest): FireDecision = try {
-        engine.onFired(request.alarmId, request.triggerAt, request.kind)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        log.log(AlarmEvent.RingingCommandFailed("ring", e.javaClass.simpleName))
-        FireDecision.Ring(
-            alarm = Alarm(id = request.alarmId, time = LocalTime.now(clock).truncatedTo(ChronoUnit.MINUTES)),
-            canSnooze = false,
-            snoozesLeft = 0,
-            degraded = true,
-        )
     }
 
     private suspend fun startEarly(id: AlarmId) {
@@ -255,6 +246,8 @@ class RingingService : Service() {
 
     private fun ring(decision: FireDecision.Ring) {
         current = decision
+        // Каждый звонок очереди — свои 30 мин до автостопа: WakeLock продлевается, а не тянется от первого.
+        sessionLock?.acquire(RingingWakeLocks.SESSION_TIMEOUT.toMillis())
         updateRearmIds()
         startedAt = clock.instant()
         cancelMissed(decision.alarm.id)

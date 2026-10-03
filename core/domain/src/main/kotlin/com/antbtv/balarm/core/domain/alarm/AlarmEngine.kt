@@ -11,7 +11,6 @@ import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
@@ -95,6 +94,15 @@ class AlarmEngine @Inject constructor(
         throw e
     } catch (e: Exception) {
         degraded(id, e.javaClass.simpleName)
+    }
+
+    /**
+     * Дозапись срабатывания, по которому [onFired] вернул degraded-звонок (движок был занят): ждёт движок без
+     * таймаута и делает то, что не успел [onFired], — фиксирует срабатывание, выключает разовый, планирует
+     * следующее. Иначе разовый зазвонил бы снова, а повторяющийся остался бы без следующего срабатывания.
+     */
+    suspend fun recordDegraded(id: AlarmId, scheduledFor: Instant, kind: FireKind) {
+        locked { fire(id, scheduledFor, kind) }
     }
 
     /**
@@ -196,8 +204,7 @@ class AlarmEngine @Inject constructor(
 
     private fun degraded(id: AlarmId, error: String): FireDecision.Ring {
         log.log(AlarmEvent.FireDegraded(id, error))
-        val now = clock.instant().atZone(clock.zone).toLocalTime().truncatedTo(ChronoUnit.MINUTES)
-        return FireDecision.Ring(Alarm(id = id, time = now), canSnooze = false, snoozesLeft = 0, degraded = true)
+        return FireDecision.Ring.degraded(id, clock.instant().atZone(clock.zone).toLocalTime())
     }
 
     private fun ring(alarm: Alarm, snoozeCount: Int): FireDecision.Ring = FireDecision.Ring(
