@@ -44,7 +44,12 @@ class AppWiringTest {
         val all: List<ComponentInfo> =
             info.activities.orEmpty().toList() + info.receivers.orEmpty() + info.services.orEmpty()
         val ours = all.filter { it.name.startsWith("com.antbtv.balarm") }
-        val exportedAllowed = setOf(MainActivity::class.java.name, "com.antbtv.balarm.debug.FeatureFlagsActivity")
+        // Debug-инструменты экспортированы для adb; в release их нет — проверяет check-permissions.sh.
+        val exportedAllowed = setOf(
+            MainActivity::class.java.name,
+            "com.antbtv.balarm.debug.FeatureFlagsActivity",
+            "com.antbtv.balarm.debug.DebugAlarmReceiver",
+        )
 
         ours.filter { it.name !in exportedAllowed }.forEach {
             assertWithMessage(it.name).that(it.exported).isFalse()

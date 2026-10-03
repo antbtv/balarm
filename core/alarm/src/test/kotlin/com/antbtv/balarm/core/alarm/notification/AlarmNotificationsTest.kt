@@ -91,6 +91,10 @@ class AlarmNotificationsTest {
             .that(ReflectionHelpers.getField<Int>(notification, "mFgsDeferBehavior"))
             .isEqualTo(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         assertThat(notification.flags and Notification.FLAG_INSISTENT).isEqualTo(0)
+        // Найдено на эмуляторе (M1-T15): «тихое» уведомление не запускает full-screen intent.
+        val silentFlag = ReflectionHelpers.getStaticField<Int>(Notification::class.java, "FLAG_SILENT")
+        assertWithMessage("ringing notification must not be silent")
+            .that(notification.flags and silentFlag).isEqualTo(0)
     }
 
     @Test

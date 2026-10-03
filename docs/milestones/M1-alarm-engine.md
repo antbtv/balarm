@@ -52,7 +52,7 @@
 | [x] | M1-T12 | Очередь, автостоп 30 мин, crash re-arm 🔔 | FR-RING-6, 7, NFR-5 | M | T11 | |
 | [x] | M1-T13 | 🎨 `:feature:ringing`: минимальный экран звонка (agent: ui-developer) | FR-RING-2 | M | T01, T05 | |
 | [x] | M1-T14 | `:app`: Hilt-связки, запрос `POST_NOTIFICATIONS`, rescheduleAll при запуске, ADR-005 🔔 | FR-REL-2 | S | T06, T12, T13 | |
-| [ ] | M1-T15 | `DebugAlarmReceiver`, обновление скилла `verify-alarm-reliability` | — | S | T14 | |
+| [x] | M1-T15 | `DebugAlarmReceiver`, обновление скилла `verify-alarm-reliability` | — | S | T14 | |
 | [ ] | M1-T-test | Тестирование этапа (tester) + R-матрица | — | L | T15 | |
 | [ ] | M1-T-review | Ревью этапа (reviewer) | — | M | T-test | |
 | [ ] | M1-T-docs | PRD-правки, ADR-004…008 → Accepted | — | S | T-review | |
@@ -150,7 +150,7 @@
 ### M1-T15 — Debug-инструменты
 **Описание:** `DebugAlarmReceiver` (только `src/debug`): `SCHEDULE_IN` (minutes/seconds/label/days), `LIST`, `DISMISS`, `SNOOZE`, `RESCHEDULE_ALL`, `CLEAR_ALL`, `CRASH`. Обновить скилл `verify-alarm-reliability`: `adb install -g`, первый запуск приложения после установки (stopped state), проверка `ro.crypto.type=file` для R3, актуальные имена событий, R19.
 **Критерии приёмки:**
-- [ ] `check-permissions.sh` подтверждает, что `DebugAlarmReceiver` не попал в release
+- [x] `check-permissions.sh` подтверждает, что `DebugAlarmReceiver` не попал в release
 
 ### M1-T-test — Тестирование (agent: tester)
 Unit/Robolectric полностью. R-матрица (эмуляторы строго по одному, headless, `-memory 2048`; образ ставится → тест → удаляется):
@@ -186,6 +186,7 @@ PRD: NFR-5 (+ crash re-arm), FR-REL-5 (WakeLock на всю сессию), §6.4
 - **T06:** `MigrationTestHelper` под Robolectric работает (риск не сработал); маппер толерантен к «битым» строкам (тест).
 - **Ревью T08 (⚠️ Approve with comments → исправлено):** сбой лога в `catch` ресивера не роняет процесс; рефлексия над Robolectric вынесена в `BroadcastTesting.kt` с пометкой версии. **В T14:** проверить, что ни один `@Provides` графа Hilt не трогает CE-storage (`filesDir`, обычный DataStore/SharedPreferences) — `RescheduleReceiver` инжектится на LOCKED_BOOT; подтверждается R3. **В T-docs:** ADR-001 §3 и ADR-006 §7 упоминают ресивер/причину exact-alarm permission changed (`EXACT_ALARM_PERMISSION_GRANTED`) — на minSdk 34 с `USE_EXACT_ALARM` не нужны, убрать.
 - **Ревью T09 (⚠️ Approve with comments → исправлено):** fallback-уведомление снимается через `RingingPolicy.AUTO_STOP_AFTER` (общая с T12 константа в `:core:domain`); `RingingActions` — отдельный файл; локаль времени — из конфигурации контекста; тесты 24h/12h, fallback autoCancel/не ongoing, каналы из DE-контекста. Конфликт план↔ADR-007 §2.1 по кнопке «Отключить»: обе кнопки nullable, в M5 для будильников с миссией dismiss = `null`. **В T11:** у fallback нет кнопки «Отключить» (только смахнуть/нажать/автостоп) — зафиксировать в ADR-007 §6 (T-docs). **В M3:** отозванный `USE_FULL_SCREEN_INTENT` (`canUseFullScreenIntent()`) → heads-up без экрана — статус в `PermissionHealthChecker`. **В T10:** звук fallback-канала — встроенный (критерий приёмки T10).
+- **T15 — первый сквозной прогон на эмуляторе API 37:** будильник через `DebugAlarmReceiver` → `ALARM_FIRED` → `RINGING_STARTED` за 56–71 мс (критерий ≤ 2 с), звук `raw`; «Отключить» и `CRASH` → `CRASH_REARMED` → звонок вернулся через ~5 с; разовый после RESUME выключен. **Найден и исправлен баг T09:** уведомление звонка с `setSilent(true)` получало флаг SILENT, и система не запускала full-screen intent — экран не включался (R1). Регрессионный тест на флаг. **UI-замечание (M2/M5):** при первом показе экрана звонка Android выводит подсказку «Viewing full screen» поверх него из-за скрытых системных панелей — решить, скрывать ли панели на экране звонка. После возврата из падения при включённом разблокированном экране — только heads-up (ожидаемо до overlay в M3). `SCHEDULE_IN` округляет до целой минуты.
 - **T14:** эмулятор API 37 — установка и запуск без крэшей, `RESCHEDULE_ALL reason=APP_LAUNCH`, диалог `POST_NOTIFICATIONS` один раз; `RescheduleReceiver` получил LOCKED_BOOT/BOOT — Hilt-инъекция в ресивер на устройстве подтверждена. `DebugFeatureFlagProvider` уже на DE-storage (опасение ревью T11 снято); граф Hilt без обращений к CE. `fullBackupContent` не нужен (minSdk 34).
 - **Ревью T14 (⚠️ → исправлено):** `SafeRescheduler` — ошибка `rescheduleAll` на запуске/событии логируется, не роняет приложение; сторож `goAsync` (8 с) отпускает broadcast при зависшей БД; `@ApplicationScope` на IO с `CoroutineExceptionHandler`; переход на экран звонка — в `onStart`, решение — чистая функция с тестом. **Известно:** «запрос разрешения один раз» — на каждый холодный запуск без разрешения (после двух отказов система сама перестаёт показывать) — до онбординга M3.
 - **T13 (ui-developer):** до первого `Ringing` экран в фазе WAITING (часы без кнопок), закрывается через 5 с; после `Ringing` → `Idle` — сразу (FSI публикуется раньше решения движка). В дизайн-систему добавлены `PrimaryButton` (пульсация) / `SecondaryButton`, токен `ButtonHeightLarge`. Подпись «Отложить (N)», `queued`/цитата/градиент не выводятся.

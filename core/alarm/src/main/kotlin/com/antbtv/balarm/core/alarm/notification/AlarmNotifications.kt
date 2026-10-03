@@ -42,8 +42,9 @@ class AlarmNotifications @Inject constructor(
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
+            // Не setSilent: «тихое» уведомление система не считает прерывающим и не запускает full-screen
+            // intent — экран звонка не появится. Звука у канала и так нет (играет сервис).
             .setOnlyAlertOnce(true) // обновление метки не должно повторно поднимать heads-up
-            .setSilent(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setFullScreenIntent(screen, true)
             .setContentIntent(screen)
