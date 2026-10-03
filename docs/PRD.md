@@ -78,12 +78,12 @@
 * **AC:** несохранённые изменения при «Назад» → диалог «Отменить изменения?».
 
 ### 3.3 Срабатывание (экран звонка)
-* **FR-RING-1** В назначенное время: включается экран, поверх экрана блокировки и поверх любых приложений показывается полноэкранный экран звонка; звук на потоке `USAGE_ALARM`; вибрация по настройке.
+* **FR-RING-1** В назначенное время: включается экран, поверх экрана блокировки и поверх любых приложений показывается полноэкранный экран звонка; звук на потоке `USAGE_ALARM`; вибрация по настройке. Экран звонка открывается через full-screen intent уведомления: **без `POST_NOTIFICATIONS` (или с отозванным `USE_FULL_SCREEN_INTENT`) звук и вибрация есть, экрана нет** — разрешение запрашивается в онбординге (до M3 — временно при запуске), статус — на экране здоровья. Если экран уже включён и разблокирован, система показывает heads-up вместо полноэкранного экрана (поверх — overlay, FR-RING-5). Открытое во время звонка приложение ведёт на экран звонка.
 * **FR-RING-2** Экран звонка: текущее время (огромное), дата, метка, цитата (если включено), кнопка «Отложить (осталось N)» и большая кнопка «Отключить».
 * **FR-RING-3** «Отключить» при наличии миссии → экран миссии; без миссии → сразу отключение.
 * **FR-RING-4** Кнопки громкости и кнопка питания **не** отключают будильник, если есть миссия (громкость игнорируется; экран остаётся/переоткрывается).
 * **FR-RING-5** Если пользователь свернул экран звонка (Home/Recents) — звук продолжается, через ≤3 с экран возвращается наверх (при наличии overlay-разрешения); ongoing-уведомление всегда присутствует и ведёт на экран звонка.
-* **FR-RING-6** Автостоп: если никто не взаимодействует 30 мин — будильник замолкает, уведомление «Пропущенный будильник». (настройка в глобальных настройках: 5/10/15/30 мин/никогда).
+* **FR-RING-6** Автостоп: если никто не взаимодействует 30 мин — будильник замолкает, уведомление «Пропущенный будильник». (настройка в глобальных настройках: 5/10/15/30 мин/никогда). В M1 — константа 30 мин (`RingingPolicy.AUTO_STOP_AFTER`), отсчёт — отдельно для каждого звонка очереди.
 * **FR-RING-7** Если одновременно срабатывают 2 будильника — второй встаёт в очередь и начинает звонить после завершения первого (не более одного экрана звонка).
 * **FR-RING-8** Если идёт телефонный звонок — будильник вибрирует/тихо звучит и полноценно начинает после окончания вызова.
 * **FR-RING-9** После отключения → экран «Доброе утро» (S; в MVP — просто закрытие с тостом и цитатой). Если у будильника включена озвучка, запускается FR-TTS.
@@ -141,10 +141,10 @@
 ### 3.8 Надёжность (детально)
 * **FR-REL-1** Планирование — только `AlarmManager.setAlarmClock(AlarmClockInfo, PendingIntent)` (не подвержен Doze, показывает иконку будильника в статус-баре). `showIntent` → главный экран.
 * **FR-REL-2** Перезагрузка: ресиверы `LOCKED_BOOT_COMPLETED` (directBootAware) и `BOOT_COMPLETED` перепланируют все активные будильники. Расписание и мелодии лежат в **device-protected storage**, поэтому будильник сработает **даже если телефон перезагрузился ночью и не был разблокирован**.
-* **FR-REL-3** Ресиверы `TIME_SET`, `TIMEZONE_CHANGED`, `MY_PACKAGE_REPLACED`, `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`, `LOCALE_CHANGED` (для текста уведомлений) → перепланирование.
+* **FR-REL-3** Ресиверы `TIME_SET`, `TIMEZONE_CHANGED`, `MY_PACKAGE_REPLACED`, `LOCALE_CHANGED` (для текста уведомлений) → перепланирование; дополнительно — при каждом запуске UI (`APP_LAUNCH`, страховка после force-stop). Ресивер смены exact-alarm разрешения не нужен: minSdk 34, `USE_EXACT_ALARM` выдаётся при установке и не отзывается.
 * **FR-REL-4** Будильник хранит время как «локальное время + дни недели»; момент срабатывания вычисляется через `java.time` в текущей зоне → корректен при переходе на летнее/зимнее время (несуществующее время 02:30 → 03:00; дублированное → первое наступление).
-* **FR-REL-5** Звонок проигрывается в foreground service (тип `systemExempted` — ADR-002), с `WakeLock` на время старта; экран — Activity с `setShowWhenLocked(true)`, `setTurnScreenOn(true)`, запущенная через full-screen intent и дублирующе через `startActivity` при наличии overlay-разрешения.
-* **FR-REL-6** Пропущенный будильник: если при загрузке обнаружен будильник, время которого прошло < 2 ч назад и он не отработал — уведомление «Пропущен будильник 07:00» (S).
+* **FR-REL-5** Звонок проигрывается в foreground service (тип `systemExempted` — ADR-002), стартующем из ресивера срабатывания до любого I/O; `WakeLock`: доставочный (≤ 60 с, ресивер → сервис) и сессионный — на всю сессию звонка (автостоп + 1 мин, продлевается на каждый звонок очереди). Звук — не позже 2 с после срабатывания, даже если хранилище ещё не готово. Экран — Activity с `setShowWhenLocked(true)`, `setTurnScreenOn(true)`, запущенная через full-screen intent и дублирующе через `startActivity` при наличии overlay-разрешения.
+* **FR-REL-6** Пропущенный будильник: если при перепланировании обнаружен несработавший будильник, время которого прошло ≤ 10 мин назад (перезагрузка в момент звонка), — догоняющий звонок через 3 с (`CATCH_UP`, M1). Пропущенный дольше 10 мин разовый выключается, повторяющийся переходит на следующее срабатывание; уведомление «Пропущен будильник 07:00» для них — (S), M7.
 * **FR-REL-8** Звук — `AudioAttributes.USAGE_ALARM`, `CONTENT_TYPE_SONIFICATION`; audio focus `AUDIOFOCUS_GAIN_TRANSIENT`.
 * **FR-REL-9** Наушники: звук идёт через динамик и наушники одновременно (как у системного будильника, поведение USAGE_ALARM) — зафиксировать в тестах.
 
@@ -272,7 +272,7 @@
 | NFR-2 | Холодный старт главного экрана ≤ 800 мс на среднем устройстве |
 | NFR-3 | APK ≤ 15 МБ (мелодии — OGG/Opus) |
 | NFR-4 | Единственное сетевое обращение — Open-Meteo для погоды (FR-TTS); разрешение `INTERNET` добавляется в этапе, где реализуется FR-TTS, и только оно; нет аналитики, трекеров, аккаунтов; все пользовательские данные локальны. Сеть никогда не находится на пути, от которого зависит звонок |
-| NFR-5 | Crash-free ≥ 99.5 %; падение внутри миссии не должно глушить будильник (звук в сервисе, отдельно от UI) |
+| NFR-5 | Crash-free ≥ 99.5 %; падение внутри миссии не должно глушить будильник: звук в сервисе, а при падении процесса посреди звонка звонок возвращается через ~3–5 с (crash re-arm: `setAlarmClock(now + 3 с, RESUME)`, ADR-007 §7). Ограничение платформы: два падения за < 60 с — система останавливает приложение и снимает его alarms (риск R20) |
 | NFR-6 | Покрытие unit-тестами доменного слоя ≥ 80 % (планировщик, генераторы миссий, выбор цитат) |
 | NFR-7 | Локализация RU (основная) + EN; никаких захардкоженных строк |
 | NFR-8 | Работа на OEM-оболочках: Pixel/AOSP, Samsung One UI, Xiaomi HyperOS, как минимум по одному устройству/эмулятору |
@@ -313,7 +313,7 @@ Kotlin 2.x · Jetpack Compose + Material 3 · Navigation Compose или Navigati
 * Кастомные мелодии копируются в device-protected `files/sounds/`.
 * Данные не секретные (время, текст цитат), поэтому device-protected хранение допустимо — фиксируется в ADR-001.
 
-### 6.4 Модель данных (черновик)
+### 6.4 Модель данных (черновик; M1 — реализовано `Alarm` и `AlarmRuntimeState`)
 ```
 Alarm(id, hour, minute, daysOfWeek: Set<DayOfWeek>, date: LocalDate?, label,
       enabled, soundId, volume, fadeInSec, vibrate,
@@ -321,7 +321,8 @@ Alarm(id, hour, minute, daysOfWeek: Set<DayOfWeek>, date: LocalDate?, label,
       showQuote, quoteSource, wakeUpCheckMin, skipNextUntil: Instant?,
       morningBriefing: Boolean)
 WeatherSnapshot(fetchedAt: Instant, tempNow, weatherCode, windSpeed, tempMax, tempMin, precipProbability)
-AlarmRuntimeState(alarmId, nextTriggerAt, snoozeCount, isRinging, lastFiredAt)
+AlarmRuntimeState(alarmId, nextTriggerAt: Instant?, nextTriggerKind: REGULAR|SNOOZE|CATCH_UP,
+                  snoozeCount, lastFiredAt: Instant?)   // M1; флаг «звонит» — кандидат для R20
 Sound(id, title, type: BUILTIN|CUSTOM|SYSTEM, uri/path, durationMs)
 Quote(id, text, author, category, lang, isBuiltin, isHidden, isFavorite, lastShownAt)
 MissionConfig = sealed: Math(level,count) | Memory(grid,rounds) | Typing(count,strict) | Shake(count,sens)
@@ -330,8 +331,11 @@ MissionConfig = sealed: Math(level,count) | Memory(grid,rounds) | Typing(count,s
 ### 6.5 Поток срабатывания
 ```
 setAlarmClock ─► AlarmReceiver (directBootAware)
+   ├─ доставочный WakeLock (60 с); отказ FGS → fallback-уведомление, звонит система
    └─► startForegroundService(RingingService)   // FGS-исключение для exact alarm
-         ├─ WakeLock, AudioPlayer(fade-in), Vibrator
+         ├─ startForeground (до I/O), сессионный WakeLock, crash re-arm
+         ├─ AlarmEngine.onFired → Ring | Skip (≤ 2 с; иначе звук досрочно, запись — позже)
+         ├─ AudioPlayer(fade-in), Vibrator; очередь, автостоп
          ├─ Notification(fullScreenIntent → RingingActivity, CATEGORY_ALARM)
          └─ if canDrawOverlays → startActivity(RingingActivity)
          └─ (изолированно) WeatherRepository.prefetch(timeout 10 s) → кеш
@@ -357,7 +361,7 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 | M0 | Фундамент | Android-проект, модули, version catalog, convention plugins, Hilt, Compose, тема/токены, feature flags (FR-FLAG), detekt/ktlint, CI (GitHub Actions: build+test+lint), `.mcp.json` проверен | `./gradlew build` зелёный, пустое приложение с тёмной темой запускается на эмуляторе |
 | M1 | Движок будильника | Модель, Room (device-protected), `NextTriggerCalculator`, `AlarmScheduler`, ресиверы (boot/locked boot/time/tz/update), `RingingService`, минимальный `RingingActivity` | Будильник звенит в Doze, после `adb reboot` до разблокировки, после смены TZ |
 | M2 | UI списка и редактора | Главный экран, карточки, редактор, колесо времени, дни, snooze-настройки, «через X ч Y мин» | E2E: создать → включить → звонит |
-| M3 | Онбординг и здоровье | Онбординг 7 шагов, `PermissionHealthChecker`, баннер, OEM-интенты, экран здоровья, тестовый будильник | Все статусы корректны на API 26/31/34/36 |
+| M3 | Онбординг и здоровье | Онбординг 7 шагов, `PermissionHealthChecker`, баннер, OEM-интенты, экран здоровья, тестовый будильник | Все статусы корректны на API 34/37 |
 | M4 | Звуки | Встроенные мелодии, SAF-импорт с копированием, библиотека, громкость, fade-in, вибрация, резервный звук | Кастомная мелодия играет после перезагрузки до разблокировки |
 | M5 | Миссии | Контракт миссий, хост, таймер бездействия, Math, Memory, Typing, превью | Нельзя отключить без миссии; бездействие → громко |
 | M6 | Цитаты и утренняя озвучка | Цитаты: asset-пакет, сидинг, экран цитат, CRUD, выбор без повторов, показ на звонке. Озвучка: `:core:weather` (конфиг, Open-Meteo, кеш), `MorningBriefingComposer`, `TtsSpeaker`, настройки озвучки, `INTERNET` в манифесте | FR-QOT-1…5, FR-TTS-1…8 |
@@ -396,7 +400,8 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 | R16 | Бездействие в миссии | не трогать 20 с | громкость 100 %, сброс |
 | R17 | Back / Home / Recents во время миссии | | нельзя уйти, экран возвращается |
 | R18 | Энергосбережение OEM (Xiaomi/Samsung) | реальное устройство, ночь | звонок |
-| R19 | Android 17 background audio hardening | API 37: `adb shell cmd audio set-enable-hardening throw`; звонок из фона | звук есть, исключений нет; `dumpsys audio \| grep AudioHardening` без нарушений |
+| R19 | Android 17 background audio hardening | API 37: `adb shell cmd audio set-enable-hardening throw`; звонок из фона | звук есть, исключений нет; `dumpsys audio \| grep AudioHardening` без нарушений. **M1 — условно:** звук не заглушён, но есть записи «would be muted … USAGE_ALARM … exemption: 4» (FGS стартует из фона без while-in-use, спасает исключение exact alarm + `USAGE_ALARM`); режима `throw` в образе эмулятора нет — перепроверить до релиза |
+| R20 | Падение процесса посреди звонка | debug `CRASH` (один раз); дважды за < 60 с | один раз — звонок вернулся через ~3–5 с. **Известный риск:** crash-loop → система снимает alarms до запуска приложения; `rescheduleAll` в окне ~3 с после падения затирает RESUME обычным срабатыванием (лечится флагом «звонит» в runtime) |
 | R20 | Погода недоступна | режим полёта / `adb shell svc wifi disable; svc data disable`; подменный API с таймаутом | звонок и миссия штатно; озвучен день (+ кеш ≤ 3 ч или «прогноз недоступен») |
 | R21 | Озвучка в беззвучном режиме и при звонке | беззвучный режим; `adb emu gsm call` во время озвучки | озвучка слышна; при звонке прерывается |
 
@@ -421,9 +426,9 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 ---
 
 ## 11. Открытые вопросы
-1. Имя пакета (`applicationId`) — предлагается `com.antbtv.balarm`.
+1. ~~Имя пакета (`applicationId`)~~ — решено: `com.antbtv.balarm` (M0).
 2. Публикация в Google Play или только личное использование (влияет на restricted-разрешения и M8).
-3. Источник встроенных мелодий (сгенерировать / freesound CC0).
+3. Источник встроенных мелодий (сгенерировать / freesound CC0). M1: `alarm_default.wav` — собственный синтез, CC0 (`docs/LICENSES.md`).
 4. Нужна ли статистика (F-STA-01) раньше v1.x.
 
 ## 12. Глоссарий

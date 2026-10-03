@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Статус | In progress |
+| Статус | Done |
 | Утверждён | 2026-09-29 (с поправкой: Android 14+, minSdk 34) |
-| Завершён | — |
+| Завершён | 2026-10-03 |
 | Требования | FR-RING-1…3, 6, 7 (минимально), FR-REL-1…5, 8; FR-EDIT-7 (snooze — движок); NFR-5, NFR-6, NFR-9 |
 | Definition of Done | Будильник звенит в Doze, после `adb reboot` до разблокировки (Direct Boot), после смены TZ; минимальный экран звонка с «Отключить»/«Отложить»; Kover `:core:domain` ≥ 80 %; сценарии R1–R9, R11, R13, R19 пройдены на API 37 и выборочно на API 34 |
 
@@ -55,7 +55,7 @@
 | [x] | M1-T15 | `DebugAlarmReceiver`, обновление скилла `verify-alarm-reliability` | — | S | T14 | |
 | [x] | M1-T-test | Тестирование этапа (tester) + R-матрица | — | L | T15 | |
 | [x] | M1-T-review | Ревью этапа (reviewer) | — | M | T-test | |
-| [ ] | M1-T-docs | PRD-правки, ADR-004…008 → Accepted | — | S | T-review | |
+| [x] | M1-T-docs | PRD-правки, ADR-004…008 → Accepted | — | S | T-review | |
 
 ### M1-T01 — build-logic
 **Описание:** `balarm.android.room` (KSP, `room { schemaDirectory }`, runtime/compiler/testing, `schemas/` в assets тестов); `balarm.kover` (Kover 0.9.9, `koverVerify` строк ≥ 80 %, в `check`); `balarm.android.feature` (library + compose + hilt + lifecycle-viewmodel-compose + hilt-navigation/viewmodel + `:core:designsystem`). Каталог: room 2.8.5, `androidx.sqlite:sqlite-framework`, kover, `javax.inject`.
@@ -207,6 +207,26 @@ PRD: NFR-5 (+ crash re-arm), FR-REL-5 (WakeLock на всю сессию), §6.4
 - **T08:** ~~разрешения объявлены в манифесте `:app`~~ → в T10 перенесены в `:core:alarm` (lint `MissingPermission` проверяет манифест модуля; аудит — allowlist по merged-манифесту `:app` после T14); скоуп корутин ресивера — приватный до `@ApplicationScope` (T14).
 - **Metaspace:** после серии сборок демон упал с `OutOfMemoryError: Metaspace` на KSP (лимит 768 МБ из `gradle.properties`). На свежем демоне сборка проходит — перед полной сборкой после длинной серии делать `./gradlew --stop`. Поднимать лимит — только с согласия пользователя.
 
+## Итог DoD
+* ✅ Звенит в Doze (R2), после `adb reboot` до разблокировки (R3, Direct Boot), после смены TZ (R5) — API 37 и 34.
+* ✅ Минимальный экран звонка с «Отключить»/«Отложить» (T13), Kover `:core:domain` 85,5 % (≥ 80 %).
+* ✅ R1–R6, R8, R9, R11, R13, CRASH на API 37; R1, R2, R3, R5, R11 + без `POST_NOTIFICATIONS` и с отозванным FSI на API 34.
+* ⚠️ **R19 — условно:** звук не заглушён, но AudioHardening пишет «would be muted» (спасает исключение exact alarm + `USAGE_ALARM`); режима `throw` в образе нет — перепроверить до релиза (ADR-008).
+* Открытые риски: **R20** (crash-loop снимает alarms; `rescheduleAll` затирает RESUME в окне ~3 с) — флаг «звонит» в runtime.
+
 ## Уроки
+* **Сквозной прогон на устройстве нужен рано.** Все unit/Robolectric-тесты были зелёными, а экран звонка не включался: `setSilent(true)` делал уведомление «тихим», и система не запускала FSI. Нашёлся только первым звонком на эмуляторе (T15). В следующих этапах — smoke на эмуляторе в задаче, а не только в T-test.
+* **mockk и value class** (`AlarmId`) несовместимы для матчеров (случайные значения нарушают `require`) — настоящий движок на фейках из `testFixtures` надёжнее и ближе к реальности.
+* **`NonCancellable` в движке маскирует ошибки отмены** в вызывающем коде (самоотмена таймера автостопа T12 не ломала тесты) — ревью ловит то, что не ловят тесты.
+* **Пересказ документации проверять по первоисточнику** (R19: «только `SCHEDULE_EXACT_ALARM`» оказалось выдумкой пересказа).
+* Поштучные ревью окупились: 3 раза ❌ Request changes (T04–T05, T11, T12) — каждый раз реальные риски потери звонка.
+* Debug-ключ подписи зависит от `ANDROID_USER_HOME` — переменные окружения до сборки (скилл).
+
 
 ## Перенесено в следующий этап
+* **M2:** общий форматтер времени (3 копии), `AlarmRuntimeState.hasFiredFor`, лимит метки в code points; решить про скрытие системных панелей на экране звонка (подсказка «Viewing full screen»).
+* **M3:** `PermissionHealthChecker` — FSI (`canUseFullScreenIntent`), уведомления, DND Total Silence, громкость будильника 0; онбординг вместо временного запроса `POST_NOTIFICATIONS`; R20 — флаг «звонит» в runtime (миграция схемы v2); OEM-убийство при смахивании из Recents.
+* **M4:** громкость (FR-SND-7), потеря audio focus (FR-RING-8), перепроверка R19 с `throw`.
+* **M5:** Home/overlay и переоткрытие экрана (FR-RING-4), начальный фокус/клавиши (Enter → «Отложить»), `dismiss = null` для миссий, `RingingSession` из `RingingService`.
+* **M7:** уведомление «Пропущен» (FR-REL-6), приватность метки на экране блокировки, пульсация с учётом «убрать анимации».
+* **M8:** R8-правила (`CrashGuard`, Hilt), бэкап (ADR-005 п. 3), R18 на реальных OEM-устройствах.

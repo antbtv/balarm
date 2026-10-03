@@ -95,3 +95,9 @@ Accepted (2026-09-28, утверждено вместе с планом M0). П�
 
 ## Related
 NFR-1, NFR-4, NFR-6, NFR-7, PRD §6.1, §6.2, §8 (M0), §11.1; ADR-001, ADR-002.
+
+## Поправка M1 (2026-10-03)
+* Convention-плагины `balarm.android.room`, `balarm.kover` (только `:core:domain`, порог 80 %) и `balarm.android.feature` добавлены в M1 (первый feature-модуль — `:feature:ringing`).
+* `:core:domain` подключает плагин `java-test-fixtures`: фейки движка (`FakeAlarmRepository`, `FakeAlarmScheduler`, `MutableClock`, `RecordingEventLog`) общие для тестов `:core:domain`, `:core:alarm` и `:app`. mockk не используется для API с value class `AlarmId` (случайный отрицательный id нарушает `require`).
+* Hilt-тесты модулей — через `@TestInstallIn` (`TestAlarmModule`, `TestAppModule`), не `@BindValue` в каждом тесте: граф собирается целиком для всех entry point'ов модуля.
+* Квалификатор `@ApplicationScope` — в `:core:domain`, реализация (IO + `CoroutineExceptionHandler`) — в `:app`.

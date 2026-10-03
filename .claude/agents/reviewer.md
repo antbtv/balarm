@@ -16,7 +16,7 @@ model: sonnet
 ## Чек-лист (по убыванию важности)
 
 ### 1. Надёжность будильника — блокирующее
-- [ ] Планирование только через `setAlarmClock`; `PendingIntent` с `FLAG_IMMUTABLE` и уникальным requestCode на alarmId.
+- [ ] Планирование только через `setAlarmClock`; `PendingIntent` с `FLAG_IMMUTABLE` и уникальной идентичностью на будильник (data URI `balarm://alarm/<id>`, не `requestCode`).
 - [ ] Любое изменение будильника (создание/правка/тумблер/удаление/snooze/skip) перепланирует или отменяет alarm.
 - [ ] Компоненты цепочки звонка `directBootAware`; данные читаются из device-protected storage; нигде в цепочке нет доступа к credential-encrypted storage (обычный `context.filesDir`, `getSharedPreferences` на обычном контексте).
 - [ ] Ресиверы: boot, locked boot, time/tz change, package replaced зарегистрированы и вызывают перепланирование.
