@@ -72,8 +72,8 @@ adb logcat -s Balarm:I AndroidRuntime:E          # события, см. ниж�
 | ID | Команды | Ожидание |
 |---|---|---|
 | R1 | `dbg SCHEDULE_IN --ei minutes 2`; `adb shell input keyevent KEYCODE_SLEEP` | экран включился, `RingingActivity`, `RINGING_STARTED` |
-| R2 | schedule +3; экран off; `adb shell dumpsys deviceidle force-idle`; `adb shell dumpsys deviceidle get deep` = IDLE | звонок ±5 с; после — `adb shell dumpsys deviceidle unforce` |
-| R3 | `adb shell getprop ro.crypto.type` = `file` (иначе Direct Boot не проверяем — ⏭); PIN `adb shell locksettings set-pin 1111`; schedule +4; `adb reboot`; `adb wait-for-device`; **не** разблокировать | `RESCHEDULE_ALL reason=LOCKED_BOOT`, звонок до разблокировки |
+| R2 | schedule +3; экран off; `adb shell dumpsys battery unplug`; разрешить deep idle при близком alarm clock: API 37 `adb shell settings put global device_idle_constants min_time_to_alarm=1000`, API 34 `adb shell device_config put device_idle min_time_to_alarm 1000`; `adb shell cmd deviceidle force-idle deep`; `adb shell dumpsys deviceidle get deep` = IDLE (без этого застревает на INACTIVE «Unable to go deep idle») | звонок ±5 с; после — `deviceidle unforce`, `settings delete global device_idle_constants` / `device_config delete device_idle min_time_to_alarm`, `dumpsys battery reset` |
+| R3 | `adb shell getprop ro.crypto.type` = `file` (иначе Direct Boot не проверяем — ⏭); PIN `adb shell locksettings set-pin 1111`; schedule +4; `adb reboot`; `adb wait-for-device`; **не** разблокировать (до разблокировки `/sdcard` недоступен — `uiautomator dump /data/local/tmp/ui.xml`) | `RESCHEDULE_ALL reason=LOCKED_BOOT`, звонок до разблокировки |
 | R4 | как R3 + разблокировка `adb shell input text 1111 && adb shell input keyevent 66` | звонок; `BOOT` не создаёт дубликатов (`dbg LIST`) |
 | R5 | schedule +3; `adb shell cmd alarm set-timezone Asia/Tokyo`; затем обратно | `RESCHEDULE_ALL reason=TIMEZONE_CHANGED`, `dumpsys alarm` — пересчитано |
 | R6 | `adb shell cmd alarm set-time <ms>` вперёд/назад | `TIME_SET`, корректный пересчёт; назад — без второго звонка |
@@ -81,15 +81,15 @@ adb logcat -s Balarm:I AndroidRuntime:E          # события, см. ниж�
 | R8 | schedule +2; `adb shell am kill $PKG` (НЕ force-stop: он легально снимает alarms) | звонок |
 | R9 | schedule +3; `adb install -r app/build/outputs/apk/debug/app-debug.apk` | `PACKAGE_REPLACED`, alarm в dumpsys на месте |
 | R10 | schedule +2; `adb shell am start -a android.settings.SETTINGS` | `RingingActivity` поверх (или heads-up при разблокированном экране — overlay с M3) |
-| R11 | `adb shell cmd notification set_dnd on`; беззвучный режим | `SOUND_STARTED source=raw` (громкость потока ALARM ≠ 0) |
+| R11 | `adb shell cmd notification set_dnd priority` (будильники разрешены; `on` = Total Silence глушит и будильники — ограничение платформы, предупреждение — M3); беззвучный режим | `SOUND_STARTED source=raw` (громкость потока ALARM ≠ 0) |
 | R12 | `adb shell appops set $PKG USE_FULL_SCREEN_INTENT deny` | heads-up вместо экрана, звук есть (баннер — M3) |
 | R13 | два `SCHEDULE_IN` на одну минуту | один экран, `RINGING_QUEUED`, второй звонит после «Отключить» |
 | R14 | `adb emu gsm call 5551234` во время звонка | M4 (FR-RING-8) |
 | R15 | битый файл мелодии | M4 |
 | R16–R17 | миссии | M5 |
 | R18 | OEM — ручной, реальное устройство | |
-| R19 | API 37: `adb shell cmd audio set-enable-hardening throw` (команда по PRD; на эмуляторе ещё не проверялась — если её нет, смотреть только `dumpsys audio`); звонок с выключенным экраном | звук есть, исключений нет; `adb shell dumpsys audio \| grep -i AudioHardening` без нарушений |
-| CRASH | schedule +2; во время звонка `dbg CRASH` | `CRASH_REARMED`, процесс умер (`pidof` сменился), через ~3–5 с снова `RINGING_STARTED` (у RESUME нет `ALARM_FIRED`); после «Отключить» `dbg LIST` — у повторяющегося обычное следующее срабатывание (`kind=REGULAR`), разовый `enabled=false`. Если экран уже был включён и разблокирован — после возврата только heads-up (overlay — M3) |
+| R19 | API 37: `adb shell cmd audio set-enable-hardening throw` (в образе balarm_api37 команды нет — молча rc=0, `mHardeningOverride=0`); звонок с выключенным экраном | звук есть, исключений нет; `adb shell dumpsys audio \| grep -i AudioHardening`: строки `would be muted … usage: USAGE_ALARM … exemption: 4` при `mutedState:none` — известный риск M1 (исключение exact alarm + USAGE_ALARM), не провал; провал — `mutedState` ≠ none или исключение |
+| CRASH | schedule +2; во время звонка `dbg CRASH` (один раз: два падения за < 60 с — система останавливает процесс и снимает alarms, ADR-007 §7) | `CRASH_REARMED`, процесс умер (`pidof` сменился), через ~3–5 с снова `RINGING_STARTED` (у RESUME нет `ALARM_FIRED`); после «Отключить» `dbg LIST` — у повторяющегося обычное следующее срабатывание (`kind=REGULAR`), разовый `enabled=false`. Если экран уже был включён и разблокирован — после возврата только heads-up (overlay — M3) |
 | AUTO | (долго) звонок без реакции 30 мин | `RINGING_STOPPED reason=auto_stop`, `DISMISSED reason=AUTO_STOP`, уведомление «Пропущенный будильник» |
 
 ## 2. После сценариев
