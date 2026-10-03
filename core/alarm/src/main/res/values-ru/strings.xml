@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_channel_ringing_name">Звонок будильника</string>
+    <string name="alarm_channel_ringing_description">Показывает экран звонка. Звук воспроизводит само приложение.</string>
+    <string name="alarm_channel_fallback_name">Резервный будильник</string>
+    <string name="alarm_channel_fallback_description">Звонит через систему, если приложению не удалось запустить будильник.</string>
+    <string name="alarm_channel_missed_name">Пропущенные будильники</string>
+    <string name="alarm_channel_missed_description">Будильники, которые замолчали без вашего ответа.</string>
+
+    <string name="alarm_notification_title">Будильник</string>
+    <string name="alarm_notification_ringing">Звонит</string>
+    <string name="alarm_notification_dismiss">Отключить</string>
+    <string name="alarm_notification_snooze">Отложить</string>
+    <string name="alarm_notification_fallback_text">Нажмите, чтобы открыть Balarm</string>
+</resources>

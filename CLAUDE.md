@@ -14,7 +14,7 @@
 5. Коммиты — только по просьбе пользователя, формат `M<N>-T<NN>: описание`.
 
 ## Стек и соглашения
-Kotlin · Jetpack Compose + Material 3 · Hilt · Room · DataStore · Coroutines/Flow · kotlinx.serialization · java.time. minSdk 26, compileSdk/targetSdk 37, сборка на JDK 21 (`.sdkmanrc`). Многомодульность по PRD §6.2, version catalog `gradle/libs.versions.toml`.
+Kotlin · Jetpack Compose + Material 3 · Hilt · Room · DataStore · Coroutines/Flow · kotlinx.serialization · java.time. minSdk 34 (Android 14+), compileSdk/targetSdk 37, сборка на JDK 21 (`.sdkmanrc`). Многомодульность по PRD §6.2, version catalog `gradle/libs.versions.toml`.
 * UI: UDF/MVVM, immutable `UiState`, токены только из `:core:designsystem`, строки RU+EN.
 * `:core:model` и `:core:domain` — без Android-зависимостей.
 * Время — через инжектируемый `java.time.Clock`.

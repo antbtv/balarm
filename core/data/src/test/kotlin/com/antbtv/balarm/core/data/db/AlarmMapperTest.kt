@@ -1,0 +1,70 @@
+package com.antbtv.balarm.core.data.db
+
+import com.antbtv.balarm.core.model.Alarm
+import com.antbtv.balarm.core.model.SnoozeSettings
+import com.antbtv.balarm.core.model.TriggerKind
+import com.google.common.truth.Truth.assertThat
+import java.time.DayOfWeek
+import java.time.Duration
+import java.time.LocalTime
+import org.junit.Test
+
+class AlarmMapperTest {
+
+    @Test
+    fun `day mask uses ISO order Monday first`() {
+        assertThat(AlarmMapper.maskFromDays(setOf(DayOfWeek.MONDAY))).isEqualTo(0b0000001)
+        assertThat(AlarmMapper.maskFromDays(setOf(DayOfWeek.SUNDAY))).isEqualTo(0b1000000)
+        assertThat(AlarmMapper.daysFromMask(0b1111111)).isEqualTo(DayOfWeek.entries.toSet())
+        assertThat(AlarmMapper.daysFromMask(0)).isEmpty()
+    }
+
+    @Test
+    fun `snooze settings map to sentinel columns and back`() {
+        val unlimited = Alarm(time = LocalTime.NOON, snooze = SnoozeSettings(Duration.ofMinutes(10), null))
+        val disabled = Alarm(time = LocalTime.NOON, snooze = SnoozeSettings.DISABLED)
+
+        assertThat(AlarmMapper.toEntity(unlimited).snoozeLimit).isEqualTo(-1)
+        assertThat(AlarmMapper.toEntity(disabled).snoozeIntervalMin).isEqualTo(0)
+        assertThat(AlarmMapper.toDomain(AlarmMapper.toEntity(unlimited)).snooze).isEqualTo(unlimited.snooze)
+        assertThat(AlarmMapper.toDomain(AlarmMapper.toEntity(disabled)).snooze).isEqualTo(SnoozeSettings.DISABLED)
+    }
+
+    @Test
+    fun `out of range values are coerced instead of throwing`() {
+        val alarm = AlarmMapper.toDomain(
+            AlarmEntity(
+                id = 3,
+                hour = 99,
+                minute = -5,
+                repeatDays = 0xFF,
+                label = "x".repeat(500),
+                enabled = true,
+                vibrate = false,
+                snoozeIntervalMin = 999,
+                snoozeLimit = 50,
+            ),
+        )
+
+        assertThat(alarm.time).isEqualTo(LocalTime.of(23, 0))
+        assertThat(alarm.repeatDays).isEqualTo(DayOfWeek.entries.toSet())
+        assertThat(alarm.label).hasLength(Alarm.MAX_LABEL_LENGTH)
+        assertThat(alarm.snooze).isEqualTo(SnoozeSettings(SnoozeSettings.MAX_INTERVAL, SnoozeSettings.MAX_COUNT))
+    }
+
+    @Test
+    fun `unknown trigger kind and negative counter are tolerated`() {
+        val runtime = AlarmMapper.toDomain(
+            AlarmRuntimeEntity(
+                alarmId = 1,
+                nextTriggerAt = 10,
+                nextTriggerKind = "BOGUS",
+                snoozeCount = -3,
+                lastFiredAt = null,
+            ),
+        )
+
+        assertThat(runtime.nextTriggerKind).isEqualTo(TriggerKind.REGULAR)
+        assertThat(runtime.snoozeCount).isEqualTo(0)
+    }
+}

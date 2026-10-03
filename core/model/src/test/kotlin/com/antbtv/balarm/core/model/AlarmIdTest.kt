@@ -7,13 +7,18 @@ import org.junit.Test
 class AlarmIdTest {
 
     @Test
-    fun `when value is positive then id is created`() {
-        assertThat(AlarmId(42).value).isEqualTo(42)
+    fun `when value is positive then id is saved`() {
+        assertThat(AlarmId(42).isSaved).isTrue()
     }
 
     @Test
-    fun `when value is zero or negative then creation fails`() {
-        assertThrows(IllegalArgumentException::class.java) { AlarmId(0) }
+    fun `unsaved id is zero and not saved`() {
+        assertThat(AlarmId.UNSAVED.value).isEqualTo(0)
+        assertThat(AlarmId.UNSAVED.isSaved).isFalse()
+    }
+
+    @Test
+    fun `when value is negative then creation fails`() {
         assertThrows(IllegalArgumentException::class.java) { AlarmId(-1) }
     }
 }

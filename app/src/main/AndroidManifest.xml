@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Разрешения добавляются только по PRD §7 и через config/permissions-allowlist.txt -->
+<!-- Разрешения добавляются только по PRD §7 и через config/permissions-allowlist.txt;
+     объявляются в модуле, который ими пользуется (цепочка звонка — :core:alarm). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application

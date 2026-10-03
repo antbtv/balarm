@@ -1,7 +1,7 @@
 # MCP-серверы для разработки Balarm
 
 ## Предусловия
-* ✅ Android SDK в `~/Android/Sdk` (cmdline-tools, platform-tools, platforms 36/37, emulator). В `.mcp.json` для mobile-mcp прописаны `ANDROID_HOME` и `PATH` к `platform-tools` — без этого сервер не видит `adb`. Плюс `MOBILEMCP_LEGACY_ROBOT=1`: встроенный в 1.0.5 `mobilecli` 1.0.13 не видит локальный эмулятор (возвращает пустой список), legacy-режим работает напрямую через `adb`.
+* ✅ Android SDK в `~/.local/share/android/sdk` (`ANDROID_HOME`; данные эмулятора и debug-ключ — в `~/.local/share/android/user`, `ANDROID_USER_HOME`; переменные в `~/.profile`) (cmdline-tools, platform-tools, platforms 36/37, emulator). В `.mcp.json` для mobile-mcp прописаны `ANDROID_HOME` и `PATH` к `platform-tools` — без этого сервер не видит `adb`. Плюс `MOBILEMCP_LEGACY_ROBOT=1`: встроенный в 1.0.5 `mobilecli` 1.0.13 не видит локальный эмулятор (возвращает пустой список), legacy-режим работает напрямую через `adb`.
 * ✅ AVD `balarm_api37` (API 37, google_apis x86_64). Остальные образы из PRD §9.3 (26, 29, 31, 33, 34, 36) — ставить по мере надобности (M1), каждый ≈ 1.5 ГБ.
 * ✅ JDK 21 (sdkman, `.sdkmanrc`).
 * Запуск эмулятора — только headless с лимитом памяти (см. CLAUDE.md «Ресурсы машины»).

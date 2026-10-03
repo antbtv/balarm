@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Цепочка звонка: компоненты directBootAware (ADR-001 §3), не экспортируются.
+     Разрешения — PRD §7, каждое в config/permissions-allowlist.txt. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Точное срабатывание: выдаётся при установке, minSdk 34 → SCHEDULE_EXACT_ALARM не нужен (FR-REL-1, ADR-006) -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Экран звонка поверх блокировки (FR-RING-1, FR-RING-2) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Перепланирование после перезагрузки, в т.ч. до разблокировки (FR-REL-2) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Процессор не засыпает, пока идёт звонок (FR-REL-5) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Вибрация звонка (FR-RING-1, FR-EDIT-5) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Звонок в foreground service типа systemExempted (FR-RING-1, ADR-002, ADR-007) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+    <!-- Уведомление звонка и его full-screen intent (FR-RING-1, ADR-007) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <receiver
+            android:name=".AlarmReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <!--
+            FR-REL-2, FR-REL-3, ADR-006 §7. Системные широковещательные сообщения доставляются и в
+            незаэкспортированный ресивер; все шесть действий — в списке исключений неявных broadcast.
+        -->
+        <receiver
+            android:name=".RescheduleReceiver"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ADR-007 §2: звук — в FGS; systemExempted разрешён приложениям-будильникам с USE_EXACT_ALARM. -->
+        <service
+            android:name=".ring.RingingService"
+            android:directBootAware="true"
+            android:exported="false"
+            android:foregroundServiceType="systemExempted" />
+    </application>
+</manifest>

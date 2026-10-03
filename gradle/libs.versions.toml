@@ -1,7 +1,7 @@
 # Единый источник версий. Обоснование и правила обновления — docs/adr/ADR-003.
 [versions]
 # SDK
-minSdk = "26"
+minSdk = "34" # Android 14+ — решение пользователя 2026-09-29, ADR-003
 compileSdk = "37"
 targetSdk = "37"
 jvmTarget = "17"
@@ -13,12 +13,16 @@ ksp = "2.3.12"
 detekt = "2.0.0-alpha.6"
 ktlintGradle = "14.2.0"
 ktlint = "1.8.0"
+kover = "0.9.9"
+javaxInject = "1"
 
 # AndroidX
 androidxCore = "1.19.1"
 androidxActivity = "1.13.0"
 androidxLifecycle = "2.11.0"
 androidxDatastore = "1.2.0"
+room = "2.8.5"
+androidxSqlite = "2.7.1"
 composeBom = "2026.09.00"
 hilt = "2.60.1"
 androidxHilt = "1.4.0"
@@ -41,6 +45,10 @@ androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
+androidx-sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version.ref = "androidxSqlite" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidxDatastore" }
 
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -55,8 +63,10 @@ androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
+hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hilt" }
 androidx-hilt-lifecycle-viewmodel-compose = { module = "androidx.hilt:hilt-lifecycle-viewmodel-compose", version.ref = "androidxHilt" }
 
+javax-inject = { module = "javax.inject:javax.inject", version.ref = "javaxInject" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
@@ -77,6 +87,8 @@ compose-compiler-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compil
 ksp-gradle-plugin = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 hilt-gradle-plugin = { module = "com.google.dagger:hilt-android-gradle-plugin", version.ref = "hilt" }
 detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+room-gradle-plugin = { module = "androidx.room:room-gradle-plugin", version.ref = "room" }
+kover-gradle-plugin = { module = "org.jetbrains.kotlinx:kover-gradle-plugin", version.ref = "kover" }
 ktlint-gradle-plugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", version.ref = "ktlintGradle" }
 
 [plugins]
@@ -89,3 +101,5 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+room = { id = "androidx.room", version.ref = "room" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

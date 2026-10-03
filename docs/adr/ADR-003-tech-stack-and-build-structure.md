@@ -3,6 +3,9 @@
 ## Status
 Accepted (2026-09-28, утверждено вместе с планом M0). Предложено 2026-09-28. Версии проверены по developer.android.com, Maven Central, Google Maven и Gradle Plugin Portal на 2026-09-28.
 
+## Поправка 2026-09-29: minSdk 34
+Владелец продукта ограничил поддержку **Android 14+**: `minSdk = 34` (было 26). Следствия: нет веток кода для API 26–33 (`SCHEDULE_EXACT_ALARM`, `startForeground` без типа, `VibratorManager`-фолбэки и т. п.); `POST_NOTIFICATIONS`, `canUseFullScreenIntent()`, типизированные FGS есть всегда; матрица эмуляторов — API 34 и 37 (+35/36 по необходимости). Остальные решения ADR без изменений.
+
 ## Context
 * Проект создаётся с нуля (M0). PRD §6.1–6.2 задаёт стек и целевой список модулей; NFR-1 — minSdk 26, target/compile = «последний стабильный».
 * На дату решения: Android 17 (API 37) стабилен; AGP 9.x работает со встроенной поддержкой Kotlin (built-in Kotlin, плагин `org.jetbrains.kotlin.android` не применяется) и только с новым DSL (`CommonExtension` без type-параметров, без `BaseExtension`) — это влияет на convention plugins.

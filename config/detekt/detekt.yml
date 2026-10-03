@@ -8,6 +8,9 @@ naming:
     constantPattern: "[A-Z][A-Za-z0-9_]*"
 
 style:
+  ReturnCount:
+    # Ранние `?: return` / `if (...) return` в начале функции — идиоматичные guard clause.
+    excludeGuardClauses: true
   MagicNumber:
     ignorePropertyDeclaration: true
     ignoreCompanionObjectPropertyDeclaration: true
@@ -22,6 +25,9 @@ style:
       - Preview
 
 complexity:
+  TooManyFunctions:
+    # Считаем только публичный API: мелкие приватные помощники делают код читаемее.
+    ignorePrivate: true
   LongParameterList:
     allowedFunctionParameters: 8
     ignoreDefaultParameters: true

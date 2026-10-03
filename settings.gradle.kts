@@ -28,3 +28,6 @@ rootProject.name = "Balarm"
 include(":app")
 include(":core:model")
 include(":core:designsystem")
+include(":core:domain")
+include(":core:data")
+include(":core:alarm")

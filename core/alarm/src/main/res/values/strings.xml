@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_channel_ringing_name">Ringing alarm</string>
+    <string name="alarm_channel_ringing_description">Shows the ringing alarm screen. The sound is played by the app itself.</string>
+    <string name="alarm_channel_fallback_name">Backup alarm</string>
+    <string name="alarm_channel_fallback_description">Rings through the system if the app could not start the alarm.</string>
+    <string name="alarm_channel_missed_name">Missed alarms</string>
+    <string name="alarm_channel_missed_description">Alarms that stopped ringing without your response.</string>
+
+    <string name="alarm_notification_title">Alarm</string>
+    <string name="alarm_notification_ringing">Ringing</string>
+    <string name="alarm_notification_dismiss">Dismiss</string>
+    <string name="alarm_notification_snooze">Snooze</string>
+    <string name="alarm_notification_fallback_text">Tap to open Balarm</string>
+</resources>

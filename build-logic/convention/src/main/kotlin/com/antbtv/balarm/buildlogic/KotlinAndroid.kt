@@ -57,7 +57,7 @@ internal fun Project.configureKotlinJvm() {
         targetCompatibility = JavaVersion.toVersion(jvmTarget)
     }
     // Демон работает на JDK 21: без -Xjdk-release чистый Kotlin мог бы вызвать API JDK 21
-    // (например, List.removeLast()), которого нет на Android API 26–33.
+    // (например, List.removeLast() — на Android есть только с API 35), а minSdk = 34.
     extensions.configure<KotlinJvmProjectExtension> {
         compilerOptions.jvmTarget.set(JvmTarget.fromTarget(jvmTarget))
         compilerOptions.freeCompilerArgs.add("-Xjdk-release=$jvmTarget")

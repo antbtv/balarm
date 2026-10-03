@@ -12,6 +12,8 @@ dependencies {
     compileOnly(libs.hilt.gradle.plugin)
     compileOnly(libs.detekt.gradle.plugin)
     compileOnly(libs.ktlint.gradle.plugin)
+    compileOnly(libs.room.gradle.plugin)
+    compileOnly(libs.kover.gradle.plugin)
 
     testImplementation(libs.junit4)
 }
@@ -42,6 +44,18 @@ gradlePlugin {
         register("hilt") {
             id = "balarm.hilt"
             implementationClass = "HiltConventionPlugin"
+        }
+        register("androidRoom") {
+            id = "balarm.android.room"
+            implementationClass = "AndroidRoomConventionPlugin"
+        }
+        register("kover") {
+            id = "balarm.kover"
+            implementationClass = "KoverConventionPlugin"
+        }
+        register("androidFeature") {
+            id = "balarm.android.feature"
+            implementationClass = "AndroidFeatureConventionPlugin"
         }
         register("featureFlags") {
             id = "balarm.featureflags"

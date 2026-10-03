@@ -126,8 +126,8 @@
 
 | Шаг | Разрешение / настройка | API | Критично | Проверка статуса |
 |---|---|---|---|---|
-| 1 | Уведомления | `POST_NOTIFICATIONS` (API 33+) runtime | да | `NotificationManagerCompat.areNotificationsEnabled()` |
-| 2 | Точные будильники | `USE_EXACT_ALARM` (авто) + `SCHEDULE_EXACT_ALARM` (API 31–32) | да | `AlarmManager.canScheduleExactAlarms()` |
+| 1 | Уведомления | `POST_NOTIFICATIONS` runtime | да | `NotificationManagerCompat.areNotificationsEnabled()` |
+| 2 | Точные будильники | `USE_EXACT_ALARM` (выдаётся при установке) | да | `AlarmManager.canScheduleExactAlarms()` |
 | 3 | Полноэкранные уведомления | `USE_FULL_SCREEN_INTENT` (API 34+ может быть отозвано) → `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` | да | `NotificationManager.canUseFullScreenIntent()` |
 | 4 | Поверх других приложений | `SYSTEM_ALERT_WINDOW` → `Settings.ACTION_MANAGE_OVERLAY_PERMISSION` | да (для FR-RING-5) | `Settings.canDrawOverlays()` |
 | 5 | Отключить оптимизацию батареи | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` → `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | да | `PowerManager.isIgnoringBatteryOptimizations()` |
@@ -143,7 +143,7 @@
 * **FR-REL-2** Перезагрузка: ресиверы `LOCKED_BOOT_COMPLETED` (directBootAware) и `BOOT_COMPLETED` перепланируют все активные будильники. Расписание и мелодии лежат в **device-protected storage**, поэтому будильник сработает **даже если телефон перезагрузился ночью и не был разблокирован**.
 * **FR-REL-3** Ресиверы `TIME_SET`, `TIMEZONE_CHANGED`, `MY_PACKAGE_REPLACED`, `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`, `LOCALE_CHANGED` (для текста уведомлений) → перепланирование.
 * **FR-REL-4** Будильник хранит время как «локальное время + дни недели»; момент срабатывания вычисляется через `java.time` в текущей зоне → корректен при переходе на летнее/зимнее время (несуществующее время 02:30 → 03:00; дублированное → первое наступление).
-* **FR-REL-5** Звонок проигрывается в foreground service (тип `systemExempted` — ADR-002; на API 26–33 `startForeground` без типа), с `WakeLock` на время старта; экран — Activity с `setShowWhenLocked(true)`, `setTurnScreenOn(true)`, запущенная через full-screen intent и дублирующе через `startActivity` при наличии overlay-разрешения.
+* **FR-REL-5** Звонок проигрывается в foreground service (тип `systemExempted` — ADR-002), с `WakeLock` на время старта; экран — Activity с `setShowWhenLocked(true)`, `setTurnScreenOn(true)`, запущенная через full-screen intent и дублирующе через `startActivity` при наличии overlay-разрешения.
 * **FR-REL-6** Пропущенный будильник: если при загрузке обнаружен будильник, время которого прошло < 2 ч назад и он не отработал — уведомление «Пропущен будильник 07:00» (S).
 * **FR-REL-8** Звук — `AudioAttributes.USAGE_ALARM`, `CONTENT_TYPE_SONIFICATION`; audio focus `AUDIOFOCUS_GAIN_TRANSIENT`.
 * **FR-REL-9** Наушники: звук идёт через динамик и наушники одновременно (как у системного будильника, поведение USAGE_ALARM) — зафиксировать в тестах.
@@ -268,7 +268,7 @@
 ## 5. Нефункциональные требования
 | ID | Требование |
 |---|---|
-| NFR-1 | minSdk 26 (Android 8.0), targetSdk / compileSdk = 37 (Android 17), ADR-003 |
+| NFR-1 | minSdk 34 (Android 14), targetSdk / compileSdk = 37 (Android 17), ADR-003. Поддержка Android 14+ — решение владельца продукта (2026-09-29) |
 | NFR-2 | Холодный старт главного экрана ≤ 800 мс на среднем устройстве |
 | NFR-3 | APK ≤ 15 МБ (мелодии — OGG/Opus) |
 | NFR-4 | Единственное сетевое обращение — Open-Meteo для погоды (FR-TTS); разрешение `INTERNET` добавляется в этапе, где реализуется FR-TTS, и только оно; нет аналитики, трекеров, аккаунтов; все пользовательские данные локальны. Сеть никогда не находится на пути, от которого зависит звонок |
@@ -343,7 +343,7 @@ RingingActivity ─► Dismiss ─► MissionHost ─► success ─► RingingS
 ---
 
 ## 7. Разрешения в манифесте
-`POST_NOTIFICATIONS`, `USE_EXACT_ALARM`, `SCHEDULE_EXACT_ALARM` (maxSdkVersion 32), `USE_FULL_SCREEN_INTENT`, `SYSTEM_ALERT_WINDOW`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`, `VIBRATE`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` (ADR-002), `READ_PHONE_STATE`? — **нет**, для FR-RING-8 используем audio focus. `INTERNET` — только для погоды (FR-TTS, с этапа M6). Разрешений на геолокацию нет. (C) `CAMERA`, `ACTIVITY_RECOGNITION`.
+`POST_NOTIFICATIONS`, `USE_EXACT_ALARM`, `USE_FULL_SCREEN_INTENT`, `SYSTEM_ALERT_WINDOW`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`, `VIBRATE`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` (ADR-002), `READ_PHONE_STATE`? — **нет**, для FR-RING-8 используем audio focus. `INTERNET` — только для погоды (FR-TTS, с этапа M6). Разрешений на геолокацию нет. (C) `CAMERA`, `ACTIVITY_RECOGNITION`.
 
 Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-разрешения, декларируются в Play Console как «приложение-будильник» (основная функция).
 
@@ -401,7 +401,7 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 | R21 | Озвучка в беззвучном режиме и при звонке | беззвучный режим; `adb emu gsm call` во время озвучки | озвучка слышна; при звонке прерывается |
 
 ### 9.3 Устройства
-Эмуляторы API 26, 29, 31, 33, 34, 36, 37 (Pixel; основной — `balarm_api37`) + минимум одно реальное устройство (желательно Xiaomi или Samsung).
+Эмуляторы API 34 (минимальный) и 37 (основной, `balarm_api37`); по необходимости 35/36 (Pixel) + минимум одно реальное устройство (желательно Xiaomi или Samsung).
 
 ---
 
