@@ -6,6 +6,7 @@ import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
+import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.MutableClock
@@ -33,7 +34,10 @@ object TestAlarmModule {
     fun repository() = FakeAlarmRepository()
 
     @Provides @Singleton
-    fun scheduler() = FakeAlarmScheduler()
+    fun fakeScheduler() = FakeAlarmScheduler()
+
+    @Provides
+    fun scheduler(fake: FakeAlarmScheduler): AlarmScheduler = fake
 
     @Provides @Singleton
     fun mutableClock() = MutableClock(NOW, ZoneOffset.UTC)

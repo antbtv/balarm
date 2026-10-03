@@ -8,10 +8,12 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.core.alarm.AlarmIntents
+import com.antbtv.balarm.core.alarm.notification.AlarmNotificationChannels
 import com.antbtv.balarm.core.alarm.notification.AlarmNotifications
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.DismissReason
 import com.antbtv.balarm.core.domain.alarm.FireKind
+import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.SkipReason
@@ -24,6 +26,7 @@ import com.google.common.truth.Truth.assertThat
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
@@ -77,8 +80,13 @@ class RingingServiceTest {
         service = Robolectric.buildService(RingingService::class.java).create()
     }
 
+    private val originalHandler = Thread.getDefaultUncaughtExceptionHandler()
+
     @After
-    fun tearDown() = ShadowPowerManager.clearWakeLocks()
+    fun tearDown() {
+        ShadowPowerManager.clearWakeLocks()
+        Thread.setDefaultUncaughtExceptionHandler(originalHandler)
+    }
 
     @Test
     fun `ring goes foreground with an alarm notification that opens the ringing screen`() {
@@ -346,6 +354,149 @@ class RingingServiceTest {
         assertThat(shadowOf(service.get()).isStoppedBySelf).isTrue()
     }
 
+    @Test
+    fun `nobody reacts for 30 minutes - stops, reports missed, keeps the regular schedule`() {
+        save(DAILY)
+        start(ringIntent(ALARM.id))
+
+        idle(RingingPolicy.AUTO_STOP_AFTER)
+
+        assertThat(fakeSound.playing).isFalse()
+        assertThat(events).contains(AlarmEvent.RingingStopped(ALARM.id, "auto_stop"))
+        assertThat(events).contains(AlarmEvent.Dismissed(ALARM.id, DismissReason.AUTO_STOP))
+        val missed = shadowOf(notificationManager).activeNotifications
+            .single { it.tag == AlarmNotifications.missedTag(ALARM.id) }
+        assertThat(missed.notification.channelId).isEqualTo(AlarmNotificationChannels.MISSED)
+        assertThat(scheduler.scheduled[ALARM.id]?.kind).isEqualTo(FireKind.REGULAR)
+        assertStoppedAndReleased()
+    }
+
+    @Test
+    fun `auto stop is counted per alarm and hands over to the queued one`() {
+        start(ringIntent(ALARM.id))
+        start(ringIntent(OTHER.id))
+
+        idle(RingingPolicy.AUTO_STOP_AFTER)
+
+        assertThat((controller.state.value as RingingState.Ringing).alarm.id).isEqualTo(OTHER.id)
+        assertThat(fakeSound.playing).isTrue()
+        idle(RingingPolicy.AUTO_STOP_AFTER)
+        assertThat(controller.state.value).isEqualTo(RingingState.Idle)
+    }
+
+    @Test
+    fun `dismissed alarm is not auto stopped later`() {
+        start(ringIntent(ALARM.id))
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+
+        idle(RingingPolicy.AUTO_STOP_AFTER)
+
+        assertThat(events.filterIsInstance<AlarmEvent.Dismissed>().map { it.reason })
+            .containsExactly(DismissReason.USER)
+    }
+
+    @Test
+    fun `dismiss works at once while the engine decides on another alarm`() {
+        start(ringIntent(ALARM.id))
+        val gate = CompletableDeferred<Unit>()
+        repository.transactionGate = gate
+        start(ringIntent(OTHER.id)) // движок занят решением по второму
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        assertThat(events).contains(AlarmEvent.RingingStopped(ALARM.id, "dismiss"))
+
+        repository.transactionGate = null
+        gate.complete(Unit)
+        idle()
+        assertThat((controller.state.value as RingingState.Ringing).alarm.id).isEqualTo(OTHER.id)
+    }
+
+    @Test
+    fun `crash while ringing re-arms ringing and queued alarms, then passes the error on`() {
+        val crashes = mutableListOf<Throwable>()
+        Thread.setDefaultUncaughtExceptionHandler { _, e -> crashes += e }
+        start(ringIntent(ALARM.id))
+        start(ringIntent(OTHER.id))
+        val boom = IllegalStateException("ui crashed")
+
+        Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(Thread.currentThread(), boom)
+
+        val at = NOW + RingingService.CRASH_RESUME_DELAY
+        assertThat(scheduler.scheduled[ALARM.id]).isEqualTo(ScheduleRequest(ALARM.id, at, FireKind.RESUME))
+        assertThat(scheduler.scheduled[OTHER.id]).isEqualTo(ScheduleRequest(OTHER.id, at, FireKind.RESUME))
+        assertThat(events).contains(AlarmEvent.CrashRearmed(ALARM.id, at))
+        assertThat(crashes).containsExactly(boom)
+    }
+
+    @Test
+    fun `resumed ring after a crash rings again and dismiss restores the regular schedule`() {
+        save(DAILY)
+        start(ringIntent(ALARM.id))
+        service.destroy() // процесс «умер»
+        service = Robolectric.buildService(RingingService::class.java).create()
+
+        start(AlarmIntents.ring(app, ScheduleRequest(ALARM.id, NOW, FireKind.RESUME)))
+        assertThat(fakeSound.playing).isTrue()
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        assertThat(scheduler.scheduled[ALARM.id]?.kind).isEqualTo(FireKind.REGULAR)
+    }
+
+    @Test
+    fun `crash guard is removed when the session ends`() {
+        val original = Thread.UncaughtExceptionHandler { _, _ -> }
+        Thread.setDefaultUncaughtExceptionHandler(original)
+        start(ringIntent(ALARM.id))
+        assertThat(Thread.getDefaultUncaughtExceptionHandler()).isNotSameInstanceAs(original)
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+
+        assertThat(Thread.getDefaultUncaughtExceptionHandler()).isSameInstanceAs(original)
+    }
+
+    @Test
+    fun `crash on a background thread still re-arms`() {
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+        start(ringIntent(ALARM.id))
+        val guard = Thread.getDefaultUncaughtExceptionHandler()!!
+
+        val worker = Thread { guard.uncaughtException(Thread.currentThread(), IllegalStateException("worker")) }
+        worker.start()
+        worker.join()
+
+        assertThat(scheduler.scheduled[ALARM.id]?.kind).isEqualTo(FireKind.RESUME)
+    }
+
+    @Test
+    fun `guard left under a foreign handler stops re-arming after the session`() {
+        val crashes = mutableListOf<Throwable>()
+        Thread.setDefaultUncaughtExceptionHandler { _, e -> crashes += e }
+        start(ringIntent(ALARM.id))
+        val ours = Thread.getDefaultUncaughtExceptionHandler()!!
+        val foreign = Thread.UncaughtExceptionHandler { t, e -> ours.uncaughtException(t, e) }
+        Thread.setDefaultUncaughtExceptionHandler(foreign) // кто-то поставил свой поверх нашего
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        assertThat(Thread.getDefaultUncaughtExceptionHandler()).isSameInstanceAs(foreign)
+
+        val boom = IllegalStateException("later")
+        foreign.uncaughtException(Thread.currentThread(), boom)
+
+        assertThat(events.filterIsInstance<AlarmEvent.CrashRearmed>()).isEmpty()
+        assertThat(crashes).containsExactly(boom)
+    }
+
+    @Test
+    fun `ringing again clears the missed notification of that alarm`() {
+        start(ringIntent(ALARM.id))
+        idle(RingingPolicy.AUTO_STOP_AFTER)
+        service = Robolectric.buildService(RingingService::class.java).create()
+
+        start(AlarmIntents.ring(app, ScheduleRequest(ALARM.id, NOW, FireKind.RESUME)))
+
+        assertThat(shadowOf(notificationManager).activeNotifications.map { it.tag })
+            .doesNotContain(AlarmNotifications.missedTag(ALARM.id))
+    }
+
     private fun assertStoppedAndReleased() {
         val shadow = shadowOf(service.get())
         assertThat(shadow.isStoppedBySelf).isTrue()
@@ -368,5 +519,8 @@ class RingingServiceTest {
         val NOW: Instant = TestAlarmModule.NOW
         val ALARM = Alarm(id = AlarmId(1), time = LocalTime.of(7, 30), label = "Work")
         val OTHER = Alarm(id = AlarmId(2), time = LocalTime.of(7, 30))
+
+        /** Повторяющийся — после звонка у него есть обычное следующее срабатывание (у разового — нет). */
+        val DAILY = ALARM.copy(repeatDays = DayOfWeek.entries.toSet())
     }
 }

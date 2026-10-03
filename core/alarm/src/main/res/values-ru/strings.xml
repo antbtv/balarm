@@ -12,4 +12,5 @@
     <string name="alarm_notification_dismiss">Отключить</string>
     <string name="alarm_notification_snooze">Отложить</string>
     <string name="alarm_notification_fallback_text">Нажмите, чтобы открыть Balarm</string>
+    <string name="alarm_notification_missed_title">Пропущенный будильник</string>
 </resources>

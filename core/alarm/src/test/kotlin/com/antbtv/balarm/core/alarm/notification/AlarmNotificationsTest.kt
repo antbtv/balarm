@@ -165,6 +165,17 @@ class AlarmNotificationsTest {
         assertThat(notification.contentIntent.action()).isEqualTo(ALARM_LIST)
     }
 
+    @Test
+    fun `missed notification is a quiet reminder that opens the alarm list`() {
+        val notification = notifications.missed(LocalTime.of(7, 30), "Work")
+
+        assertThat(notification.channelId).isEqualTo(AlarmNotificationChannels.MISSED)
+        assertThat(notification.title()).isEqualTo("Missed alarm")
+        assertThat(notification.text()).contains("Work")
+        assertThat(notification.flags and Notification.FLAG_AUTO_CANCEL).isNotEqualTo(0)
+        assertThat(notification.contentIntent.action()).isEqualTo(ALARM_LIST)
+    }
+
     private fun pending(action: String): PendingIntent = PendingIntent.getBroadcast(
         context,
         0,

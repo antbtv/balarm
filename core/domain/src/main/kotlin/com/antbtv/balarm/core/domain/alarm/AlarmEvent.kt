@@ -113,6 +113,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("command" to command, "error" to error)
     }
 
+    /** Процесс падает посреди звонка — звонок перепланирован как RESUME через ~3 с (NFR-5, ADR-007 §7). */
+    data class CrashRearmed(val id: AlarmId, val at: Instant) : AlarmEvent {
+        override val name = "CRASH_REARMED"
+        override val fields = mapOf("id" to id.value, "at" to at)
+    }
+
     /** Срабатывание ждёт окончания текущего звонка (FR-RING-7). */
     data class RingingQueued(val id: AlarmId) : AlarmEvent {
         override val name = "RINGING_QUEUED"

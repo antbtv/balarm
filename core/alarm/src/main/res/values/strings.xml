@@ -12,4 +12,5 @@
     <string name="alarm_notification_dismiss">Dismiss</string>
     <string name="alarm_notification_snooze">Snooze</string>
     <string name="alarm_notification_fallback_text">Tap to open Balarm</string>
+    <string name="alarm_notification_missed_title">Missed alarm</string>
 </resources>

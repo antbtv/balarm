@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.R
 import com.antbtv.balarm.core.domain.alarm.RingingPolicy
+import com.antbtv.balarm.core.model.AlarmId
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -75,6 +76,20 @@ class AlarmNotifications @Inject constructor(
             .apply { flags = flags or Notification.FLAG_INSISTENT }
     }
 
+    /** Будильник замолчал по автостопу без реакции пользователя (FR-RING-6). */
+    fun missed(time: LocalTime, label: String): Notification {
+        AlarmNotificationChannels.ensureCreated(context)
+        return NotificationCompat.Builder(context, AlarmNotificationChannels.MISSED)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setContentTitle(context.getString(R.string.alarm_notification_missed_title))
+            .setContentText(listOf(format(time), label).filter { it.isNotBlank() }.joinToString(" · "))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(activityIntent(uiIntents.alarmList()))
+            .build()
+    }
+
     private fun activityIntent(intent: Intent): PendingIntent = PendingIntent.getActivity(
         context,
         0,
@@ -91,5 +106,9 @@ class AlarmNotifications @Inject constructor(
     companion object {
         const val RINGING_ID = 1
         const val FALLBACK_ID = 2
+        const val MISSED_ID = 3
+
+        /** Тег пропущенного: по одному уведомлению на будильник. */
+        fun missedTag(id: AlarmId) = "missed:${id.value}"
     }
 }

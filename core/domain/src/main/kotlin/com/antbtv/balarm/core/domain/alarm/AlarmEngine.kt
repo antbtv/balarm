@@ -136,7 +136,7 @@ class AlarmEngine @Inject constructor(
         val alreadyFired = runtime.lastFiredAt?.let { !it.isBefore(scheduledFor) } == true
         return when {
             // Перезапуск после падения процесса: состояние уже зафиксировано первым срабатыванием.
-            kind == FireKind.RESUME -> ring(alarm, runtime.snoozeCount)
+            kind == FireKind.RESUME -> resume(alarm, runtime.snoozeCount)
 
             alreadyFired -> skip(id, SkipReason.DUPLICATE)
 
@@ -165,6 +165,20 @@ class AlarmEngine @Inject constructor(
             log.log(AlarmEvent.RescheduleError(alarm.id, e.javaClass.simpleName))
         }
         log.log(AlarmEvent.Fired(alarm.id, kind, lateMs = Duration.between(scheduledFor, now).toMillis()))
+        return ring(alarm, snoozeCount)
+    }
+
+    /**
+     * Процесс мог упасть до записи срабатывания — разовый тогда ещё включён и после «Отключить» встал бы
+     * на завтра. Звонящий разовый всегда выключен; остальное состояние RESUME не трогает.
+     */
+    private suspend fun resume(stored: Alarm, snoozeCount: Int): FireDecision.Ring {
+        val alarm = if (stored.isOneShot && stored.enabled) {
+            repository.setEnabled(stored.id, false)
+            stored.copy(enabled = false)
+        } else {
+            stored
+        }
         return ring(alarm, snoozeCount)
     }
 

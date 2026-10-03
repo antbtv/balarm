@@ -17,8 +17,11 @@ import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
+import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
 import com.antbtv.balarm.core.domain.alarm.DismissReason
 import com.antbtv.balarm.core.domain.alarm.FireDecision
+import com.antbtv.balarm.core.domain.alarm.FireKind
+import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.SnoozeResult
@@ -34,6 +37,7 @@ import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
@@ -41,20 +45,23 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Сессия звонка (ADR-007 §2–4): foreground service `systemExempted`, звук и вибрация, WakeLock на весь звонок.
+ * Сессия звонка (ADR-007 §2–7): foreground service `systemExempted`, звук и вибрация, WakeLock на весь звонок.
  *
- * * Все переходы — в одной корутине по очереди команд: срабатывание, «Отключить», «Отложить» не гоняются
- *   друг с другом; сервис не останавливается, пока есть необработанные команды или звонки в очереди.
- * * Ошибка любой команды логируется и не роняет процесс: звонок важнее консистентности.
- * * Срабатывание сразу отдаётся движку (он фиксирует его и планирует следующее), даже если сейчас звонит
- *   другой будильник — в очередь (FR-RING-7) встаёт уже готовое решение.
+ * * Срабатывания идут по одному через канал: каждое сразу отдаётся движку (он фиксирует его и планирует
+ *   следующее), даже если сейчас звонит другой будильник — в очередь (FR-RING-7) встаёт готовое решение.
+ * * «Отключить», «Отложить» и автостоп (FR-RING-6) действуют сразу, не дожидаясь решения по другому срабатыванию.
  * * Если решение не готово за [FIRST_SOUND_DEADLINE] (холодная БД после загрузки), звук начинается раньше.
+ * * Ошибка любой команды логируется и не роняет процесс; падение процесса посреди звонка возвращает звонок
+ *   через [CRASH_RESUME_DELAY] (crash re-arm, NFR-5).
+ * * Состояние меняется только на главном потоке; сервис останавливается только в [stopIfIdle].
  */
 @AndroidEntryPoint
 @Suppress("TooManyFunctions")
 class RingingService : Service() {
 
     @Inject lateinit var engine: AlarmEngine
+
+    @Inject lateinit var scheduler: AlarmScheduler
 
     @Inject lateinit var sound: AlarmSoundPlayer
 
@@ -69,25 +76,33 @@ class RingingService : Service() {
     @Inject lateinit var clock: Clock
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val commands = Channel<Command>(Channel.UNLIMITED)
+    private val fires = Channel<ScheduleRequest>(Channel.UNLIMITED)
     private val waiting = ArrayDeque<FireDecision.Ring>()
     private var current: FireDecision.Ring? = null
     private var startedAt: Instant = Instant.EPOCH
+    private var autoStop: Job? = null
+
+    /** Срабатывание, по которому движок сейчас решает. */
+    private var deciding: ScheduleRequest? = null
 
     /** Звук пущен до решения движка (watchdog); решение его подхватывает или гасит. */
     private var earlySound = false
     private var sessionLock: PowerManager.WakeLock? = null
     private var lastStartId = 0
 
-    /** Принятые, но ещё не обработанные команды: пока они есть, сервис не останавливается. */
+    /** Принятые срабатывания и незаписанные результаты: пока они есть, сервис не останавливается. */
     private var unhandled = 0
     private var destroyed = false
+    private var crashGuard: CrashGuard? = null
+
+    /** Будильники сессии для crash re-arm: обработчик падения может читать с любого потока. */
+    @Volatile private var rearmIds: List<AlarmId> = emptyList()
 
     override fun onCreate() {
         super.onCreate()
         scope.launch {
-            for (command in commands) {
-                handleSafely(command)
+            for (request in fires) {
+                safely("ring") { fire(request) }
                 unhandled--
                 stopIfIdle()
             }
@@ -98,17 +113,25 @@ class RingingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         lastStartId = startId
-        // Любой ACTION_RING пришёл через startForegroundService — startForeground обязателен, даже для битого.
-        if (intent?.action == AlarmIntents.ACTION_RING && !enterForeground(AlarmIntents.alarmId(intent))) {
-            return START_NOT_STICKY
-        }
-        val command = intent?.let(::commandOf)
-        if (command != null) {
-            unhandled++
-            commands.trySend(command)
+        when (intent?.action) {
+            // Пришёл через startForegroundService — startForeground обязателен, даже для битого интента.
+            AlarmIntents.ACTION_RING -> if (enterForeground(AlarmIntents.alarmId(intent))) {
+                AlarmIntents.parse(intent)?.let {
+                    unhandled++
+                    fires.trySend(it)
+                }
+            }
+
+            AlarmIntents.ACTION_DISMISS -> AlarmIntents.alarmId(intent)?.let { id ->
+                scope.launch { command("dismiss") { dismiss(id) } }
+            }
+
+            AlarmIntents.ACTION_SNOOZE -> AlarmIntents.alarmId(intent)?.let { id ->
+                scope.launch { command("snooze") { snooze(id) } }
+            }
         }
         stopIfIdle()
-        return START_NOT_STICKY // после гибели процесса звонок возвращает crash re-arm (M1-T12), а не рестарт
+        return START_NOT_STICKY // после гибели процесса звонок возвращает crash re-arm, а не рестарт сервиса
     }
 
     override fun onDestroy() {
@@ -118,12 +141,16 @@ class RingingService : Service() {
         waiting.forEach { log.log(AlarmEvent.RingingStopped(it.alarm.id, "destroyed")) }
         current = null
         waiting.clear()
+        rearmIds = emptyList()
         silence()
+        crashGuard?.uninstall()
         controller.publish(RingingState.Idle)
         sessionLock?.let { if (it.isHeld) it.release() }
         RingingWakeLocks.releaseDelivery()
         super.onDestroy()
     }
+
+    // region Foreground и защита от падения
 
     /**
      * Самое первое действие — до любого I/O, иначе система убьёт сервис за неуспевший startForeground.
@@ -147,56 +174,68 @@ class RingingService : Service() {
         val lock = sessionLock ?: RingingWakeLocks.newSessionLock(this).also { sessionLock = it }
         lock.acquire(RingingWakeLocks.SESSION_TIMEOUT.toMillis())
         RingingWakeLocks.releaseDelivery()
+        if (crashGuard == null) crashGuard = CrashGuard(::rearmAfterCrash).also { it.install() }
         return true
     }
 
-    @Suppress("TooGenericExceptionCaught") // одна сломанная команда не должна ронять процесс посреди звонка
-    private suspend fun handleSafely(command: Command) {
-        try {
-            when (command) {
-                is Command.Ring -> fire(command.request)
-                is Command.Dismiss -> if (isCurrent(command.id)) dismiss(command.id)
-                is Command.Snooze -> if (isCurrent(command.id)) snooze(command.id)
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.log(AlarmEvent.RingingCommandFailed(command.name, e.javaClass.simpleName))
+    /**
+     * Вызывается из обработчика необработанного исключения (ADR-007 §7): синхронно ставит звонящий, ожидающий
+     * и решаемый будильники на RESUME через [CRASH_RESUME_DELAY]. RESUME заменяет в системе обычное следующее
+     * срабатывание этого будильника — его вернёт `dismiss` (в т.ч. автостоп) после возобновлённого звонка.
+     */
+    private fun rearmAfterCrash() {
+        val at = clock.instant() + CRASH_RESUME_DELAY
+        rearmIds.forEach { id ->
+            scheduler.schedule(ScheduleRequest(id, at, FireKind.RESUME))
+            log.log(AlarmEvent.CrashRearmed(id, at))
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
+    // endregion
+
+    // region Срабатывание и очередь
+
     private suspend fun fire(request: ScheduleRequest) {
-        val idle = current == null
-        val watchdog = if (idle) scope.launch { startEarly(request.alarmId) } else null
-        val decision = try {
-            engine.onFired(request.alarmId, request.triggerAt, request.kind)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Движок сам деградирует при сбоях; это — последняя страховка «в сомнении — звони».
-            log.log(AlarmEvent.RingingCommandFailed("ring", e.javaClass.simpleName))
-            degraded(request.alarmId)
-        } finally {
-            watchdog?.cancel()
-        }
-        when (decision) {
-            is FireDecision.Skip -> if (earlySound) {
-                earlySound = false
-                silence()
-                next()
+        deciding = request
+        updateRearmIds()
+        // deciding снимается после ring/queue: снимок для crash re-arm не пустеет между решением и звонком.
+        try {
+            val watchdog = if (current == null) scope.launch { startEarly(request.alarmId) } else null
+            val decision = try {
+                decide(request)
+            } finally {
+                watchdog?.cancel()
             }
+            when (decision) {
+                is FireDecision.Skip -> if (earlySound) {
+                    earlySound = false
+                    silence()
+                    next()
+                }
 
-            is FireDecision.Ring -> if (current == null) ring(decision) else queue(decision)
+                is FireDecision.Ring -> if (current == null) ring(decision) else queue(decision)
+            }
+        } finally {
+            deciding = null
+            updateRearmIds()
         }
     }
 
-    private fun degraded(id: AlarmId) = FireDecision.Ring(
-        alarm = Alarm(id = id, time = LocalTime.now(clock).truncatedTo(ChronoUnit.MINUTES)),
-        canSnooze = false,
-        snoozesLeft = 0,
-        degraded = true,
-    )
+    /** Движок сам деградирует при сбоях; перехват здесь — последняя страховка «в сомнении — звони». */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun decide(request: ScheduleRequest): FireDecision = try {
+        engine.onFired(request.alarmId, request.triggerAt, request.kind)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        log.log(AlarmEvent.RingingCommandFailed("ring", e.javaClass.simpleName))
+        FireDecision.Ring(
+            alarm = Alarm(id = request.alarmId, time = LocalTime.now(clock).truncatedTo(ChronoUnit.MINUTES)),
+            canSnooze = false,
+            snoozesLeft = 0,
+            degraded = true,
+        )
+    }
 
     private suspend fun startEarly(id: AlarmId) {
         delay(FIRST_SOUND_DEADLINE.toMillis())
@@ -209,13 +248,16 @@ class RingingService : Service() {
 
     private fun queue(decision: FireDecision.Ring) {
         waiting.addLast(decision)
+        updateRearmIds()
         log.log(AlarmEvent.RingingQueued(decision.alarm.id))
         publish()
     }
 
     private fun ring(decision: FireDecision.Ring) {
         current = decision
+        updateRearmIds()
         startedAt = clock.instant()
+        cancelMissed(decision.alarm.id)
         if (earlySound) {
             earlySound = false // звук уже идёт; вибрация — по настройке будильника
             if (!decision.alarm.vibrate) vibrator.stop()
@@ -224,25 +266,49 @@ class RingingService : Service() {
             if (decision.alarm.vibrate) vibrator.start()
             log.log(AlarmEvent.RingingStarted(decision.alarm.id, decision.degraded))
         }
+        val id = decision.alarm.id
+        autoStop = scope.launch {
+            delay(RingingPolicy.AUTO_STOP_AFTER.toMillis()) // CPU держит сессионный WakeLock
+            // Отдельная корутина: finishCurrent отменяет таймер, а запись в движок отменяться не должна.
+            scope.launch { command("auto_stop") { autoStop(id) } }
+        }
         publish()
     }
 
-    private fun dismiss(id: AlarmId) {
-        silence() // пользователь нажал — звук стихает сразу, запись в БД — следом
-        log.log(AlarmEvent.RingingStopped(id, "dismiss"))
-        scope.launch { record("dismiss") { engine.dismiss(id, DismissReason.USER) } }
+    /** Заканчивает текущий звонок и переходит к следующему в очереди. */
+    private fun finishCurrent(reason: String) {
+        val ring = current ?: return
+        autoStop?.cancel()
+        autoStop = null
+        silence()
+        log.log(AlarmEvent.RingingStopped(ring.alarm.id, reason))
         next()
     }
 
+    private fun next() {
+        current = null
+        updateRearmIds()
+        val decision = waiting.removeFirstOrNull()
+        if (decision != null) ring(decision) else controller.publish(RingingState.Idle)
+    }
+
+    // endregion
+
+    // region Команды
+
+    private suspend fun dismiss(id: AlarmId) {
+        if (!isCurrent(id)) return
+        finishCurrent("dismiss") // звук стихает сразу, запись в БД — следом
+        record("dismiss") { engine.dismiss(id, DismissReason.USER) }
+    }
+
     private suspend fun snooze(id: AlarmId) {
+        if (!isCurrent(id)) return
         // Сбой движка = отложить не удалось: звонок продолжается.
         val result = record("snooze") { engine.snooze(id) } ?: SnoozeResult.NotAllowed
+        if (!isCurrent(id)) return // пока ждали движок, звонок уже закончился (автостоп, «Отключить»)
         when (result) {
-            is SnoozeResult.Snoozed -> {
-                silence()
-                log.log(AlarmEvent.RingingStopped(id, "snooze"))
-                next()
-            }
+            is SnoozeResult.Snoozed -> finishCurrent("snooze")
 
             // Отложить нельзя (лимит, флаг, отказ системы) — продолжаем звонить без кнопки.
             SnoozeResult.NotAllowed -> {
@@ -252,26 +318,51 @@ class RingingService : Service() {
         }
     }
 
-    /** Запись в движок; ошибка логируется, звонок от неё не зависит. */
-    @Suppress("TooGenericExceptionCaught")
-    private suspend fun <T> record(command: String, block: suspend () -> T): T? = try {
-        unhandled++ // сервис ждёт, пока результат не записан
-        block()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        log.log(AlarmEvent.RingingCommandFailed(command, e.javaClass.simpleName))
-        null
-    } finally {
-        unhandled--
+    /** FR-RING-6: никто не отреагировал — замолкаем, уведомляем о пропуске, расписание — как после «Отключить». */
+    private suspend fun autoStop(id: AlarmId) {
+        val ring = current?.takeIf { it.alarm.id == id } ?: return
+        finishCurrent("auto_stop")
+        notifyMissed(ring)
+        record("auto_stop") { engine.dismiss(id, DismissReason.AUTO_STOP) }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // одна сломанная команда не должна ронять процесс посреди звонка
+    private suspend fun safely(command: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.log(AlarmEvent.RingingCommandFailed(command, e.javaClass.simpleName))
+        }
+    }
+
+    /** Команда вне очереди срабатываний; после неё сервис останавливается, если звонить больше нечему. */
+    private suspend fun command(name: String, block: suspend () -> Unit) {
+        safely(name, block)
         stopIfIdle()
     }
 
-    private fun next() {
-        current = null
-        val decision = waiting.removeFirstOrNull()
-        if (decision != null) ring(decision) else controller.publish(RingingState.Idle)
+    /** Запись в движок; ошибка логируется, звонок от неё не зависит. Сервис ждёт, пока запись не закончится. */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun <T> record(command: String, block: suspend () -> T): T? {
+        unhandled++
+        return try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.log(AlarmEvent.RingingCommandFailed(command, e.javaClass.simpleName))
+            null
+        } finally {
+            unhandled--
+            stopIfIdle()
+        }
     }
+
+    // endregion
+
+    // region Уведомления и состояние
 
     private fun silence() {
         sound.stop()
@@ -298,6 +389,19 @@ class RingingService : Service() {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
+    private fun notifyMissed(ring: FireDecision.Ring) {
+        try {
+            getSystemService(NotificationManager::class.java).notify(
+                AlarmNotifications.missedTag(ring.alarm.id),
+                AlarmNotifications.MISSED_ID,
+                notifications.missed(ring.alarm.time, ring.alarm.label),
+            )
+        } catch (e: Exception) {
+            log.log(AlarmEvent.RingingCommandFailed("notify_missed", e.javaClass.simpleName))
+        }
+    }
+
     private fun currentNotification(): Notification {
         val ring = current ?: return notifications.ringing()
         return notifications.ringing(ring.alarm.time, ring.alarm.label, actionsFor(ring))
@@ -315,47 +419,50 @@ class RingingService : Service() {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
+    private fun updateRearmIds() {
+        rearmIds = buildList {
+            current?.let { add(it.alarm.id) }
+            waiting.forEach { add(it.alarm.id) }
+            deciding?.let { add(it.alarmId) }
+        }.distinct()
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun cancelMissed(id: AlarmId) {
+        try {
+            getSystemService(NotificationManager::class.java)
+                .cancel(AlarmNotifications.missedTag(id), AlarmNotifications.MISSED_ID)
+        } catch (_: Exception) {
+            // нечего снимать
+        }
+    }
+
     private fun isCurrent(id: AlarmId) = current?.alarm?.id == id
 
-    /** Единственное место остановки: только если нечего звонить, ждать и записывать. */
     private val ringing get() = current != null || earlySound
 
     private val hasWork get() = waiting.isNotEmpty() || unhandled > 0
 
+    /** Единственное место остановки: только если нечего звонить, ждать и записывать. */
     private fun stopIfIdle() {
         if (destroyed || ringing || hasWork) return
+        // Сначала остановка: если уже пришёл новый старт, сервис остаётся в foreground и с WakeLock.
+        if (!stopSelfResult(lastStartId)) return
         controller.publish(RingingState.Idle)
+        crashGuard?.uninstall()
+        crashGuard = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         sessionLock?.let { if (it.isHeld) it.release() }
-        stopSelfResult(lastStartId) // новый старт после этого вызова сервис не остановит
     }
 
-    private fun commandOf(intent: Intent): Command? = when (intent.action) {
-        AlarmIntents.ACTION_RING -> AlarmIntents.parse(intent)?.let(Command::Ring)
-        AlarmIntents.ACTION_DISMISS -> AlarmIntents.alarmId(intent)?.let(Command::Dismiss)
-        AlarmIntents.ACTION_SNOOZE -> AlarmIntents.alarmId(intent)?.let(Command::Snooze)
-        else -> null
-    }
-
-    private sealed interface Command {
-        val name: String
-
-        data class Ring(val request: ScheduleRequest) : Command {
-            override val name = "ring"
-        }
-
-        data class Dismiss(val id: AlarmId) : Command {
-            override val name = "dismiss"
-        }
-
-        data class Snooze(val id: AlarmId) : Command {
-            override val name = "snooze"
-        }
-    }
+    // endregion
 
     internal companion object {
         /** FR-RING-1: звук не позже чем через 2 с после срабатывания, даже если БД ещё открывается. */
         val FIRST_SOUND_DEADLINE: Duration = Duration.ofSeconds(2)
+
+        /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
+        val CRASH_RESUME_DELAY: Duration = Duration.ofSeconds(3)
 
         /** Уведомление, которое звонит само (ADR-002 §6): без сервиса звук играет system_server. */
         @Suppress("TooGenericExceptionCaught") // показать fallback — последний шанс; падать здесь нельзя

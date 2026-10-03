@@ -187,6 +187,19 @@ class AlarmEngineRingTest {
     }
 
     @Test
+    fun `resume of a one-shot that crashed before being recorded disables it`() = runTest {
+        val id = engine.save(oneShot)
+        clock.now = local("2026-09-28T06:30")
+
+        val decision = engine.onFired(id, clock.now, FireKind.RESUME) as FireDecision.Ring
+        engine.dismiss(id, DismissReason.USER)
+
+        assertThat(decision.alarm.enabled).isFalse()
+        assertThat(repository.get(id)?.enabled).isFalse()
+        assertThat(scheduler.scheduled).doesNotContainKey(id) // не встал на завтра
+    }
+
+    @Test
     fun `snooze or dismiss of a missing alarm is harmless`() = runTest {
         assertThat(engine.snooze(AlarmId(77))).isEqualTo(SnoozeResult.NotAllowed)
         engine.dismiss(AlarmId(77), DismissReason.USER)
