@@ -50,7 +50,7 @@
 | [x] | M2-T01 | 🔔 Модель: `AlarmId.TEST`, метка в code points, `hasFiredFor`, варианты snooze; флаги math/customSounds → false | FR-EDIT-4, 7 | S | — | |
 | [x] | M2-T02 | 🔔 Движок: `ScheduleResult`, `save` сохраняет snooze/`lastFiredAt`, `setEnabled` | FR-LIST AC, FR-EDIT-11 | M | T01 | |
 | [x] | M2-T03 | 🔔 `TestAlarmRunner` + `TestAlarmStore`, debug-команда `TEST`; **смок 1** | FR-EDIT-10 | M | T02 | |
-| [ ] | M2-T04 | Чистый домен: `upcomingTrigger/isActive/nextTrigger`, `timeUntil`, `AlarmDefaults`, `minuteTicks` | FR-LIST-1, 2 | S | T01 | |
+| [x] | M2-T04 | Чистый домен: `upcomingTrigger/isActive/nextTrigger`, `timeUntil`, `AlarmDefaults`, `minuteTicks` | FR-LIST-1, 2 | S | T01 | |
 | [ ] | M2-T05 | 🔔 Данные: `observeAlarmsWithRuntime` (`@Relation`) | FR-LIST-1, 2 | S | T01 | |
 | [ ] | M2-T06 | `:core:format`: форматтер времени, «через X», дни недели; убрать 3 копии | NFR-7, перенос M1 | M | T04 | |
 | [ ] | M2-T07 | 🎨 Экран звонка: видимые системные панели | перенос M1 | S | T06 | |
@@ -101,9 +101,9 @@
 **Описание:** `AlarmWithRuntime.upcomingTrigger(now)` (REGULAR/SNOOZE/CATCH_UP, только будущее), `isActive(now)` (enabled **или** ожидающий SNOOZE/CATCH_UP — разовый отложенный имеет `enabled=false`, а тумблер должен показывать «вкл»), `List<AlarmWithRuntime>.nextTrigger(now)`; `TimeUntil(days, hours, minutes)` + `timeUntil(now, at)` с округлением вверх до минуты (0 не бывает); `AlarmDefaults.newAlarm(now)` (следующий целый час); `minuteTicks(clock)` из `RingingViewModel` в `:core:domain`.
 **Модули:** `:core:domain`, `:feature:ringing`
 **Критерии приёмки:**
-- [ ] `timeUntil`: 59 с → 1 мин, 60 с → 1 мин, 23:59:30 → 0 ч 1 мин на границе дня, 7 д — корректно
-- [ ] Выключенный без snooze → не активен; разовый с ожидающим snooze → активен
-- [ ] `RingingViewModel` работает на общей `minuteTicks`, тесты зелёные
+- [x] `timeUntil`: 59 с → 1 мин, 60 с → 1 мин, 23:59:30 → 0 ч 1 мин на границе дня, 7 д — корректно
+- [x] Выключенный без snooze → не активен; разовый с ожидающим snooze → активен
+- [x] `RingingViewModel` работает на общей `minuteTicks`, тесты зелёные
 **Тесты:** unit, табличные.
 
 ### M2-T05 — Данные списка 🔔

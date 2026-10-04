@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.RingingState
+import com.antbtv.balarm.core.domain.schedule.minuteTicks
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
-import java.time.Duration
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 
@@ -113,16 +111,3 @@ internal fun RingingState.Ringing.toSnoozeUi(): SnoozeUi {
 }
 
 private fun currentMinute(clock: Clock): LocalDateTime = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MINUTES)
-
-/**
- * Текущее время с шагом в минуту, по границам минут. Зона берётся из [clock] на каждом шаге
- * (`SystemZoneClock`), поэтому смена часового пояса во время звонка видна на следующей минуте.
- */
-internal fun minuteTicks(clock: Clock): Flow<LocalDateTime> = flow {
-    while (true) {
-        val now = LocalDateTime.now(clock)
-        emit(now.truncatedTo(ChronoUnit.MINUTES))
-        val nextMinute = now.truncatedTo(ChronoUnit.MINUTES).plusMinutes(1)
-        delay(Duration.between(now, nextMinute).toMillis().coerceAtLeast(1))
-    }
-}.distinctUntilChanged()
