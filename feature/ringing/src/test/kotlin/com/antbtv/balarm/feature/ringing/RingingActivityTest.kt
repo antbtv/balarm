@@ -6,11 +6,18 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Looper
 import android.view.KeyEvent
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -144,5 +151,58 @@ class RingingActivityTest {
         assertThat(info.launchMode).isEqualTo(ActivityInfo.LAUNCH_SINGLE_TASK)
         assertThat(info.flags and ActivityInfo.FLAG_EXCLUDE_FROM_RECENTS).isNotEqualTo(0)
         assertThat(info.taskAffinity).endsWith(".ringing")
+    }
+
+    @Test
+    fun `system bars stay visible so no immersive-mode hint covers the screen`() {
+        val activity = Robolectric.buildActivity(RingingActivity::class.java).setup().get()
+        val decorView = activity.window.decorView
+
+        val controller = checkNotNull(decorView.windowInsetsController)
+
+        // Robolectric не пересчитывает rootWindowInsets после hide(), поэтому смотрим запрошенную видимость
+        // в самом InsetsController (скрытый API, в Robolectric доступен).
+        val requestedVisible = controller.javaClass.getMethod("getRequestedVisibleTypes").invoke(controller) as Int
+        assertThat(requestedVisible and WindowInsets.Type.statusBars()).isNotEqualTo(0)
+        assertThat(requestedVisible and WindowInsets.Type.navigationBars()).isNotEqualTo(0)
+        // Поведение «показ по свайпу» имеет смысл только для скрытых панелей — оно не выставляется.
+        assertThat(controller.systemBarsBehavior)
+            .isEqualTo(WindowInsetsController.BEHAVIOR_DEFAULT)
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp", fontScale = 2f)
+    fun `buttons are not covered by system bars at font scale 2 on a narrow screen`() {
+        ActivityScenario.launch(RingingActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val density = activity.resources.displayMetrics.density
+                val bars = WindowInsetsCompat.Builder()
+                    .setInsets(
+                        WindowInsetsCompat.Type.statusBars(),
+                        Insets.of(0, (STATUS_BAR_DP * density).toInt(), 0, 0),
+                    )
+                    .setInsets(
+                        WindowInsetsCompat.Type.navigationBars(),
+                        Insets.of(0, 0, 0, (NAV_BAR_DP * density).toInt()),
+                    )
+                    .build()
+                ViewCompat.dispatchApplyWindowInsets(activity.window.decorView, bars)
+            }
+
+            val root = composeRule.onNodeWithTag(RingingTestTags.ROOT).getUnclippedBoundsInRoot()
+            val snooze = composeRule.onNodeWithTag(RingingTestTags.SNOOZE).assertIsDisplayed()
+                .getUnclippedBoundsInRoot()
+            val dismiss = composeRule.onNodeWithTag(RingingTestTags.DISMISS).assertIsDisplayed()
+                .getUnclippedBoundsInRoot()
+
+            assertThat(dismiss.bottom).isAtMost(root.bottom - NAV_BAR_DP.dp)
+            assertThat(snooze.top).isAtLeast(root.top + STATUS_BAR_DP.dp)
+            assertThat(snooze.bottom).isAtMost(dismiss.top)
+        }
+    }
+
+    private companion object {
+        const val STATUS_BAR_DP = 24
+        const val NAV_BAR_DP = 48
     }
 }

@@ -10,9 +10,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.feature.ringing.ui.RingingPhase
@@ -25,7 +22,9 @@ import kotlinx.coroutines.launch
 private val DarkBars = SystemBarStyle.dark(Color.TRANSPARENT)
 
 /**
- * Экран звонка (ADR-007 §10). Поверх экрана блокировки, включает экран, не гаснет, системные бары скрыты.
+ * Экран звонка (ADR-007 §10). Поверх экрана блокировки, включает экран, не гаснет.
+ * Системные бары видимы и прозрачны (edge-to-edge, отступы — `safeDrawingPadding` в `RingingScreen`): режим погружения
+ * выводил подсказку «Viewing full screen» поверх кнопок, а на надёжность звонка он не влияет (M2-T07).
  * Звук живёт в сервисе: закрытие или падение Activity звонок не останавливает.
  *
  * FR-RING-4: Back и кнопки громкости поглощаются — уйти с экрана можно только командой
@@ -47,7 +46,6 @@ class RingingActivity : ComponentActivity() {
         setShowWhenLocked(true)
         setTurnScreenOn(true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        hideSystemBars()
         onBackPressedDispatcher.addCallback(this, absorbBack)
 
         // Не repeatOnLifecycle: закрыться нужно и в фоне (отключили из уведомления, пока экран свёрнут).
@@ -71,13 +69,6 @@ class RingingActivity : ComponentActivity() {
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean =
         keyCode in AbsorbedKeys || super.onKeyLongPress(keyCode, event)
-
-    private fun hideSystemBars() {
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            hide(WindowInsetsCompat.Type.systemBars())
-        }
-    }
 
     private companion object {
         /** Громкость не глушит и не отключает звонок (FR-RING-4); звук — на `STREAM_ALARM` в сервисе. */

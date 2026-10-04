@@ -184,6 +184,19 @@ private fun RingingLargeFontPreview() {
     BalarmTheme { RingingScreen(state = PreviewRinging, onEvent = {}) }
 }
 
+// Системные бары видимы (M2-T07): превью с системным UI показывает, что кнопки не уходят под навигацию.
+@Preview(
+    name = "Ringing — system bars, fontScale 2, 360dp",
+    widthDp = 360,
+    heightDp = 640,
+    fontScale = 2f,
+    showSystemUi = true,
+)
+@Composable
+private fun RingingSystemBarsPreview() {
+    BalarmTheme { RingingScreen(state = PreviewRinging, onEvent = {}) }
+}
+
 @Preview(name = "Ringing — RU, snooze unlimited", widthDp = 360, heightDp = 720, locale = "ru")
 @Composable
 private fun RingingRuUnlimitedPreview() {
