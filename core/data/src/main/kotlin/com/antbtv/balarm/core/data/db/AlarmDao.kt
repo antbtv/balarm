@@ -3,14 +3,17 @@ package com.antbtv.balarm.core.data.db
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AlarmDao {
+    /** Порядок — по времени суток (FR-LIST-1), а не по ближайшему срабатыванию: список не «прыгает». */
+    @Transaction
     @Query("SELECT * FROM alarm ORDER BY hour, minute, id")
-    fun observeAll(): Flow<List<AlarmEntity>>
+    fun observeAllWithRuntime(): Flow<List<AlarmWithRuntimeRow>>
 
     @Query("SELECT * FROM alarm ORDER BY id")
     suspend fun getAll(): List<AlarmEntity>

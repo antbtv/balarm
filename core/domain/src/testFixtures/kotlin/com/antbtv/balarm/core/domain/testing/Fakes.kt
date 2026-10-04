@@ -20,6 +20,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 
 /** Часы, которые тест двигает вручную; зона тоже меняется (смена TZ). */
 class MutableClock(var now: Instant, var zoneId: ZoneId) : Clock() {
@@ -51,7 +52,15 @@ class FakeAlarmRepository : AlarmRepository {
     var activeTransactions = 0
     var maxConcurrentTransactions = 0
 
-    override fun observeAlarms(): Flow<List<Alarm>> = MutableStateFlow(alarms.value.values.toList())
+    /** Растёт при каждой записи runtime: `runtimes` — обычная map, сам по себе не наблюдаем. */
+    private val runtimeVersion = MutableStateFlow(0)
+
+    override fun observeAlarmsWithRuntime(): Flow<List<AlarmWithRuntime>> =
+        combine(alarms, runtimeVersion) { alarms, _ ->
+            alarms.values
+                .sortedWith(compareBy({ it.time }, { it.id.value }))
+                .map { AlarmWithRuntime(it, runtimes[it.id]) }
+        }
 
     override suspend fun get(id: AlarmId): Alarm? = alarms.value[id]
 
@@ -71,6 +80,7 @@ class FakeAlarmRepository : AlarmRepository {
         failOnDelete?.let { throw it }
         alarms.value = alarms.value - id
         runtimes -= id
+        runtimeVersion.value++
     }
 
     override suspend fun loadAll(): List<AlarmWithRuntime> {
@@ -83,6 +93,7 @@ class FakeAlarmRepository : AlarmRepository {
     override suspend fun updateRuntime(state: AlarmRuntimeState) {
         if (state.alarmId in failRuntimeFor) throw IllegalStateException("runtime write failed")
         runtimes[state.alarmId] = state
+        runtimeVersion.value++
     }
 
     override suspend fun <R> transaction(block: suspend () -> R): R {

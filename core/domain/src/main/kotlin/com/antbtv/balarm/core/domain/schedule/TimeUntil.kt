@@ -11,8 +11,8 @@ data class TimeUntil(val days: Int, val hours: Int, val minutes: Int)
  * [at] не позже [now] (звонок вот-вот) тоже даёт минимум 1 минуту.
  */
 fun timeUntil(now: Instant, at: Instant): TimeUntil {
-    val seconds = Duration.between(now, at).seconds.coerceAtLeast(0)
-    val totalMinutes = ((seconds + SECONDS_PER_MINUTE - 1) / SECONDS_PER_MINUTE).coerceAtLeast(1)
+    val millis = Duration.between(now, at).toMillis().coerceAtLeast(0)
+    val totalMinutes = ((millis + MILLIS_PER_MINUTE - 1) / MILLIS_PER_MINUTE).coerceAtLeast(1)
     return TimeUntil(
         days = (totalMinutes / MINUTES_PER_DAY).toInt(),
         hours = (totalMinutes % MINUTES_PER_DAY / MINUTES_PER_HOUR).toInt(),
@@ -20,6 +20,6 @@ fun timeUntil(now: Instant, at: Instant): TimeUntil {
     )
 }
 
-private const val SECONDS_PER_MINUTE = 60L
+private const val MILLIS_PER_MINUTE = 60_000L
 private const val MINUTES_PER_HOUR = 60L
 private const val MINUTES_PER_DAY = 24 * 60L

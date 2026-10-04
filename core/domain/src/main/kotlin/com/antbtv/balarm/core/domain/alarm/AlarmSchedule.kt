@@ -10,6 +10,10 @@ import java.time.Instant
  *
  * Ближайшее срабатывание (обычное, snooze или догон) строго после [now] или `null`. Момент в прошлом
  * (пропуск, который ещё не перепланирован) и выключенный будильник без ожидающего snooze — `null`.
+ *
+ * Если система отказала в точном будильнике (`ScheduleResult.scheduled = false`), runtime всё равно хранит момент
+ * «для повтора», и функция его вернёт, хотя в `AlarmManager` ничего нет. На minSdk 34 `USE_EXACT_ALARM` выдаётся
+ * при установке и не отзывается, поэтому в списке это не проверяется; статус — на экране здоровья (M3).
  */
 fun AlarmWithRuntime.upcomingTrigger(now: Instant): Instant? {
     val state = runtime ?: return null

@@ -3,7 +3,9 @@ package com.antbtv.balarm.core.data
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.cash.turbine.test
 import com.antbtv.balarm.core.data.db.AlarmEntity
+import com.antbtv.balarm.core.data.db.AlarmRuntimeEntity
 import com.antbtv.balarm.core.data.db.BalarmDatabase
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
@@ -110,13 +112,98 @@ class RoomAlarmRepositoryTest {
     }
 
     @Test
-    fun `observe emits alarms sorted by time`() = runTest {
+    fun `observe emits alarms sorted by time of day`() = runTest {
         repository.save(alarm.copy(time = LocalTime.of(9, 0)))
         repository.save(alarm.copy(time = LocalTime.of(5, 0)))
 
-        val times = repository.observeAlarms().first().map { it.time }
+        val times = repository.observeAlarmsWithRuntime().first().map { it.alarm.time }
 
         assertThat(times).containsExactly(LocalTime.of(5, 0), LocalTime.of(9, 0)).inOrder()
+    }
+
+    @Test
+    fun `observe pairs every alarm with its own runtime`() = runTest {
+        val first = repository.save(alarm.copy(time = LocalTime.of(5, 0)))
+        val second = repository.save(alarm.copy(time = LocalTime.of(9, 0)))
+        repository.updateRuntime(AlarmRuntimeState(second, Instant.ofEpochMilli(42), TriggerKind.SNOOZE, 1))
+
+        val items = repository.observeAlarmsWithRuntime().first()
+
+        assertThat(items.map { it.alarm.id }).containsExactly(first, second).inOrder()
+        assertThat(items[0].runtime).isNull()
+        assertThat(items[1].runtime)
+            .isEqualTo(AlarmRuntimeState(second, Instant.ofEpochMilli(42), TriggerKind.SNOOZE, 1))
+    }
+
+    @Test
+    fun `observe emits again when only the runtime changes`() = runTest {
+        val id = repository.save(alarm)
+
+        repository.observeAlarmsWithRuntime().test {
+            assertThat(awaitItem().single().runtime).isNull()
+
+            repository.updateRuntime(AlarmRuntimeState(id, Instant.ofEpochMilli(1_000)))
+            assertThat(awaitItem().single().runtime?.nextTriggerAt).isEqualTo(Instant.ofEpochMilli(1_000))
+
+            repository.updateRuntime(AlarmRuntimeState(id, Instant.ofEpochMilli(2_000), TriggerKind.SNOOZE, 1))
+            assertThat(awaitItem().single().runtime?.nextTriggerKind).isEqualTo(TriggerKind.SNOOZE)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a corrupted runtime row is read tolerantly`() = runTest {
+        val id = repository.save(alarm)
+        database.alarmDao().upsertRuntime(
+            AlarmRuntimeEntity(
+                alarmId = id.value,
+                nextTriggerAt = 5,
+                nextTriggerKind = "GARBAGE",
+                snoozeCount = -3,
+                lastFiredAt = null,
+            ),
+        )
+
+        val runtime = repository.observeAlarmsWithRuntime().first().single().runtime
+
+        assertThat(runtime?.nextTriggerKind).isEqualTo(TriggerKind.REGULAR)
+        assertThat(runtime?.snoozeCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `observe emits again when an alarm is added, switched or deleted`() = runTest {
+        repository.observeAlarmsWithRuntime().test {
+            assertThat(awaitItem()).isEmpty()
+
+            val id = repository.save(alarm)
+            assertThat(awaitItem().single().alarm.enabled).isTrue()
+
+            repository.setEnabled(id, false)
+            assertThat(awaitItem().single().alarm.enabled).isFalse()
+
+            repository.delete(id)
+            assertThat(awaitItem()).isEmpty()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a corrupted row does not break observing the other alarms`() = runTest {
+        repository.save(alarm)
+        database.alarmDao().insert(
+            AlarmEntity(
+                hour = 99,
+                minute = -5,
+                repeatDays = 0xFF,
+                label = "x".repeat(500),
+                enabled = true,
+                vibrate = true,
+                snoozeIntervalMin = 999,
+                snoozeLimit = 50,
+            ),
+        )
+
+        assertThat(repository.observeAlarmsWithRuntime().first()).hasSize(2)
     }
 
     @Test

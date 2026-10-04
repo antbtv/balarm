@@ -9,7 +9,8 @@ data class AlarmWithRuntime(val alarm: Alarm, val runtime: AlarmRuntimeState?)
 
 /** Хранилище будильников (реализация — Room в DE-storage, `:core:data`, ADR-004). */
 interface AlarmRepository {
-    fun observeAlarms(): Flow<List<Alarm>>
+    /** Все будильники по времени суток вместе с runtime; эмитит и при изменении только runtime (ADR-011 §1). */
+    fun observeAlarmsWithRuntime(): Flow<List<AlarmWithRuntime>>
 
     suspend fun get(id: AlarmId): Alarm?
 

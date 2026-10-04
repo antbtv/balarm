@@ -26,6 +26,21 @@ class TimeUntilTest {
     }
 
     @Test
+    fun `a fraction of a second still rounds up to the next minute`() {
+        val at = Instant.parse("2026-09-28T07:00:00Z")
+
+        assertThat(timeUntil(Instant.parse("2026-09-28T06:58:59.500Z"), at)).isEqualTo(TimeUntil(0, 0, 2))
+        assertThat(timeUntil(Instant.parse("2026-09-28T06:59:00Z"), at)).isEqualTo(TimeUntil(0, 0, 1))
+        assertThat(timeUntil(Instant.parse("2026-09-28T06:59:59.999Z"), at)).isEqualTo(TimeUntil(0, 0, 1))
+    }
+
+    @Test
+    fun `half a minute before midnight is one minute`() {
+        assertThat(timeUntil(Instant.parse("2026-09-28T23:59:30Z"), Instant.parse("2026-09-29T00:00:00Z")))
+            .isEqualTo(TimeUntil(0, 0, 1))
+    }
+
+    @Test
     fun `hours and minutes are split`() {
         assertThat(until(7 * 3_600L + 12 * 60)).isEqualTo(TimeUntil(0, 7, 12))
         assertThat(until(3_600)).isEqualTo(TimeUntil(0, 1, 0))

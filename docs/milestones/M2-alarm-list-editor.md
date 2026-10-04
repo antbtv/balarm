@@ -51,7 +51,7 @@
 | [x] | M2-T02 | 🔔 Движок: `ScheduleResult`, `save` сохраняет snooze/`lastFiredAt`, `setEnabled` | FR-LIST AC, FR-EDIT-11 | M | T01 | |
 | [x] | M2-T03 | 🔔 `TestAlarmRunner` + `TestAlarmStore`, debug-команда `TEST`; **смок 1** | FR-EDIT-10 | M | T02 | |
 | [x] | M2-T04 | Чистый домен: `upcomingTrigger/isActive/nextTrigger`, `timeUntil`, `AlarmDefaults`, `minuteTicks` | FR-LIST-1, 2 | S | T01 | |
-| [ ] | M2-T05 | 🔔 Данные: `observeAlarmsWithRuntime` (`@Relation`) | FR-LIST-1, 2 | S | T01 | |
+| [x] | M2-T05 | 🔔 Данные: `observeAlarmsWithRuntime` (`@Relation`) | FR-LIST-1, 2 | S | T01 | |
 | [ ] | M2-T06 | `:core:format`: форматтер времени, «через X», дни недели; убрать 3 копии | NFR-7, перенос M1 | M | T04 | |
 | [ ] | M2-T07 | 🎨 Экран звонка: видимые системные панели | перенос M1 | S | T06 | |
 | [ ] | M2-T08 | 🎨 Дизайн-система ч.1: карточка, дни (чтение), переключатель, FAB, шапка, диалог, иконки | FR-LIST-1…3 | M | — | |
@@ -110,9 +110,9 @@
 **Описание:** `AlarmRepository.observeAlarmsWithRuntime(): Flow<List<AlarmWithRuntime>>` (`@Transaction` + `@Relation`, `ORDER BY hour, minute, id`) вместо `observeAlarms()`; обновить `RoomAlarmRepository` и фейк в `testFixtures`. Схема БД не меняется.
 **Модули:** `:core:data`, `:core:domain` (testFixtures)
 **Критерии приёмки:**
-- [ ] Flow эмитит при изменении runtime (не только alarm)
-- [ ] Сортировка по времени; «битая» строка не ломает поток
-- [ ] Схема v1 без изменений (`schemas/1.json` не в диффе)
+- [x] Flow эмитит при изменении runtime (не только alarm)
+- [x] Сортировка по времени; «битая» строка не ломает поток
+- [x] Схема v1 без изменений (`schemas/1.json` не в диффе)
 **Тесты:** Robolectric `RoomAlarmRepositoryTest`.
 
 ### M2-T06 — `:core:format`
@@ -240,6 +240,7 @@ Unit/Robolectric полностью (`./gradlew testDebugUnitTest`, `lint detekt
 
 - **T02:** `AlarmEngine.save/setEnabled/delete` проверяют `AlarmId.TEST` до захвата мьютекса. Разовый, отредактированный во время snooze, не выключается звонком snooze (`kind != SNOOZE` в `recordFire`), иначе новое время потерялось бы. `resume` выключает разовый только при незаписанном срабатывании (`nextTriggerAt` в прошлом). Повторный `setEnabled(true)` на включённом = `editedPlan` (snooze не стирается). `locked(block)` больше не путает `null` результата с «движок занят». **Ревью T02 (⚠️ → исправлено):** +8 тестов (`AlarmEngineEditTest`: CATCH_UP, `clampPending`, равенство, snooze off в редакторе). **Известные компромиссы** (комментарий в `recordFire`): если выключение разового при первом звонке не записалось, или snooze стал догоном (CATCH_UP) после перезагрузки, разовый остаётся включённым до следующего звонка; после перевода часов назад осознанная правка времени «на сегодня» уходит на завтра (защита `lastFiredAt`). **Учесть в T04/T11/M3:** при `scheduled=false` `nextTriggerAt` — момент для повтора, не реально запланированный: шапка/список должны учитывать статус. **Эмулятор:** R* для T02 не гонялись отдельно (в задаче нет UI/команд) — сквозная проверка нового `save` — смок 1 в T03 (debug `SCHEDULE_IN` идёт через `save`) и T-test.
 - **T03:** смок 1 (tester, API 37) ✅ 5/5: `TEST` → `ALARM_FIRED` → `RINGING_STARTED` +77 мс, ≈ 5,1 с от команды; нет «Snooze»; R1 (экран выключен); очередь с будильником пользователя (R13); `RESCHEDULE_ALL` не трогает тест; CRASH → RESUME через 5,3 с. **Ревью T03 (⚠️ → исправлено):** снимок теста больше не очищается при `dismiss` (иначе стирался снимок уже поставленного следующего теста — легально в M3); отказ системы возвращает прежний снимок; автостоп теста не публикует «Пропущен будильник»; +4 теста сервиса (очередь в обе стороны, автостоп, crash re-arm + RESUME без снимка), debug `TEST seconds` ≥ 1. **Наблюдение (не воспроизведено):** один раз при переходе из очереди в логе две строки `SOUND_STARTED` (в повторных прогонах — одна, один MediaPlayer) — следить в T-test. **В T-docs:** скилл `verify-alarm-reliability` (таблица CRASH) говорит, что у RESUME нет `ALARM_FIRED`, а фактически он логируется (`kind=RESUME`); ADR-010 → Accepted: снимок не очищается после звонка (§5), автостоп без уведомления «пропущен».
+- **T04/T05 (ревью ⚠️ → исправлено):** `timeUntil` считает в миллисекундах (субсекундная граница округляла вниз); KDoc `upcomingTrigger`: при `scheduled=false` runtime хранит момент «для повтора» — на minSdk 34 `USE_EXACT_ALARM` не отзывается, статус — экран здоровья M3; тест «битого» runtime. **В T11:** `now` для `timeUntil` брать как `clock.instant()` на каждом тике, а не из усечённого `LocalDateTime` тика; добавить `distinctUntilChanged()` на потоке списка (Room-тесты на Turbine рассчитывают на одну эмиссию на запись). **Nit:** запрет `\n` в метке (ADR-011 §7) — в T14; при его появлении маппер Room должен чистить перевод строки, иначе `toDomain` бросит на «битой» строке.
 
 ## Уроки
 

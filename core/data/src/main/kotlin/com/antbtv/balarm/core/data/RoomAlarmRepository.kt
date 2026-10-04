@@ -20,7 +20,9 @@ class RoomAlarmRepository @Inject constructor(private val database: BalarmDataba
 
     private val dao: AlarmDao = database.alarmDao()
 
-    override fun observeAlarms(): Flow<List<Alarm>> = dao.observeAll().map { rows -> rows.map(AlarmMapper::toDomain) }
+    override fun observeAlarmsWithRuntime(): Flow<List<AlarmWithRuntime>> = dao.observeAllWithRuntime().map { rows ->
+        rows.map { AlarmWithRuntime(AlarmMapper.toDomain(it.alarm), it.runtime?.let(AlarmMapper::toDomain)) }
+    }
 
     override suspend fun get(id: AlarmId): Alarm? = dao.get(id.value)?.let(AlarmMapper::toDomain)
 
