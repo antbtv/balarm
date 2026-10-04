@@ -41,8 +41,8 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Тема пока всегда тёмная (feature.lightTheme=false): светлые иконки системных баров.
-        // При включении светлой темы (M7) стиль выбирается по теме приложения, а не системы.
+        // Тема всегда тёмная (светлая — в бэклоге, PRD §2): светлые иконки системных баров.
+        // При появлении светлой темы стиль выбирается по теме приложения, а не системы.
         enableEdgeToEdge(statusBarStyle = DarkBars, navigationBarStyle = DarkBars)
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {

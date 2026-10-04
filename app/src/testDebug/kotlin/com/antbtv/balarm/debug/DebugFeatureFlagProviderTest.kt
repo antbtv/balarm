@@ -23,7 +23,7 @@ class DebugFeatureFlagProviderTest {
 
     @Test
     fun `when flag is overridden then override wins`() {
-        val feature = Feature.QUOTES
+        val feature = Feature.CUSTOM_SOUNDS
         provider.setOverride(feature, !feature.defaultEnabled)
 
         assertThat(provider.isEnabled(feature)).isEqualTo(!feature.defaultEnabled)
@@ -32,7 +32,7 @@ class DebugFeatureFlagProviderTest {
 
     @Test
     fun `when override is set back to config value then it is not stored`() {
-        val feature = Feature.QUOTES
+        val feature = Feature.CUSTOM_SOUNDS
         provider.setOverride(feature, !feature.defaultEnabled)
 
         provider.setOverride(feature, feature.defaultEnabled)
