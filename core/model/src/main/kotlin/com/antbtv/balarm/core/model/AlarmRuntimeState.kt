@@ -17,7 +17,10 @@ data class AlarmRuntimeState(
     val lastFiredAt: Instant? = null,
 ) {
     init {
-        require(alarmId.isSaved) { "Runtime state belongs to a saved alarm" }
+        require(alarmId.isSaved && !alarmId.isTest) { "Runtime state belongs to a stored alarm" }
         require(snoozeCount >= 0) { "snoozeCount must not be negative" }
     }
+
+    /** Звонок, назначенный на [at] (или позже), уже был — повторная доставка того же срабатывания не должна звонить. */
+    fun hasFiredFor(at: Instant): Boolean = lastFiredAt?.let { !it.isBefore(at) } == true
 }

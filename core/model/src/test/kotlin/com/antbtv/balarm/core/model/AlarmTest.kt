@@ -29,6 +29,18 @@ class AlarmTest {
     }
 
     @Test
+    fun `label limit counts code points not utf16 units`() {
+        val emoji = "\uD83D\uDE00" // 😀: 2 UTF-16 units, 1 code point
+
+        val alarm = Alarm(time = LocalTime.NOON, label = emoji.repeat(Alarm.MAX_LABEL_LENGTH))
+
+        assertThat(alarm.label.length).isEqualTo(Alarm.MAX_LABEL_LENGTH * 2)
+        assertThrows(IllegalArgumentException::class.java) {
+            Alarm(time = LocalTime.NOON, label = emoji.repeat(Alarm.MAX_LABEL_LENGTH + 1))
+        }
+    }
+
+    @Test
     fun `when label is too long then creation fails`() {
         assertThrows(IllegalArgumentException::class.java) {
             Alarm(time = LocalTime.NOON, label = "x".repeat(Alarm.MAX_LABEL_LENGTH + 1))

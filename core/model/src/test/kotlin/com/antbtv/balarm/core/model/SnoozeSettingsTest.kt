@@ -17,6 +17,20 @@ class SnoozeSettingsTest {
     }
 
     @Test
+    fun `editor options are valid settings`() {
+        val minutes = SnoozeSettings.INTERVAL_OPTIONS.map { it.toMinutes() }
+        assertThat(minutes).containsExactly(1L, 3L, 5L, 10L, 15L, 20L, 30L).inOrder()
+        assertThat(SnoozeSettings.LIMIT_OPTIONS).containsExactly(1, 2, 3, 5, 10, null).inOrder()
+        SnoozeSettings.INTERVAL_OPTIONS.forEach { interval ->
+            SnoozeSettings.LIMIT_OPTIONS.forEach { limit ->
+                assertThat(SnoozeSettings(interval, limit).isEnabled).isTrue() // конструктор не бросает
+            }
+        }
+        assertThat(SnoozeSettings.INTERVAL_OPTIONS).contains(SnoozeSettings.DEFAULT.interval)
+        assertThat(SnoozeSettings.LIMIT_OPTIONS).contains(SnoozeSettings.DEFAULT.maxCount)
+    }
+
+    @Test
     fun `when unlimited then remaining is null`() {
         assertThat(SnoozeSettings(Duration.ofMinutes(5), maxCount = null).remaining(7)).isNull()
     }

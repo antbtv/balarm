@@ -25,6 +25,7 @@ class RoomAlarmRepository @Inject constructor(private val database: BalarmDataba
     override suspend fun get(id: AlarmId): Alarm? = dao.get(id.value)?.let(AlarmMapper::toDomain)
 
     override suspend fun save(alarm: Alarm): AlarmId {
+        require(!alarm.id.isTest) { "The test alarm id is reserved and never stored" }
         val entity = AlarmMapper.toEntity(alarm)
         if (alarm.id.isSaved && dao.update(entity) > 0) return alarm.id
         return AlarmId(dao.insert(entity.copy(id = 0)))

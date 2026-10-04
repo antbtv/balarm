@@ -53,6 +53,32 @@ class AlarmMapperTest {
     }
 
     @Test
+    fun `oversized label of emoji is cut by code points without splitting a pair`() {
+        val emoji = "\uD83D\uDE00"
+
+        val alarm = AlarmMapper.toDomain(
+            AlarmEntity(
+                id = 4, hour = 6, minute = 0, repeatDays = 0, label = emoji.repeat(60),
+                enabled = true, vibrate = true, snoozeIntervalMin = 5, snoozeLimit = 3,
+            ),
+        )
+
+        assertThat(alarm.label).isEqualTo(emoji.repeat(Alarm.MAX_LABEL_LENGTH))
+    }
+
+    @Test
+    fun `label with a lone surrogate does not break reading`() {
+        val alarm = AlarmMapper.toDomain(
+            AlarmEntity(
+                id = 5, hour = 6, minute = 0, repeatDays = 0, label = "a\uD83D".repeat(60),
+                enabled = true, vibrate = true, snoozeIntervalMin = 5, snoozeLimit = 3,
+            ),
+        )
+
+        assertThat(alarm.label.codePointCount(0, alarm.label.length)).isEqualTo(Alarm.MAX_LABEL_LENGTH)
+    }
+
+    @Test
     fun `unknown trigger kind and negative counter are tolerated`() {
         val runtime = AlarmMapper.toDomain(
             AlarmRuntimeEntity(

@@ -2,6 +2,7 @@ package com.antbtv.balarm.debug
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
+import com.antbtv.balarm.core.model.Alarm
 import com.google.common.truth.Truth.assertThat
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -42,6 +43,15 @@ class DebugAlarmCommandsTest {
         assertThat(repository.getRuntime(id)?.nextTriggerAt).isNotNull()
         assertThat(ShadowLog.getLogsForTag("Balarm").map { it.msg }.single { it.startsWith("DEBUG_SCHEDULED") })
             .contains("id=${id.value}")
+    }
+
+    @Test
+    fun `label is cut by code points not in the middle of an emoji`() = runTest {
+        val emoji = "\uD83D\uDE00"
+
+        val id = commands.scheduleIn(Duration.ofMinutes(2), emoji.repeat(Alarm.MAX_LABEL_LENGTH + 5), emptySet())
+
+        assertThat(repository.get(id)!!.label).isEqualTo(emoji.repeat(Alarm.MAX_LABEL_LENGTH))
     }
 
     @Test

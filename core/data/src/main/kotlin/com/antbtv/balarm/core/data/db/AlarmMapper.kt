@@ -5,6 +5,7 @@ import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
 import com.antbtv.balarm.core.model.SnoozeSettings
 import com.antbtv.balarm.core.model.TriggerKind
+import com.antbtv.balarm.core.model.takeCodePoints
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
@@ -23,7 +24,7 @@ internal object AlarmMapper {
         id = AlarmId(entity.id.coerceAtLeast(0)),
         time = LocalTime.of(entity.hour.coerceIn(0, MAX_HOUR), entity.minute.coerceIn(0, MAX_MINUTE)),
         repeatDays = daysFromMask(entity.repeatDays),
-        label = entity.label.take(Alarm.MAX_LABEL_LENGTH),
+        label = entity.label.takeCodePoints(Alarm.MAX_LABEL_LENGTH),
         enabled = entity.enabled,
         vibrate = entity.vibrate,
         snooze = snoozeFrom(entity.snoozeIntervalMin, entity.snoozeLimit),

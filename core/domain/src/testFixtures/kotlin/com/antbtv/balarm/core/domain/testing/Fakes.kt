@@ -52,6 +52,7 @@ class FakeAlarmRepository : AlarmRepository {
     override suspend fun get(id: AlarmId): Alarm? = alarms.value[id]
 
     override suspend fun save(alarm: Alarm): AlarmId {
+        require(!alarm.id.isTest) { "The test alarm id is reserved and never stored" }
         val id = if (alarm.id.isSaved) alarm.id else AlarmId(nextId++)
         alarms.value = alarms.value + (id to alarm.copy(id = id))
         return id

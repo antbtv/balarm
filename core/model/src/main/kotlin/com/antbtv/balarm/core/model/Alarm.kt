@@ -18,7 +18,9 @@ data class Alarm(
 ) {
     init {
         require(time.second == 0 && time.nano == 0) { "Alarm time must have whole minutes, was $time" }
-        require(label.length <= MAX_LABEL_LENGTH) { "Label longer than $MAX_LABEL_LENGTH chars" }
+        require(label.codePointCount(0, label.length) <= MAX_LABEL_LENGTH) {
+            "Label longer than $MAX_LABEL_LENGTH code points"
+        }
     }
 
     val isOneShot: Boolean get() = repeatDays.isEmpty()

@@ -18,6 +18,15 @@ class AlarmIdTest {
     }
 
     @Test
+    fun `test id is reserved at the top of the range and is not a stored id`() {
+        assertThat(AlarmId.TEST.value).isEqualTo(Long.MAX_VALUE)
+        assertThat(AlarmId.TEST.isTest).isTrue()
+        assertThat(AlarmId.TEST.isSaved).isTrue() // планируется и адресуется как обычный
+        assertThat(AlarmId(1).isTest).isFalse()
+        assertThat(AlarmId.UNSAVED.isTest).isFalse()
+    }
+
+    @Test
     fun `when value is negative then creation fails`() {
         assertThrows(IllegalArgumentException::class.java) { AlarmId(-1) }
     }

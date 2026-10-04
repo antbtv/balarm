@@ -141,7 +141,7 @@ class AlarmEngine @Inject constructor(
     private suspend fun fire(id: AlarmId, scheduledFor: Instant, kind: FireKind): FireDecision {
         val alarm = repository.get(id) ?: return skip(id, SkipReason.DELETED)
         val runtime = repository.getRuntime(id) ?: AlarmRuntimeState(id)
-        val alreadyFired = runtime.lastFiredAt?.let { !it.isBefore(scheduledFor) } == true
+        val alreadyFired = runtime.hasFiredFor(scheduledFor)
         return when {
             // Перезапуск после падения процесса: состояние уже зафиксировано первым срабатыванием.
             kind == FireKind.RESUME -> resume(alarm, runtime.snoozeCount)
@@ -254,7 +254,7 @@ class AlarmEngine @Inject constructor(
             }
 
             else -> {
-                val fired = runtime.lastFiredAt?.let { !it.isBefore(next) } == true
+                val fired = runtime.hasFiredFor(next)
                 val alarm = if (next.isAfter(now) || fired) stored else disableIfMissedOneShot(stored)
                 regularPlan(alarm, runtime.copy(nextTriggerKind = TriggerKind.REGULAR))
             }
@@ -277,7 +277,7 @@ class AlarmEngine @Inject constructor(
     }
 
     private fun isMissed(runtime: AlarmRuntimeState, next: Instant, now: Instant): Boolean {
-        val fired = runtime.lastFiredAt?.let { !it.isBefore(next) } == true
+        val fired = runtime.hasFiredFor(next)
         return !next.isAfter(now) && next.isAfter(now - LATE_GRACE) && !fired
     }
 

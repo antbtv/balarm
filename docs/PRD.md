@@ -199,9 +199,9 @@
 
   | Ключ | Фича | По умолчанию |
   |---|---|---|
-  | `feature.mission.math` | Миссия Math | true |
+  | `feature.mission.math` | Миссия Math | false (до M5) |
   | `feature.snooze` | Отложить | true |
-  | `feature.customSounds` | Свои мелодии (SAF-импорт, в т.ч. аудио-«цитаты») | true |
+  | `feature.customSounds` | Свои мелодии (SAF-импорт, в т.ч. аудио-«цитаты») | false (до M4) |
 
   Флаги `quotes`, `morningBriefing`, `weather`, `mission.memory`, `mission.typing`, `mission.shake`, `multiMission`, `wakeUpCheck`, `skipNext`, `goodMorningScreen`, `lightTheme` удалены из реестра 2026-10-04 вместе с фичами (§2) и вернутся, когда появится их первый код.
 

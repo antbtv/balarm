@@ -69,6 +69,14 @@ class RoomAlarmRepositoryTest {
     }
 
     @Test
+    fun `the reserved test id is never stored`() = runTest {
+        val failure = runCatching { repository.save(Alarm(id = AlarmId.TEST, time = LocalTime.of(6, 0))) }
+
+        assertThat(failure.exceptionOrNull()).isInstanceOf(IllegalArgumentException::class.java)
+        assertThat(repository.loadAll()).isEmpty()
+    }
+
+    @Test
     fun `ids are never reused after delete`() = runTest {
         val first = repository.save(alarm)
         repository.delete(first)

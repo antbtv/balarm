@@ -12,6 +12,7 @@ import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.takeCodePoints
 import java.time.Clock
 import java.time.DayOfWeek
 import java.time.Duration
@@ -39,7 +40,8 @@ class DebugAlarmCommands @Inject constructor(
         val time = target.truncatedTo(ChronoUnit.MINUTES)
             .let { if (it.isBefore(target)) it.plusMinutes(1) else it }
             .toLocalTime()
-        val id = engine.save(Alarm(time = time, repeatDays = days, label = label.take(Alarm.MAX_LABEL_LENGTH)))
+        val alarm = Alarm(time = time, repeatDays = days, label = label.takeCodePoints(Alarm.MAX_LABEL_LENGTH))
+        val id = engine.save(alarm)
         log("DEBUG_SCHEDULED id=${id.value} time=$time days=${days.joinToString(",")}")
         return id
     }

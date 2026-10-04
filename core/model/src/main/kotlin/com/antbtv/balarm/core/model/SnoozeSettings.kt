@@ -24,6 +24,13 @@ data class SnoozeSettings(val interval: Duration?, val maxCount: Int?) {
         val MIN_INTERVAL: Duration = Duration.ofMinutes(1)
         val MAX_INTERVAL: Duration = Duration.ofMinutes(30)
         const val MAX_COUNT = 10
+
+        /** Варианты интервала в редакторе (FR-EDIT-7). */
+        val INTERVAL_OPTIONS: List<Duration> = listOf(1L, 3, 5, 10, 15, 20, 30).map(Duration::ofMinutes)
+
+        /** Варианты лимита в редакторе (FR-EDIT-7); `null` — без ограничения. */
+        val LIMIT_OPTIONS: List<Int?> = listOf(1, 2, 3, 5, 10, null)
+
         val DEFAULT = SnoozeSettings(interval = Duration.ofMinutes(5), maxCount = 3)
         val DISABLED = SnoozeSettings(interval = null, maxCount = null)
     }
