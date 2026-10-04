@@ -41,7 +41,7 @@ class DebugAlarmCommands @Inject constructor(
             .let { if (it.isBefore(target)) it.plusMinutes(1) else it }
             .toLocalTime()
         val alarm = Alarm(time = time, repeatDays = days, label = label.takeCodePoints(Alarm.MAX_LABEL_LENGTH))
-        val id = engine.save(alarm)
+        val id = engine.save(alarm).id
         log("DEBUG_SCHEDULED id=${id.value} time=$time days=${days.joinToString(",")}")
         return id
     }

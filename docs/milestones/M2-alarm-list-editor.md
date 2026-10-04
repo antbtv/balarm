@@ -48,7 +48,7 @@
 | ✓ | ID | Задача | FR/NFR | Оценка | Зависит от | Commit |
 |---|---|---|---|---|---|---|
 | [x] | M2-T01 | 🔔 Модель: `AlarmId.TEST`, метка в code points, `hasFiredFor`, варианты snooze; флаги math/customSounds → false | FR-EDIT-4, 7 | S | — | |
-| [ ] | M2-T02 | 🔔 Движок: `ScheduleResult`, `save` сохраняет snooze/`lastFiredAt`, `setEnabled` | FR-LIST AC, FR-EDIT-11 | M | T01 | |
+| [x] | M2-T02 | 🔔 Движок: `ScheduleResult`, `save` сохраняет snooze/`lastFiredAt`, `setEnabled` | FR-LIST AC, FR-EDIT-11 | M | T01 | |
 | [ ] | M2-T03 | 🔔 `TestAlarmRunner` + `TestAlarmStore`, debug-команда `TEST`; **смок 1** | FR-EDIT-10 | M | T02 | |
 | [ ] | M2-T04 | Чистый домен: `upcomingTrigger/isActive/nextTrigger`, `timeUntil`, `AlarmDefaults`, `minuteTicks` | FR-LIST-1, 2 | S | T01 | |
 | [ ] | M2-T05 | 🔔 Данные: `observeAlarmsWithRuntime` (`@Relation`) | FR-LIST-1, 2 | S | T01 | |
@@ -81,11 +81,11 @@
 **Описание:** `ScheduleResult(id, nextTriggerAt, scheduled)`; `save(alarm): ScheduleResult` — сохраняет `lastFiredAt` (защита от повторного звонка после перевода часов назад) и ожидающий SNOOZE/CATCH_UP, если он в будущем и раньше нового обычного срабатывания; `setEnabled(id, enabled): ScheduleResult?` (`null` — будильника нет); `setEnabled(false)` отменяет всё, включая snooze; `save/setEnabled/delete` отвергают `AlarmId.TEST`; `hasFiredFor` в `fire/restoredPlan/isMissed`. Обновить вызывающих (`DebugAlarmCommands` и др.).
 **Модули:** `:core:domain`, `:app` (debug)
 **Критерии приёмки:**
-- [ ] Snooze переживает `save` другого поля; `save` с новым временем раньше snooze — побеждает более раннее
-- [ ] `setEnabled(false)` на будильнике с ожидающим snooze → `FakeAlarmScheduler` без интента, runtime очищен
-- [ ] Редактирование и удаление во время звонка: звук/сессия не затронуты, `dismiss` после удаления ничего не пишет, RESUME удалённого → `Skip(DELETED)`
-- [ ] Отказ системы (`scheduled=false`) отражён в результате
-- [ ] Kover `:core:domain` ≥ 80 %
+- [x] Snooze переживает `save` другого поля; `save` с новым временем раньше snooze — побеждает более раннее
+- [x] `setEnabled(false)` на будильнике с ожидающим snooze → `FakeAlarmScheduler` без интента, runtime очищен
+- [x] Редактирование и удаление во время звонка: звук/сессия не затронуты, `dismiss` после удаления ничего не пишет, RESUME удалённого → `Skip(DELETED)`
+- [x] Отказ системы (`scheduled=false`) отражён в результате
+- [x] Kover `:core:domain` ≥ 80 %
 **Тесты:** unit на фейках из `testFixtures` — `AlarmEngineScheduleTest`/`AlarmEngineRobustnessTest` + новые кейсы; реальный движок, не mockk.
 
 ### M2-T03 — «Тест» 🔔
@@ -237,6 +237,8 @@ Unit/Robolectric полностью (`./gradlew testDebugUnitTest`, `lint detekt
 
 ## Добавлено по ходу
 - **T01:** `AlarmId.isSaved` остаётся `true` для `TEST` (планировщику нужен любой адресуемый id); «есть в хранилище» = `isSaved && !isTest` — KDoc, `AlarmRuntimeState`, Room-репозиторий и фейк отвергают `TEST`. Реестр флагов в PRD §3.12 приведён к конфигу (math/customSounds = false); формулировку правила FR-FLAG-2 — в T-docs. **Ревью T01 (⚠️ → исправлено):** KDoc `AlarmId`, тесты на одиночный суррогат (маппер, `takeCodePoints`), тест фейка репозитория. Известно (nit): `AlarmMapper.toDomain(AlarmRuntimeEntity)` с `alarmId = Long.MAX_VALUE` теперь бросает — только при повреждённой БД (AUTOINCREMENT такой id не выдаёт).
+
+- **T02:** `AlarmEngine.save/setEnabled/delete` проверяют `AlarmId.TEST` до захвата мьютекса. Разовый, отредактированный во время snooze, не выключается звонком snooze (`kind != SNOOZE` в `recordFire`), иначе новое время потерялось бы. `resume` выключает разовый только при незаписанном срабатывании (`nextTriggerAt` в прошлом). Повторный `setEnabled(true)` на включённом = `editedPlan` (snooze не стирается). `locked(block)` больше не путает `null` результата с «движок занят». **Ревью T02 (⚠️ → исправлено):** +8 тестов (`AlarmEngineEditTest`: CATCH_UP, `clampPending`, равенство, snooze off в редакторе). **Известные компромиссы** (комментарий в `recordFire`): если выключение разового при первом звонке не записалось, или snooze стал догоном (CATCH_UP) после перезагрузки, разовый остаётся включённым до следующего звонка; после перевода часов назад осознанная правка времени «на сегодня» уходит на завтра (защита `lastFiredAt`). **Учесть в T04/T11/M3:** при `scheduled=false` `nextTriggerAt` — момент для повтора, не реально запланированный: шапка/список должны учитывать статус. **Эмулятор:** R* для T02 не гонялись отдельно (в задаче нет UI/команд) — сквозная проверка нового `save` — смок 1 в T03 (debug `SCHEDULE_IN` идёт через `save`) и T-test.
 
 ## Уроки
 

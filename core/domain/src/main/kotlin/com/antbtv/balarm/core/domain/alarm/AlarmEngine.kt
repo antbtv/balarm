@@ -41,25 +41,46 @@ class AlarmEngine @Inject constructor(
 ) {
     private val mutex = Mutex()
 
-    /** Сохраняет будильник и планирует его заново с чистым runtime (новые настройки → обычное расписание). */
-    suspend fun save(alarm: Alarm): AlarmId = locked {
-        val id = repository.save(alarm)
-        val saved = alarm.copy(id = id)
-        applySchedule(saved, regularPlan(saved, AlarmRuntimeState(id)))
-        id
+    /**
+     * Сохраняет будильник и планирует его заново по новым настройкам (ADR-011 §5). Не теряет состояние,
+     * от которого зависит надёжность: `lastFiredAt` (защита от повторного звонка после перевода часов назад),
+     * ожидающий snooze/догон, если он впереди и раньше нового обычного срабатывания («посмотрел и нажал
+     * „Сохранить“ во время snooze» не должен проспать), и счётчик snooze идущего звонка.
+     */
+    suspend fun save(alarm: Alarm): ScheduleResult {
+        require(!alarm.id.isTest) { TEST_NOT_STORED }
+        return locked {
+            val id = repository.save(alarm)
+            val saved = alarm.copy(id = id)
+            commit(saved, editedPlan(saved, repository.getRuntime(id) ?: AlarmRuntimeState(id)))
+        }
     }
 
-    suspend fun setEnabled(id: AlarmId, enabled: Boolean): Unit = locked {
-        repository.setEnabled(id, enabled)
-        val alarm = repository.get(id) ?: return@locked
-        applySchedule(alarm, regularPlan(alarm, AlarmRuntimeState(id)))
+    /**
+     * Включает/выключает будильник. Выключение отменяет **всё**, включая ожидающий snooze (AC FR-LIST);
+     * включение — обычное расписание. Повторное включение уже включённого (устаревший UI) идемпотентно и
+     * ничего не стирает, как [save]. `null` — такого будильника нет.
+     */
+    suspend fun setEnabled(id: AlarmId, enabled: Boolean): ScheduleResult? {
+        require(!id.isTest) { TEST_NOT_STORED }
+        return locked {
+            val stored = repository.get(id) ?: return@locked null
+            val runtime = repository.getRuntime(id) ?: AlarmRuntimeState(id)
+            if (enabled && stored.enabled) return@locked commit(stored, editedPlan(stored, runtime))
+            repository.setEnabled(id, enabled)
+            val alarm = stored.copy(enabled = enabled)
+            commit(alarm, regularPlan(alarm, runtime.copy(snoozeCount = 0)))
+        }
     }
 
     /** Сначала удаление из БД: если оно упадёт, будильник останется и запланированным, и в списке. */
-    suspend fun delete(id: AlarmId): Unit = locked {
-        repository.delete(id)
-        scheduler.cancel(id)
-        log.log(AlarmEvent.Cancelled(id))
+    suspend fun delete(id: AlarmId) {
+        require(!id.isTest) { TEST_NOT_STORED }
+        locked {
+            repository.delete(id)
+            scheduler.cancel(id)
+            log.log(AlarmEvent.Cancelled(id))
+        }
     }
 
     /**
@@ -144,7 +165,7 @@ class AlarmEngine @Inject constructor(
         val alreadyFired = runtime.hasFiredFor(scheduledFor)
         return when {
             // Перезапуск после падения процесса: состояние уже зафиксировано первым срабатыванием.
-            kind == FireKind.RESUME -> resume(alarm, runtime.snoozeCount)
+            kind == FireKind.RESUME -> resume(alarm, runtime)
 
             alreadyFired -> skip(id, SkipReason.DUPLICATE)
 
@@ -162,7 +183,11 @@ class AlarmEngine @Inject constructor(
     ): FireDecision.Ring {
         val now = clock.instant()
         val snoozeCount = if (kind == FireKind.SNOOZE) runtime.snoozeCount else 0
-        val alarm = if (stored.isOneShot) stored.copy(enabled = false) else stored
+        // Snooze разового выключать нечем: он уже выключен при первом звонке. Включённый разовый здесь —
+        // отредактированный во время snooze (новое время ещё впереди), его звонок ещё не состоялся.
+        // Компромисс: если выключение при первом звонке не записалось, или snooze стал догоном (CATCH_UP) после
+        // перезагрузки, разовый остаётся включённым до следующего звонка — лишний звонок лучше потерянного.
+        val alarm = if (stored.isOneShot && kind != FireKind.SNOOZE) stored.copy(enabled = false) else stored
         try {
             if (alarm.enabled != stored.enabled) repository.setEnabled(alarm.id, false)
             applySchedule(alarm, regularPlan(alarm, runtime.copy(snoozeCount = snoozeCount, lastFiredAt = now)))
@@ -178,10 +203,14 @@ class AlarmEngine @Inject constructor(
 
     /**
      * Процесс мог упасть до записи срабатывания — разовый тогда ещё включён и после «Отключить» встал бы
-     * на завтра. Звонящий разовый всегда выключен; остальное состояние RESUME не трогает.
+     * на завтра. Звонящий разовый всегда выключен; остальное состояние RESUME не трогает. Незаписанное
+     * срабатывание узнаётся по `nextTriggerAt` в прошлом: у разового, отредактированного во время snooze,
+     * там уже новое время впереди — его выключать нельзя.
      */
-    private suspend fun resume(stored: Alarm, snoozeCount: Int): FireDecision.Ring {
-        val alarm = if (stored.isOneShot && stored.enabled) {
+    private suspend fun resume(stored: Alarm, runtime: AlarmRuntimeState): FireDecision.Ring {
+        val unrecorded = runtime.nextTriggerAt?.let { !it.isAfter(clock.instant()) } ?: true
+        val snoozeCount = runtime.snoozeCount
+        val alarm = if (stored.isOneShot && stored.enabled && unrecorded) {
             repository.setEnabled(stored.id, false)
             stored.copy(enabled = false)
         } else {
@@ -232,6 +261,28 @@ class AlarmEngine @Inject constructor(
     // region Планирование
 
     private data class Plan(val runtime: AlarmRuntimeState, val kind: FireKind?)
+
+    private suspend fun commit(alarm: Alarm, plan: Plan): ScheduleResult {
+        val outcome = applySchedule(alarm, plan)
+        return ScheduleResult(alarm.id, plan.runtime.nextTriggerAt, scheduled = outcome != Outcome.FAILED)
+    }
+
+    /** План после правки будильника: обычное расписание по новым настройкам, но ожидающий звонок не теряется. */
+    private fun editedPlan(alarm: Alarm, previous: AlarmRuntimeState): Plan {
+        val now = clock.instant()
+        // Счётчик snooze нужен идущему звонку (REGULAR + count > 0 бывает только пока звонит); брошенный цикл — с нуля.
+        val keepCount = previous.nextTriggerKind == TriggerKind.REGULAR
+        val regular = regularPlan(alarm, previous.copy(snoozeCount = if (keepCount) previous.snoozeCount else 0))
+        val pending = previous.nextTriggerAt?.takeIf {
+            alarm.enabled && previous.nextTriggerKind != TriggerKind.REGULAR && it.isAfter(now)
+        } ?: return regular
+        val regularAt = regular.runtime.nextTriggerAt
+        return if (regularAt == null || pending.isBefore(regularAt)) {
+            Plan(clampPending(previous, alarm, now), previous.nextTriggerKind.toFireKind())
+        } else {
+            regular
+        }
+    }
 
     private enum class Outcome { SCHEDULED, FAILED, CANCELLED }
 
@@ -320,21 +371,22 @@ class AlarmEngine @Inject constructor(
 
     // endregion
 
-    private suspend fun <R> locked(block: suspend () -> R): R = checkNotNull(locked(timeout = null, block))
+    private suspend fun <R> locked(block: suspend () -> R): R {
+        mutex.lock()
+        return runLocked(block)
+    }
 
     /** `null` — не удалось занять движок за [timeout]. Сама операция после захвата не отменяется. */
-    private suspend fun <R> locked(timeout: Duration?, block: suspend () -> R): R? {
-        val acquired = timeout?.let { withTimeoutOrNull(it.toMillis()) { mutex.lock() } != null }
-            ?: run {
-                mutex.lock()
-                true
-            }
-        if (!acquired) return null
-        return try {
-            withContext(NonCancellable) { repository.transaction(block) }
-        } finally {
-            mutex.unlock()
-        }
+    private suspend fun <R : Any> locked(timeout: Duration, block: suspend () -> R): R? {
+        if (withTimeoutOrNull(timeout.toMillis()) { mutex.lock() } == null) return null
+        return runLocked(block)
+    }
+
+    /** Мьютекс уже занят вызывающим; освобождается здесь. */
+    private suspend fun <R> runLocked(block: suspend () -> R): R = try {
+        withContext(NonCancellable) { repository.transaction(block) }
+    } finally {
+        mutex.unlock()
     }
 
     companion object {
@@ -346,5 +398,7 @@ class AlarmEngine @Inject constructor(
 
         /** Сколько срабатывание ждёт занятый движок, прежде чем звонить с настройками по умолчанию. */
         val FIRE_LOCK_TIMEOUT: Duration = Duration.ofSeconds(2)
+
+        private const val TEST_NOT_STORED = "The test alarm is not stored, use TestAlarmRunner"
     }
 }

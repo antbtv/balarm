@@ -34,7 +34,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `saving a new alarm assigns id and schedules the next regular trigger`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
 
         assertThat(id.isSaved).isTrue()
         assertThat(scheduler.scheduled[id]).isEqualTo(ScheduleRequest(id, local("2026-09-28T06:30"), FireKind.REGULAR))
@@ -44,7 +44,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `saving a disabled alarm cancels it and clears the planned trigger`() = runTest {
-        val id = engine.save(wakeUp.copy(enabled = false))
+        val id = engine.save(wakeUp.copy(enabled = false)).id
 
         assertThat(scheduler.scheduled).doesNotContainKey(id)
         assertThat(scheduler.cancelled).contains(id)
@@ -52,11 +52,11 @@ class AlarmEngineScheduleTest {
     }
 
     @Test
-    fun `editing an alarm resets snooze state and reschedules`() = runTest {
-        val id = engine.save(wakeUp)
+    fun `editing an alarm after its snooze was abandoned reschedules from a clean state`() = runTest {
+        val id = engine.save(wakeUp).id
         repository.updateRuntime(
-            AlarmRuntimeState(id, local("2026-09-28T06:35"), TriggerKind.SNOOZE, snoozeCount = 2),
-        )
+            AlarmRuntimeState(id, local("2026-09-28T04:00"), TriggerKind.SNOOZE, snoozeCount = 2),
+        ) // snooze уже в прошлом (например, часы переведены вперёд)
 
         engine.save(wakeUp.copy(id = id, time = LocalTime.of(7, 0)))
 
@@ -68,7 +68,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `toggling an alarm cancels and restores the schedule`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
 
         engine.setEnabled(id, false)
         assertThat(scheduler.scheduled).doesNotContainKey(id)
@@ -79,7 +79,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `deleting an alarm cancels it and removes runtime`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
 
         engine.delete(id)
 
@@ -91,8 +91,8 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `reschedule all is idempotent for locked boot followed by boot`() = runTest {
-        val first = engine.save(wakeUp)
-        val second = engine.save(Alarm(time = LocalTime.of(8, 0), repeatDays = setOf(DayOfWeek.FRIDAY)))
+        val first = engine.save(wakeUp).id
+        val second = engine.save(Alarm(time = LocalTime.of(8, 0), repeatDays = setOf(DayOfWeek.FRIDAY))).id
         engine.save(Alarm(time = LocalTime.of(9, 0), enabled = false))
         val before = scheduler.scheduled.toMap()
 
@@ -106,7 +106,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `timezone change moves the absolute trigger to keep local time`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
         clock.zoneId = ZoneId.of("Asia/Tokyo")
 
         engine.rescheduleAll(RescheduleReason.TIMEZONE_CHANGED)
@@ -117,7 +117,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `missed trigger within grace is caught up shortly after boot`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
         clock.now = local("2026-09-28T06:35") // телефон перезагружался в 06:30
 
         engine.rescheduleAll(RescheduleReason.BOOT)
@@ -131,7 +131,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `catch up survives a second reschedule without moving`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
         clock.now = local("2026-09-28T06:35")
         engine.rescheduleAll(RescheduleReason.LOCKED_BOOT)
         val catchUp = scheduler.scheduled.getValue(id)
@@ -144,7 +144,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `missed trigger older than grace is not caught up`() = runTest {
-        val id = engine.save(wakeUp.copy(repeatDays = DayOfWeek.entries.toSet()))
+        val id = engine.save(wakeUp.copy(repeatDays = DayOfWeek.entries.toSet())).id
         clock.now = local("2026-09-28T06:30") + AlarmEngine.LATE_GRACE + Duration.ofMinutes(1)
 
         engine.rescheduleAll(RescheduleReason.BOOT)
@@ -154,7 +154,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `trigger that already fired is not caught up`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
         repository.updateRuntime(repository.runtimes.getValue(id).copy(lastFiredAt = local("2026-09-28T06:30")))
         clock.now = local("2026-09-28T06:35")
 
@@ -166,7 +166,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `pending snooze in the future is kept on reschedule`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
         val snoozeUntil = local("2026-09-28T06:40")
         repository.updateRuntime(AlarmRuntimeState(id, snoozeUntil, TriggerKind.SNOOZE, snoozeCount = 1))
         clock.now = local("2026-09-28T06:36")
@@ -179,7 +179,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `missed snooze of a disabled one shot alarm is still caught up`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
         repository.setEnabled(id, false) // разовый выключился при срабатывании, затем отложен
         repository.updateRuntime(AlarmRuntimeState(id, local("2026-09-28T06:40"), TriggerKind.SNOOZE, snoozeCount = 1))
         clock.now = local("2026-09-28T06:42")
@@ -193,7 +193,7 @@ class AlarmEngineScheduleTest {
     fun `when the system refuses the alarm the failure is logged and the moment kept for retry`() = runTest {
         scheduler.accept = false
 
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
 
         assertThat(log.events).contains(AlarmEvent.ScheduleFailed(id, local("2026-09-28T06:30")))
         assertThat(repository.runtimes[id]?.nextTriggerAt).isEqualTo(local("2026-09-28T06:30"))
@@ -201,7 +201,7 @@ class AlarmEngineScheduleTest {
 
     @Test
     fun `concurrent reschedules produce one consistent schedule`() = runTest {
-        val id = engine.save(wakeUp)
+        val id = engine.save(wakeUp).id
 
         val results = listOf(
             async { engine.rescheduleAll(RescheduleReason.TIME_SET) },

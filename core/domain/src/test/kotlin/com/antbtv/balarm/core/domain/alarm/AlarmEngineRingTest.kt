@@ -37,7 +37,7 @@ class AlarmEngineRingTest {
     private val weekdays = Alarm(time = LocalTime.of(6, 30), repeatDays = DayOfWeek.entries.take(5).toSet())
 
     private suspend fun fireAt(alarm: Alarm, iso: String): Pair<AlarmId, FireDecision> {
-        val id = engine.save(alarm)
+        val id = engine.save(alarm).id
         clock.now = local(iso)
         return id to engine.onFired(id, local("2026-09-28T06:30"), FireKind.REGULAR)
     }
@@ -188,7 +188,7 @@ class AlarmEngineRingTest {
 
     @Test
     fun `resume of a one-shot that crashed before being recorded disables it`() = runTest {
-        val id = engine.save(oneShot)
+        val id = engine.save(oneShot).id
         clock.now = local("2026-09-28T06:30")
 
         val decision = engine.onFired(id, clock.now, FireKind.RESUME) as FireDecision.Ring

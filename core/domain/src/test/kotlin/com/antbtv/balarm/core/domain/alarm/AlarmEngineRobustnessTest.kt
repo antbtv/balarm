@@ -42,7 +42,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `snooze refused by the system is reported as not allowed and keeps the regular schedule`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         clock.now = local("2026-09-28T06:30")
         engine.onFired(id, clock.now, FireKind.REGULAR)
         val regular = repository.runtimes.getValue(id)
@@ -54,9 +54,9 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `one failing alarm does not stop rescheduling of the others`() = runTest {
-        val first = engine.save(daily)
-        val broken = engine.save(daily.copy(time = LocalTime.of(7, 0)))
-        val third = engine.save(daily.copy(time = LocalTime.of(8, 0)))
+        val first = engine.save(daily).id
+        val broken = engine.save(daily.copy(time = LocalTime.of(7, 0))).id
+        val third = engine.save(daily.copy(time = LocalTime.of(8, 0))).id
         scheduler.scheduled.clear()
         scheduler.throwFor += broken
 
@@ -77,7 +77,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `failed delete keeps the alarm scheduled`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         repository.failOnDelete = IOException("disk")
 
         assertThrows(IOException::class.java) { kotlinx.coroutines.runBlocking { engine.delete(id) } }
@@ -88,7 +88,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `cancelled caller does not interrupt a started operation`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         engine.setEnabled(id, false)
         val gate = CompletableDeferred<Unit>()
         repository.transactionGate = gate
@@ -105,7 +105,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `when scheduling the next occurrence fails the real alarm still rings`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         scheduler.throwFor += id
         clock.now = local("2026-09-28T06:30")
 
@@ -116,7 +116,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `busy engine does not delay the ring beyond the lock timeout`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         val gate = CompletableDeferred<Unit>()
         repository.transactionGate = gate
         launch { engine.rescheduleAll(RescheduleReason.BOOT) }
@@ -132,7 +132,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `degraded ring of a one-shot is recorded once the engine is free`() = runTest {
-        val id = engine.save(Alarm(time = LocalTime.of(6, 30)))
+        val id = engine.save(Alarm(time = LocalTime.of(6, 30))).id
         clock.now = local("2026-09-28T06:30")
         val gate = CompletableDeferred<Unit>()
         repository.transactionGate = gate
@@ -155,7 +155,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `pending snooze is pulled back when the clock is set back a day`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         repository.updateRuntime(AlarmRuntimeState(id, local("2026-09-29T06:35"), TriggerKind.SNOOZE, snoozeCount = 1))
         clock.now = local("2026-09-28T06:31") // время перевели на сутки назад
 
@@ -166,7 +166,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `one shot missed longer than grace is disabled instead of moved to tomorrow`() = runTest {
-        val id = engine.save(Alarm(time = LocalTime.of(6, 30)))
+        val id = engine.save(Alarm(time = LocalTime.of(6, 30))).id
         clock.now = local("2026-09-28T09:00")
 
         engine.rescheduleAll(RescheduleReason.BOOT)
@@ -178,7 +178,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `double snooze tap spends the limit only once`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         clock.now = local("2026-09-28T06:30")
         engine.onFired(id, clock.now, FireKind.REGULAR)
 
@@ -191,7 +191,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `clock set back after ringing does not ring again the same day`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         clock.now = local("2026-09-28T06:30").plusSeconds(2)
         engine.onFired(id, local("2026-09-28T06:30"), FireKind.REGULAR)
         clock.now = local("2026-09-28T05:30") // перевели на час назад
@@ -203,7 +203,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `duplicate delivery of the same trigger does not ring twice`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         clock.now = local("2026-09-28T06:30")
         engine.onFired(id, clock.now, FireKind.REGULAR)
 
@@ -230,7 +230,7 @@ class AlarmEngineRobustnessTest {
 
     @Test
     fun `pending snooze survives a timezone change unchanged`() = runTest {
-        val id = engine.save(daily)
+        val id = engine.save(daily).id
         val until = local("2026-09-28T06:40")
         repository.updateRuntime(AlarmRuntimeState(id, until, TriggerKind.SNOOZE, snoozeCount = 1))
         clock.now = local("2026-09-28T06:36")
