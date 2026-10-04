@@ -4,6 +4,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /** Размеры и отступы Balarm (PRD §4.2, скилл alarmy-ui). */
 object BalarmDimens {
@@ -17,14 +18,36 @@ object BalarmDimens {
     val ScreenPadding = 20.dp
     val CardGap = 12.dp
     val MinTouch = 48.dp
+    val SpacingTiny = 4.dp
     val SpacingSmall = 8.dp
+
+    /** Внутренний отступ карточки будильника. */
+    val CardPadding = 16.dp
+
+    /** Точка-индикатор под выбранным днём в `DayPillsRow` (не только цвет — WCAG 1.4.1). */
+    val DayPillIndicator = 4.dp
+
+    /**
+     * Нижняя граница autoSize подписи дня в `DayPillsRow`. Масштабируется `fontScale` (при 2f — как 20sp),
+     * так что «Пн»…«Вс» жирным влезают в ячейку ≈ 29dp карточки на экране 360dp.
+     */
+    val DayPillLabelMinFontSize = 10.sp
+
+    /** Строка дней не растягивается на планшете/в ландшафте шире этого значения. */
+    val DayPillsRowMaxWidth = 280.dp
+
+    /** Размер иконок. */
+    val Icon = 24.dp
 }
 
-/** Формы Balarm: кнопки — 16dp, карточки — 20dp, FAB — круг. */
+/** Формы Balarm: кнопки — 16dp, карточки — 20dp, FAB и точки-индикаторы — круг. */
 object BalarmShapes {
     val Button = RoundedCornerShape(BalarmDimens.ButtonRadius)
     val Card = RoundedCornerShape(BalarmDimens.CardRadius)
     val Fab = CircleShape
+
+    /** Круг для мелких элементов: точка-индикатор дня, цветовые образцы. */
+    val Circle = CircleShape
 }
 
 /** M3 [Shapes]: `medium` — кнопки/поля, `large` — карточки. */

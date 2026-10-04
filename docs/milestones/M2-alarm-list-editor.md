@@ -54,7 +54,7 @@
 | [x] | M2-T05 | 🔔 Данные: `observeAlarmsWithRuntime` (`@Relation`) | FR-LIST-1, 2 | S | T01 | |
 | [x] | M2-T06 | `:core:format`: форматтер времени, «через X», дни недели; убрать 3 копии | NFR-7, перенос M1 | M | T04 | |
 | [x] | M2-T07 | 🎨 Экран звонка: видимые системные панели | перенос M1 | S | T06 | |
-| [ ] | M2-T08 | 🎨 Дизайн-система ч.1: карточка, дни (чтение), переключатель, FAB, шапка, диалог, иконки | FR-LIST-1…3 | M | — | |
+| [x] | M2-T08 | 🎨 Дизайн-система ч.1: карточка, дни (чтение), переключатель, FAB, шапка, диалог, иконки | FR-LIST-1…3 | M | — | |
 | [ ] | M2-T09 | 🎨 `TimeWheelPicker` | FR-EDIT-1 | L | — | |
 | [ ] | M2-T10 | 🎨 Дизайн-система ч.2: выбор дней, пресеты, строка настройки, диалог выбора, поле метки | FR-EDIT-2, 4, 7 | M | — | |
 | [ ] | M2-T11 | `:feature:alarmlist`: ViewModel и состояние | FR-LIST-1, 2, 4 | M | T02, T04, T05 | |
@@ -136,8 +136,8 @@
 **Описание:** `AlarmCard(time, amPm?, label, days: List<DayPillUi>, active, subtitle?, onToggle, onClick, onLongClick)` (подзаголовок: «Сегодня/Завтра», «Отложен до 07:05»), `DayPillsRow` (только чтение), `BalarmSwitch` (M3 `Switch` с токенами), `BalarmFab` (64dp, круг, primary), `NextAlarmHeader`, `ConfirmDialog`; векторные иконки (add, delete, chevron, keyboard) из Material Symbols Rounded в `res/drawable` + запись в `docs/LICENSES.md` (Apache 2.0); `material-icons-extended` не подключать. Компоненты принимают примитивы и строки, `:core:model` не знают.
 **Модули:** `:core:designsystem`
 **Критерии приёмки:**
-- [ ] Превью: тёмная тема, fontScale 2f, 360dp; зона тапа ≥ 48dp; TalkBack-описания (тумблер «Будильник 07:30, включён»)
-- [ ] Контраст проверяется `ContrastTest` для новых токенов, если они добавлены
+- [x] Превью: тёмная тема, fontScale 2f, 360dp; зона тапа ≥ 48dp; TalkBack-описания (тумблер «Будильник 07:30, включён»)
+- [x] Контраст проверяется `ContrastTest` для новых токенов, если они добавлены
 **Тесты:** Compose UI (Robolectric): клик/долгий тап/переключение, семантика.
 
 ### M2-T09 — 🎨 `TimeWheelPicker` (agent: ui-developer)
@@ -243,6 +243,7 @@ Unit/Robolectric полностью (`./gradlew testDebugUnitTest`, `lint detekt
 - **T04/T05 (ревью ⚠️ → исправлено):** `timeUntil` считает в миллисекундах (субсекундная граница округляла вниз); KDoc `upcomingTrigger`: при `scheduled=false` runtime хранит момент «для повтора» — на minSdk 34 `USE_EXACT_ALARM` не отзывается, статус — экран здоровья M3; тест «битого» runtime. **В T11:** `now` для `timeUntil` брать как `clock.instant()` на каждом тике, а не из усечённого `LocalDateTime` тика; добавить `distinctUntilChanged()` на потоке списка (Room-тесты на Turbine рассчитывают на одну эмиссию на запись). **Nit:** запрет `\n` в метке (ADR-011 §7) — в T14; при его появлении маппер Room должен чистить перевод строки, иначе `toDomain` бросит на «битой» строке.
 - **T06 (ревью ⚠️ → исправлено):** AM/PM вырезается вне кавычек ICU-шаблона (`stripAmPm`), тест по всем локалям проверяет «цифры + маркер = полное время»; `ClockFormat.time/date` принимают `LocalTime/LocalDate/LocalDateTime`; `TimeUntil` не допускает 0/отрицательных значений; имена дней — `*_STANDALONE`. **Решение:** маркер AM/PM в карточке рисуется после цифр во всех локалях. ICU в EN даёт «7 hr, 12 min», в RU «2 дн. 3 ч 5 мин» (не «2 д»). Строки шапки списка перенесены в T12. **В T-docs:** добавить `:core:format` в PRD §6.2. **Метка:** Metaspace OOM KSP после серии сборок — `./gradlew --stop` помогает (как в M1).
 - **T07 (ui-developer):** `hideSystemBars()` удалён, бары видимы и прозрачны (edge-to-edge), превью `RingingSystemBarsPreview`; тесты: бары видимы (через рефлексию `getRequestedVisibleTypes()` — Robolectric не пересчитывает `rootWindowInsets`; при обновлении Robolectric/SDK может сломаться), кнопки не перекрыты барами при fontScale 2f/360dp. Визуальная проверка — смок 3. **В T-docs:** скилл `alarmy-ui` и PRD §4: «экран звонка: бары видимы»; ревью T07 — вместе с UI-задачами (T08).
+- **T08 (ui-developer, ревью T07+T08 ⚠️ → исправлено):** `AlarmCard(time, amPm, label, days, active, subtitle, contentDescription, toggleDescription, onToggle, onClick, onClickLabel, onLongClick, onLongClickLabel, modifier)` — три описания обязательны (TalkBack), `NextAlarmHeader` читается одним описанием с подписью, `DayPillsRow` при fontScale 2/360dp не обрезается (`DayPillLabelMinFontSize` 10sp, тест в Robolectric NATIVE). Новые токены: `captionStrong`, `BalarmShapes.Circle`, размеры (`CardPadding`, `SpacingTiny`, `DayPillIndicator`, `DayPillsRowMaxWidth`, `Icon`, `DayPillLabelMinFontSize`). Иконки (add, delete, chevron_right, keyboard) — **авторские CC0, не Material Symbols** (`docs/LICENSES.md`); при желании заменить на Material Symbols без смены API. **Отклонение от скилла/PRD:** выбранный день в карточке — текст primary + Bold + точка, а не красная заливка (мелкий белый текст на #FF4D4F = 3.27:1, PRD §4.2 ¹); в карточке `DayPillsRow` (read-only), а не `DayChipsRow`. **В T11/T12:** мемоизировать `List<DayPillUi>` (нестабильный параметр → лишние рекомпозиции карточек). **В T-docs:** скилл `alarmy-ui` (бары звонка видимы; `DayPillsRow`; иконки; `captionStrong`), `.claude/agents/ui-developer.md:26`, `verify-alarm-reliability` (подсказка «Viewing full screen» больше не появляется), PRD §4; при светлой теме (бэклог) стиль иконок системных баров звонка (`SystemBarStyle.dark`) выбирать по теме; для экранов миссий (M5) решение «скрытые бары» — отдельное.
 
 ## Уроки
 

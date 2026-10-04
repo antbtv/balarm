@@ -23,6 +23,19 @@ class ContrastTest {
         assertContrast("$name textSecondary/surfaceVariant", c.textSecondary, c.surfaceVariant, AA_NORMAL)
     }
 
+    /** Акцентный текст на `surface`: выбранные дни в карточке, destructive-кнопка в `ConfirmDialog`. */
+    @Test
+    fun primaryTextOnSurfaceMeetsAa() = bothThemes { name, c ->
+        assertContrast("$name primary/surface", c.primary, c.surface, AA_NORMAL)
+    }
+
+    /** Переключатель (WCAG 1.4.11, ≥ 3:1): трек вкл и обводка выкл видны на карточке. */
+    @Test
+    fun switchPartsOnSurfaceMeetNonTextContrast() = bothThemes { name, c ->
+        assertContrast("$name primary track/surface", c.primary, c.surface, AA_LARGE)
+        assertContrast("$name unchecked border/surface", c.textSecondary, c.surface, AA_LARGE)
+    }
+
     @Test
     fun onPrimaryOnPrimaryLightMeetsAa() {
         assertContrast("light onPrimary/primary", LightBalarmColors.onPrimary, LightBalarmColors.primary, AA_NORMAL)

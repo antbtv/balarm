@@ -18,6 +18,7 @@ private const val TABULAR_NUMBERS = "tnum"
  * @property title заголовки экранов и секций.
  * @property body основной текст.
  * @property caption подписи, вторичный текст.
+ * @property captionStrong [caption] жирным — выделение в мелком тексте (выбранный день в `DayPillsRow`).
  * @property buttonLarge текст на красных (`primary`) кнопках. Не меньше 19sp Bold: пара onPrimary/primary
  * в тёмной теме (3.27:1) проходит WCAG только как крупный текст (≥ 14pt Bold ≈ 18.7sp).
  */
@@ -28,6 +29,7 @@ data class BalarmTypography(
     val title: TextStyle,
     val body: TextStyle,
     val caption: TextStyle,
+    val captionStrong: TextStyle,
     val buttonLarge: TextStyle,
 )
 
@@ -61,6 +63,12 @@ internal val DefaultBalarmTypography = BalarmTypography(
     caption = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+    ),
+    captionStrong = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
         fontSize = 13.sp,
         lineHeight = 18.sp,
     ),

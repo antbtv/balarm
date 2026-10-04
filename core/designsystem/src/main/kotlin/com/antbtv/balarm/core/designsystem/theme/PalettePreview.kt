@@ -57,8 +57,8 @@ private fun PaletteSheet() {
             Text("primary / buttonLarge", style = type.buttonLarge, color = colors.onPrimary)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(BalarmDimens.SpacingSmall)) {
-            Box(Modifier.size(BalarmDimens.MinTouch).background(colors.success, BalarmShapes.Fab))
-            Box(Modifier.size(BalarmDimens.MinTouch).background(colors.warning, BalarmShapes.Fab))
+            Box(Modifier.size(BalarmDimens.MinTouch).background(colors.success, BalarmShapes.Circle))
+            Box(Modifier.size(BalarmDimens.MinTouch).background(colors.warning, BalarmShapes.Circle))
         }
     }
 }

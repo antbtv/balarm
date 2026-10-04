@@ -26,6 +26,7 @@ import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.feature.ringing.ui.RingingTestTags
 import com.antbtv.balarm.feature.ringing.ui.RingingViewModel
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -33,7 +34,9 @@ import dagger.hilt.android.testing.HiltTestApplication
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.math.roundToInt
 import kotlin.time.toJavaDuration
+import org.junit.Assume.assumeNoException
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -160,14 +163,28 @@ class RingingActivityTest {
 
         val controller = checkNotNull(decorView.windowInsetsController)
 
-        // Robolectric не пересчитывает rootWindowInsets после hide(), поэтому смотрим запрошенную видимость
-        // в самом InsetsController (скрытый API, в Robolectric доступен).
-        val requestedVisible = controller.javaClass.getMethod("getRequestedVisibleTypes").invoke(controller) as Int
-        assertThat(requestedVisible and WindowInsets.Type.statusBars()).isNotEqualTo(0)
-        assertThat(requestedVisible and WindowInsets.Type.navigationBars()).isNotEqualTo(0)
-        // Поведение «показ по свайпу» имеет смысл только для скрытых панелей — оно не выставляется.
+        // Основная проверка — публичный API: «показ по свайпу» выставляют только вместе с hide(systemBars()).
         assertThat(controller.systemBarsBehavior)
             .isEqualTo(WindowInsetsController.BEHAVIOR_DEFAULT)
+
+        // Дополнительно — запрошенная видимость. Robolectric не пересчитывает rootWindowInsets после hide(),
+        // а getRequestedVisibleTypes() — @hide-метод интерфейса WindowInsetsController: если его нет,
+        // тест пропускается (assume), а не падает по причине, не связанной с панелями.
+        val requestedVisible = requestedVisibleTypes(controller)
+        assertWithMessage("status bars requested hidden")
+            .that(requestedVisible and WindowInsets.Type.statusBars()).isNotEqualTo(0)
+        assertWithMessage("navigation bars requested hidden")
+            .that(requestedVisible and WindowInsets.Type.navigationBars()).isNotEqualTo(0)
+    }
+
+    private fun requestedVisibleTypes(controller: WindowInsetsController): Int = try {
+        WindowInsetsController::class.java.getMethod("getRequestedVisibleTypes").invoke(controller) as Int
+    } catch (e: NoSuchMethodException) {
+        assumeNoException("WindowInsetsController.getRequestedVisibleTypes() is unavailable", e)
+        error("unreachable")
+    } catch (e: IllegalAccessException) {
+        assumeNoException("WindowInsetsController.getRequestedVisibleTypes() is inaccessible", e)
+        error("unreachable")
     }
 
     @Test
@@ -179,11 +196,11 @@ class RingingActivityTest {
                 val bars = WindowInsetsCompat.Builder()
                     .setInsets(
                         WindowInsetsCompat.Type.statusBars(),
-                        Insets.of(0, (STATUS_BAR_DP * density).toInt(), 0, 0),
+                        Insets.of(0, (STATUS_BAR_DP * density).roundToInt(), 0, 0),
                     )
                     .setInsets(
                         WindowInsetsCompat.Type.navigationBars(),
-                        Insets.of(0, 0, 0, (NAV_BAR_DP * density).toInt()),
+                        Insets.of(0, 0, 0, (NAV_BAR_DP * density).roundToInt()),
                     )
                     .build()
                 ViewCompat.dispatchApplyWindowInsets(activity.window.decorView, bars)
@@ -195,8 +212,9 @@ class RingingActivityTest {
             val dismiss = composeRule.onNodeWithTag(RingingTestTags.DISMISS).assertIsDisplayed()
                 .getUnclippedBoundsInRoot()
 
-            assertThat(dismiss.bottom).isAtMost(root.bottom - NAV_BAR_DP.dp)
-            assertThat(snooze.top).isAtLeast(root.top + STATUS_BAR_DP.dp)
+            // Запас 1dp — округление px↔dp при нецелой плотности.
+            assertThat(dismiss.bottom).isAtMost(root.bottom - NAV_BAR_DP.dp + ROUNDING_TOLERANCE)
+            assertThat(snooze.top).isAtLeast(root.top + STATUS_BAR_DP.dp - ROUNDING_TOLERANCE)
             assertThat(snooze.bottom).isAtMost(dismiss.top)
         }
     }
@@ -204,5 +222,6 @@ class RingingActivityTest {
     private companion object {
         const val STATUS_BAR_DP = 24
         const val NAV_BAR_DP = 48
+        val ROUNDING_TOLERANCE = 1.dp
     }
 }
