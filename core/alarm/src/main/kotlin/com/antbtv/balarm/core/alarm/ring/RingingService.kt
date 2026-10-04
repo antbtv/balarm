@@ -315,7 +315,7 @@ class RingingService : Service() {
     private suspend fun autoStop(id: AlarmId) {
         val ring = current?.takeIf { it.alarm.id == id } ?: return
         finishCurrent("auto_stop")
-        notifyMissed(ring)
+        if (!id.isTest) notifyMissed(ring) // тест запущен самим пользователем — «пропущенным» он не бывает
         record("auto_stop") { engine.dismiss(id, DismissReason.AUTO_STOP) }
     }
 

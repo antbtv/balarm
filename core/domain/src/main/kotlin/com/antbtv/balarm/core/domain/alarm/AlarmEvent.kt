@@ -38,6 +38,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("id" to id.value, "at" to at)
     }
 
+    /** Тестовый звонок запланирован ([AlarmId.TEST], ADR-010); без метки и других данных пользователя. */
+    data class TestScheduled(val at: Instant) : AlarmEvent {
+        override val name = "TEST_SCHEDULED"
+        override val fields = mapOf("at" to at)
+    }
+
     data class Cancelled(val id: AlarmId) : AlarmEvent {
         override val name = "CANCELLED"
         override val fields = mapOf("id" to id.value)

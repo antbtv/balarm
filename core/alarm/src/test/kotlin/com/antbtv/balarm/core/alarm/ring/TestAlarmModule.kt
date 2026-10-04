@@ -7,6 +7,9 @@ import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
+import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
+import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
+import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.di.ApplicationScope
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
@@ -56,12 +59,19 @@ object TestAlarmModule {
     fun log(recording: RecordingEventLog): AlarmEventLog = recording
 
     @Provides @Singleton
+    fun testAlarmStore() = InMemoryTestAlarmStore()
+
+    @Provides
+    fun testStore(store: InMemoryTestAlarmStore): TestAlarmStore = store
+
+    @Provides @Singleton
     fun engine(
         repository: FakeAlarmRepository,
         scheduler: FakeAlarmScheduler,
         clock: MutableClock,
         log: RecordingEventLog,
-    ) = AlarmEngine(repository, scheduler, clock, { true }, log)
+        store: InMemoryTestAlarmStore,
+    ) = AlarmEngine(repository, scheduler, clock, { true }, log, TestAlarmRunner(scheduler, store, clock, log))
 
     @Provides @Singleton
     fun fakeSound() = FakeSoundPlayer()

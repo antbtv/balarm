@@ -9,7 +9,9 @@ import com.antbtv.balarm.core.alarm.sound.MediaAlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.SystemAlarmVibrator
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
+import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
 import com.antbtv.balarm.core.domain.alarm.RingingController
+import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.schedule.SystemZoneClock
 import dagger.Binds
 import dagger.Module
@@ -26,6 +28,9 @@ interface AlarmModule {
 
     @Binds
     fun bindEventLog(impl: LogcatAlarmEventLog): AlarmEventLog
+
+    @Binds
+    fun bindTestAlarmStore(impl: InMemoryTestAlarmStore): TestAlarmStore
 
     @Binds
     fun bindRingingController(impl: RingingControllerImpl): RingingController

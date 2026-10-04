@@ -70,6 +70,22 @@ class AlarmSchedulerImplTest {
     }
 
     @Test
+    fun `the reserved test alarm has its own pending intent next to user alarms`() {
+        scheduler.schedule(ScheduleRequest(AlarmId(1), at, FireKind.REGULAR))
+        scheduler.schedule(ScheduleRequest(AlarmId.TEST, at.plusSeconds(5), FireKind.REGULAR))
+
+        val alarms = shadowOf(alarmManager).scheduledAlarms
+        assertThat(alarms).hasSize(2)
+        val test = alarms.single { it.triggerAtMs == at.plusSeconds(5).toEpochMilli() }
+        val intent = shadowOf(test.operation).savedIntent
+        assertThat(AlarmIntents.parse(intent)?.alarmId).isEqualTo(AlarmId.TEST)
+
+        scheduler.cancel(AlarmId.TEST)
+
+        assertThat(shadowOf(alarmManager).scheduledAlarms).hasSize(1)
+    }
+
+    @Test
     fun `cancel removes only that alarm`() {
         scheduler.schedule(ScheduleRequest(AlarmId(1), at, FireKind.REGULAR))
         scheduler.schedule(ScheduleRequest(AlarmId(2), at, FireKind.REGULAR))

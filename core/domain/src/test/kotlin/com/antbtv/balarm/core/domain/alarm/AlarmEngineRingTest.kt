@@ -4,6 +4,7 @@ import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
+import com.antbtv.balarm.core.domain.testing.testEngine
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.SnoozeSettings
@@ -29,7 +30,7 @@ class AlarmEngineRingTest {
     private val scheduler = FakeAlarmScheduler()
     private val log = RecordingEventLog()
     private var flags: FeatureFlagProvider = ConfigFeatureFlagProvider
-    private val engine by lazy { AlarmEngine(repository, scheduler, clock, { flags.isEnabled(it) }, log) }
+    private val engine by lazy { testEngine(repository, scheduler, clock, { flags.isEnabled(it) }, log) }
 
     private fun local(iso: String) = LocalDateTime.parse(iso).atZone(moscow).toInstant()
 
@@ -82,7 +83,7 @@ class AlarmEngineRingTest {
         val broken = object : AlarmRepository by repository {
             override suspend fun <R> transaction(block: suspend () -> R): R = throw IOException("disk")
         }
-        val degradedEngine = AlarmEngine(broken, scheduler, clock, ConfigFeatureFlagProvider, log)
+        val degradedEngine = testEngine(broken, scheduler, clock, ConfigFeatureFlagProvider, log)
         clock.now = local("2026-09-28T06:30:40")
 
         val decision = degradedEngine.onFired(AlarmId(5), local("2026-09-28T06:30"), FireKind.REGULAR)

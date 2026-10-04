@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  * adb shell am broadcast -n com.antbtv.balarm/.debug.DebugAlarmReceiver -a com.antbtv.balarm.debug.SCHEDULE_IN \
  *     --ei minutes 2 [--ei seconds 30] [--es label Work] [--es days MON,TUE]
  * ```
- * Действия: SCHEDULE_IN, LIST, DISMISS, SNOOZE, RESCHEDULE_ALL, CLEAR_ALL, CRASH.
+ * Действия: SCHEDULE_IN, LIST, DISMISS, SNOOZE, RESCHEDULE_ALL, CLEAR_ALL, CRASH, TEST (`--ei seconds 5`, ADR-010).
  */
 @AndroidEntryPoint
 class DebugAlarmReceiver : BroadcastReceiver() {
@@ -34,6 +34,8 @@ class DebugAlarmReceiver : BroadcastReceiver() {
             SNOOZE -> commands.snooze()
 
             CRASH -> commands.crash()
+
+            TEST -> commands.testIn(Duration.ofSeconds(intent.getIntExtra("seconds", 5).coerceAtLeast(1).toLong()))
 
             SCHEDULE_IN, LIST, RESCHEDULE_ALL, CLEAR_ALL -> {
                 val pending = goAsync()
@@ -70,5 +72,6 @@ class DebugAlarmReceiver : BroadcastReceiver() {
         const val RESCHEDULE_ALL = "RESCHEDULE_ALL"
         const val CLEAR_ALL = "CLEAR_ALL"
         const val CRASH = "CRASH"
+        const val TEST = "TEST"
     }
 }

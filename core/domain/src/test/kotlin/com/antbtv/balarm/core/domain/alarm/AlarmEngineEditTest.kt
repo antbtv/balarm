@@ -4,6 +4,7 @@ import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
+import com.antbtv.balarm.core.domain.testing.testEngine
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
@@ -28,7 +29,8 @@ class AlarmEngineEditTest {
     private val clock = MutableClock(local("2026-09-28T05:00"), moscow)
     private val repository = FakeAlarmRepository()
     private val scheduler = FakeAlarmScheduler()
-    private val engine = AlarmEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, RecordingEventLog())
+    private val log = RecordingEventLog()
+    private val engine = testEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, log)
 
     private fun local(iso: String): Instant = LocalDateTime.parse(iso).atZone(moscow).toInstant()
 

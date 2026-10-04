@@ -1,14 +1,18 @@
 package com.antbtv.balarm.core.domain.testing
 
+import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.AlarmRepository
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
 import com.antbtv.balarm.core.domain.alarm.AlarmWithRuntime
+import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
+import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
+import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -124,3 +128,16 @@ class RecordingEventLog : AlarmEventLog {
         events += event
     }
 }
+
+/** Тестовый звонок на фейках (ADR-010): общий снимок в памяти, настоящий [TestAlarmRunner]. */
+fun testAlarmRunner(scheduler: AlarmScheduler, clock: Clock, log: AlarmEventLog) =
+    TestAlarmRunner(scheduler, InMemoryTestAlarmStore(), clock, log)
+
+/** [AlarmEngine] на фейках с тестовым звонком в памяти. */
+fun testEngine(
+    repository: AlarmRepository,
+    scheduler: AlarmScheduler,
+    clock: Clock,
+    flags: FeatureFlagProvider,
+    log: AlarmEventLog,
+) = AlarmEngine(repository, scheduler, clock, flags, log, testAlarmRunner(scheduler, clock, log))

@@ -19,6 +19,8 @@ import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.SkipReason
+import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
+import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
@@ -70,6 +72,10 @@ class RingingServiceTest {
     @Inject lateinit var recording: RecordingEventLog
 
     @Inject lateinit var controller: RingingControllerImpl
+
+    @Inject lateinit var testAlarmRunner: TestAlarmRunner
+
+    @Inject lateinit var testAlarmStore: TestAlarmStore
 
     private val app: Application = ApplicationProvider.getApplicationContext()
     private val notificationManager = app.getSystemService(NotificationManager::class.java)
@@ -154,6 +160,80 @@ class RingingServiceTest {
         assertThat(events).contains(AlarmEvent.Dismissed(ALARM.id, DismissReason.USER))
         assertThat(controller.state.value).isEqualTo(RingingState.Idle)
         assertStoppedAndReleased()
+    }
+
+    @Test
+    fun `the test alarm rings the draft without snooze and dismiss leaves storage alone`() {
+        testAlarmRunner.schedule(Alarm(time = LocalTime.of(7, 30), label = "Draft"), Duration.ofSeconds(5))
+
+        start(ringIntent(AlarmId.TEST))
+
+        val state = controller.state.value as RingingState.Ringing
+        assertThat(state.alarm.id).isEqualTo(AlarmId.TEST)
+        assertThat(state.alarm.label).isEqualTo("Draft")
+        assertThat(state.canSnooze).isFalse()
+        assertThat(fakeSound.playing).isTrue()
+        assertThat(events).contains(AlarmEvent.RingingStarted(AlarmId.TEST, degraded = false))
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, AlarmId.TEST))
+
+        assertThat(controller.state.value).isEqualTo(RingingState.Idle)
+        assertThat(runBlocking { repository.loadAll() }.map { it.alarm.id }).containsExactly(ALARM.id, OTHER.id)
+        assertStoppedAndReleased()
+    }
+
+    @Test
+    fun `the test alarm and a user alarm queue behind each other in both directions`() {
+        testAlarmRunner.schedule(Alarm(time = LocalTime.of(7, 30), label = "Draft"), Duration.ofSeconds(5))
+
+        start(ringIntent(ALARM.id))
+        start(ringIntent(AlarmId.TEST))
+        assertThat(events).contains(AlarmEvent.RingingQueued(AlarmId.TEST))
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        val test = controller.state.value as RingingState.Ringing
+        assertThat(test.alarm.id).isEqualTo(AlarmId.TEST)
+        assertThat(test.canSnooze).isFalse()
+
+        start(ringIntent(OTHER.id))
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, AlarmId.TEST))
+
+        assertThat((controller.state.value as RingingState.Ringing).alarm.id).isEqualTo(OTHER.id)
+    }
+
+    @Test
+    fun `nobody reacts to the test alarm - it stops without a missed notification`() {
+        testAlarmRunner.schedule(Alarm(time = LocalTime.of(7, 30)), Duration.ofSeconds(5))
+        start(ringIntent(AlarmId.TEST))
+
+        idle(RingingPolicy.AUTO_STOP_AFTER)
+
+        assertThat(fakeSound.playing).isFalse()
+        assertThat(events).contains(AlarmEvent.Dismissed(AlarmId.TEST, DismissReason.AUTO_STOP))
+        assertThat(shadowOf(notificationManager).activeNotifications.map { it.tag })
+            .doesNotContain(AlarmNotifications.missedTag(AlarmId.TEST))
+        assertThat(controller.state.value).isEqualTo(RingingState.Idle)
+    }
+
+    @Test
+    fun `crash while the test rings re-arms it and the resumed test rings with defaults`() {
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+        testAlarmRunner.schedule(Alarm(time = LocalTime.of(7, 30), label = "Draft"), Duration.ofSeconds(5))
+        start(ringIntent(AlarmId.TEST))
+
+        Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(Thread.currentThread(), IllegalStateException())
+
+        val at = NOW + RingingService.CRASH_RESUME_DELAY
+        assertThat(scheduler.scheduled[AlarmId.TEST]).isEqualTo(ScheduleRequest(AlarmId.TEST, at, FireKind.RESUME))
+        service.destroy() // процесс «умер»: снимок черновика в памяти потерян
+        testAlarmStore.clear()
+        service = Robolectric.buildService(RingingService::class.java).create()
+
+        start(AlarmIntents.ring(app, ScheduleRequest(AlarmId.TEST, at, FireKind.RESUME)))
+
+        val state = controller.state.value as RingingState.Ringing
+        assertThat(state.alarm.id).isEqualTo(AlarmId.TEST)
+        assertThat(state.canSnooze).isFalse()
+        assertThat(fakeSound.playing).isTrue()
     }
 
     @Test

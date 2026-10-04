@@ -38,6 +38,7 @@ class AlarmEngine @Inject constructor(
     private val clock: Clock,
     private val flags: FeatureFlagProvider,
     private val log: AlarmEventLog,
+    private val testAlarms: TestAlarmRunner,
 ) {
     private val mutex = Mutex()
 
@@ -109,12 +110,22 @@ class AlarmEngine @Inject constructor(
      * чтобы падение звонка не потеряло завтрашний будильник. Повторная доставка того же срабатывания —
      * [SkipReason.DUPLICATE]. Занятый движок или ошибка хранилища → звонок с настройками по умолчанию.
      */
-    suspend fun onFired(id: AlarmId, scheduledFor: Instant, kind: FireKind): FireDecision = try {
-        locked(timeout = FIRE_LOCK_TIMEOUT) { fire(id, scheduledFor, kind) } ?: degraded(id, "EngineBusy")
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        degraded(id, e.javaClass.simpleName)
+    suspend fun onFired(id: AlarmId, scheduledFor: Instant, kind: FireKind): FireDecision {
+        if (id.isTest) return fireTest(scheduledFor, kind)
+        return try {
+            locked(timeout = FIRE_LOCK_TIMEOUT) { fire(id, scheduledFor, kind) } ?: degraded(id, "EngineBusy")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            degraded(id, e.javaClass.simpleName)
+        }
+    }
+
+    /** Тестовый звонок не трогает ни репозиторий, ни мьютекс, ни расписание пользователя (ADR-010 §4). */
+    private fun fireTest(scheduledFor: Instant, kind: FireKind): FireDecision {
+        val lateMs = Duration.between(scheduledFor, clock.instant()).toMillis()
+        log.log(AlarmEvent.Fired(AlarmId.TEST, kind, lateMs))
+        return testAlarms.decision()
     }
 
     /**
@@ -123,6 +134,7 @@ class AlarmEngine @Inject constructor(
      * следующее. Иначе разовый зазвонил бы снова, а повторяющийся остался бы без следующего срабатывания.
      */
     suspend fun recordDegraded(id: AlarmId, scheduledFor: Instant, kind: FireKind) {
+        if (id.isTest) return // тест нечего дописывать: он не хранится
         locked { fire(id, scheduledFor, kind) }
     }
 
@@ -131,18 +143,21 @@ class AlarmEngine @Inject constructor(
      * или система не приняла будильник (тогда звонок должен продолжаться). Повторное нажатие, пока snooze
      * уже стоит, лимит не тратит.
      */
-    suspend fun snooze(id: AlarmId): SnoozeResult = locked {
-        val alarm = repository.get(id) ?: return@locked SnoozeResult.NotAllowed
-        val runtime = repository.getRuntime(id) ?: AlarmRuntimeState(id)
-        val now = clock.instant()
-        val pendingUntil = runtime.nextTriggerAt?.takeIf {
-            runtime.nextTriggerKind == TriggerKind.SNOOZE && it.isAfter(now)
-        }
-        val interval = alarm.snooze.interval
-        when {
-            pendingUntil != null -> SnoozeResult.Snoozed(pendingUntil)
-            interval == null || !canSnooze(alarm, runtime.snoozeCount) -> SnoozeResult.NotAllowed
-            else -> scheduleSnooze(alarm, runtime, now + interval)
+    suspend fun snooze(id: AlarmId): SnoozeResult {
+        if (id.isTest) return SnoozeResult.NotAllowed // у тестового звонка нет «Отложить» (ADR-010 §5)
+        return locked {
+            val alarm = repository.get(id) ?: return@locked SnoozeResult.NotAllowed
+            val runtime = repository.getRuntime(id) ?: AlarmRuntimeState(id)
+            val now = clock.instant()
+            val pendingUntil = runtime.nextTriggerAt?.takeIf {
+                runtime.nextTriggerKind == TriggerKind.SNOOZE && it.isAfter(now)
+            }
+            val interval = alarm.snooze.interval
+            when {
+                pendingUntil != null -> SnoozeResult.Snoozed(pendingUntil)
+                interval == null || !canSnooze(alarm, runtime.snoozeCount) -> SnoozeResult.NotAllowed
+                else -> scheduleSnooze(alarm, runtime, now + interval)
+            }
         }
     }
 
@@ -150,11 +165,17 @@ class AlarmEngine @Inject constructor(
      * Звонок окончен (кнопка «Отключить», миссия, автостоп). Счётчик snooze сбрасывается, дальше — обычное
      * расписание; разовый остаётся выключенным. Для «Отложить» вызывается только [snooze], не [dismiss].
      */
-    suspend fun dismiss(id: AlarmId, reason: DismissReason): Unit = locked {
-        val alarm = repository.get(id) ?: return@locked
-        val runtime = (repository.getRuntime(id) ?: AlarmRuntimeState(id)).copy(snoozeCount = 0)
-        applySchedule(alarm, regularPlan(alarm, runtime))
-        log.log(AlarmEvent.Dismissed(id, reason))
+    suspend fun dismiss(id: AlarmId, reason: DismissReason) {
+        if (id.isTest) { // у тестового звонка нет расписания и runtime — только запись в лог
+            log.log(AlarmEvent.Dismissed(id, reason))
+            return
+        }
+        locked {
+            val alarm = repository.get(id) ?: return@locked
+            val runtime = (repository.getRuntime(id) ?: AlarmRuntimeState(id)).copy(snoozeCount = 0)
+            applySchedule(alarm, regularPlan(alarm, runtime))
+            log.log(AlarmEvent.Dismissed(id, reason))
+        }
     }
 
     // region Срабатывание

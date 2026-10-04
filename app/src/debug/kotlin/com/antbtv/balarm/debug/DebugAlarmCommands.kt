@@ -10,6 +10,7 @@ import com.antbtv.balarm.core.domain.alarm.AlarmRepository
 import com.antbtv.balarm.core.domain.alarm.RescheduleReason
 import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.RingingState
+import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.takeCodePoints
@@ -17,6 +18,7 @@ import java.time.Clock
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
@@ -30,6 +32,7 @@ class DebugAlarmCommands @Inject constructor(
     private val rescheduler: SafeRescheduler,
     private val ringing: RingingController,
     private val clock: Clock,
+    private val testAlarms: TestAlarmRunner,
 ) {
     /**
      * Будильник через [delay] (минимум 1 с). Время будильника — целые минуты, поэтому момент
@@ -56,6 +59,13 @@ class DebugAlarmCommands @Inject constructor(
                     "snoozes=${runtime?.snoozeCount ?: 0}",
             )
         }
+    }
+
+    /** «Тест» из редактора без UI: тестовый звонок через [delay] (ADR-010). Время в черновике — текущее. */
+    fun testIn(delay: Duration) {
+        val draft = Alarm(time = LocalTime.now(clock).truncatedTo(ChronoUnit.MINUTES), label = "test")
+        val at = testAlarms.schedule(draft, delay)
+        log(if (at != null) "DEBUG_TEST at=$at" else "DEBUG_TEST refused=true")
     }
 
     fun dismiss() = command("DISMISS") { ringing.dismiss() }
