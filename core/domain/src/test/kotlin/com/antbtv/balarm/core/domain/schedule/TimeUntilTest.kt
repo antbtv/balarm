@@ -2,6 +2,7 @@ package com.antbtv.balarm.core.domain.schedule
 
 import com.google.common.truth.Truth.assertThat
 import java.time.Instant
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class TimeUntilTest {
@@ -32,6 +33,13 @@ class TimeUntilTest {
         assertThat(timeUntil(Instant.parse("2026-09-28T06:58:59.500Z"), at)).isEqualTo(TimeUntil(0, 0, 2))
         assertThat(timeUntil(Instant.parse("2026-09-28T06:59:00Z"), at)).isEqualTo(TimeUntil(0, 0, 1))
         assertThat(timeUntil(Instant.parse("2026-09-28T06:59:59.999Z"), at)).isEqualTo(TimeUntil(0, 0, 1))
+    }
+
+    @Test
+    fun `an empty or negative duration cannot be created`() {
+        listOf(Triple(0, 0, 0), Triple(-1, 0, 5), Triple(0, 0, -1)).forEach { (d, h, m) ->
+            assertThrows(IllegalArgumentException::class.java) { TimeUntil(d, h, m) }
+        }
     }
 
     @Test

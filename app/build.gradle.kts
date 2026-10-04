@@ -17,6 +17,7 @@ android {
 dependencies {
     implementation(projects.core.model)
     implementation(projects.core.designsystem)
+    implementation(projects.core.format)
     implementation(projects.core.domain)
     implementation(projects.core.data)
     implementation(projects.core.alarm)

@@ -6,6 +6,7 @@ plugins {
 dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.model)
+    implementation(projects.core.format)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
 

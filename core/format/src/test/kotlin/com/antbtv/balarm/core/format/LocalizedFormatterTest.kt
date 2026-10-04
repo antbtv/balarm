@@ -1,4 +1,4 @@
-package com.antbtv.balarm.feature.ringing.ui
+package com.antbtv.balarm.core.format
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertWithMessage
@@ -9,7 +9,7 @@ import java.util.Locale
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Экран звонка не должен падать из-за языка устройства: ICU-шаблон любой локали → рабочий формат. */
+/** Экран и уведомление звонка не должны падать из-за языка устройства: ICU-шаблон любой локали → рабочий формат. */
 @RunWith(AndroidJUnit4::class)
 class LocalizedFormatterTest {
 

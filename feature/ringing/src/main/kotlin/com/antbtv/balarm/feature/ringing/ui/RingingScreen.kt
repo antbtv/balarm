@@ -1,6 +1,5 @@
 package com.antbtv.balarm.feature.ringing.ui
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -16,13 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -34,11 +30,9 @@ import com.antbtv.balarm.core.designsystem.component.PrimaryButton
 import com.antbtv.balarm.core.designsystem.component.SecondaryButton
 import com.antbtv.balarm.core.designsystem.theme.BalarmDimens
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
+import com.antbtv.balarm.core.format.rememberClockFormat
 import com.antbtv.balarm.feature.ringing.R
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.util.Locale
 
 /** Обёртка с ViewModel: состояние — с учётом жизненного цикла, команды — в [RingingViewModel.onEvent]. */
 @Composable
@@ -79,7 +73,7 @@ fun RingingScreen(state: RingingUiState, onEvent: (RingingEvent) -> Unit, modifi
 /** Часы по центру свободного места; при `fontScale = 2` и низком экране — прокрутка вместо обрезки. */
 @Composable
 private fun ColumnScope.ClockArea(now: LocalDateTime, label: String) {
-    val formatters = rememberClockFormatters()
+    val clockFormat = rememberClockFormat()
     val colors = BalarmTheme.colors
     val typography = BalarmTheme.typography
     BoxWithConstraints(
@@ -96,7 +90,7 @@ private fun ColumnScope.ClockArea(now: LocalDateTime, label: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = formatters.date.format(now),
+                text = clockFormat.date(now),
                 style = typography.caption,
                 color = colors.textSecondary,
                 textAlign = TextAlign.Center,
@@ -104,7 +98,7 @@ private fun ColumnScope.ClockArea(now: LocalDateTime, label: String) {
             )
             // 96sp × fontScale 2 не влезает в 360dp — размер подбирается по ширине, в одну строку.
             Text(
-                text = formatters.time.format(now),
+                text = clockFormat.time(now),
                 style = typography.timeHuge,
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center,
@@ -160,32 +154,6 @@ private fun RingingActions(snooze: SnoozeUi, onEvent: (RingingEvent) -> Unit) {
         )
     }
 }
-
-@Immutable
-private class ClockFormatters(val time: DateTimeFormatter, val date: DateTimeFormatter)
-
-/** Форматы — по локали и системной настройке 12/24 ч (скелеты ICU: «Hm»/«hm», «EEEEdMMMM»). */
-@Composable
-private fun rememberClockFormatters(): ClockFormatters {
-    val context = LocalContext.current
-    val locale: Locale = LocalConfiguration.current.locales[0]
-    val is24Hour = DateFormat.is24HourFormat(context)
-    return remember(locale, is24Hour) {
-        val timeSkeleton = if (is24Hour) "Hm" else "hm"
-        ClockFormatters(
-            time = localizedFormatter(locale, timeSkeleton, DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)),
-            date = localizedFormatter(locale, "EEEEdMMMM", DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
-        )
-    }
-}
-
-/**
- * Шаблон ICU по скелету → `java.time`. ICU-шаблон некоторых локалей может содержать символы, которых нет
- * в `java.time`, — тогда стандартный формат локали: экран звонка не должен падать из-за языка.
- */
-internal fun localizedFormatter(locale: Locale, skeleton: String, fallback: DateTimeFormatter): DateTimeFormatter =
-    runCatching { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale) }
-        .getOrElse { fallback.withLocale(locale) }
 
 // --- Превью ---
 

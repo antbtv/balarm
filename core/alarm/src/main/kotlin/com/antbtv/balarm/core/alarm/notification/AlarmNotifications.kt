@@ -4,16 +4,14 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.text.format.DateFormat
 import androidx.core.app.NotificationCompat
 import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.R
 import com.antbtv.balarm.core.domain.alarm.RingingPolicy
+import com.antbtv.balarm.core.format.ClockFormat
 import com.antbtv.balarm.core.model.AlarmId
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -99,16 +97,7 @@ class AlarmNotifications @Inject constructor(
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    private fun format(time: LocalTime): String {
-        val locale = context.resources.configuration.locales[0] // с учётом языка приложения
-        val skeleton = if (DateFormat.is24HourFormat(context)) "Hm" else "hm"
-        // ICU-шаблон может не подойти java.time в редких локалях — тогда стандартный формат, без падения.
-        val formatter = runCatching {
-            DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale)
-        }
-            .getOrElse { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale) }
-        return time.format(formatter)
-    }
+    private fun format(time: LocalTime): String = ClockFormat.from(context).time(time)
 
     companion object {
         const val RINGING_ID = 1

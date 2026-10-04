@@ -4,7 +4,13 @@ import java.time.Duration
 import java.time.Instant
 
 /** Время до срабатывания для шапки списка и тоста (ADR-011 §4). Нулевых значений «всё сразу» не бывает. */
-data class TimeUntil(val days: Int, val hours: Int, val minutes: Int)
+data class TimeUntil(val days: Int, val hours: Int, val minutes: Int) {
+    init {
+        require(days >= 0 && hours >= 0 && minutes >= 0 && days + hours + minutes > 0) {
+            "TimeUntil must be positive, was $days d $hours h $minutes min"
+        }
+    }
+}
 
 /**
  * Округляет **вверх** до минуты: 06:59:30 → 07:00:00 — это «через 1 мин», а не «через 0 мин».

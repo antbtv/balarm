@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     api(projects.core.domain)
+    implementation(projects.core.format)
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
