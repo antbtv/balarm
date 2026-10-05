@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_list_next_in">Следующий будильник через %1$s</string>
+    <string name="alarm_list_no_active">Нет активных будильников</string>
+
+    <string name="alarm_list_empty_title">Пока нет будильников</string>
+    <string name="alarm_list_empty_hint">Нажмите +, чтобы добавить первый будильник</string>
+
+    <string name="alarm_list_add">Добавить будильник</string>
+
+    <string name="alarm_list_today">Сегодня</string>
+    <string name="alarm_list_tomorrow">Завтра</string>
+    <string name="alarm_list_snoozed_until">Отложен до %1$s</string>
+
+    <string name="alarm_list_card_alarm">Будильник %1$s</string>
+    <string name="alarm_list_card_on">включён</string>
+    <string name="alarm_list_card_off">выключен</string>
+    <string name="alarm_list_repeat_once">однократно</string>
+    <string name="alarm_list_repeat_every_day">каждый день</string>
+    <string name="alarm_list_repeat_weekdays">по будням</string>
+    <string name="alarm_list_repeat_weekends">по выходным</string>
+    <string name="alarm_list_action_edit">Изменить</string>
+    <string name="alarm_list_action_more">Показать действия</string>
+
+    <string name="alarm_list_delete">Удалить</string>
+    <string name="alarm_list_delete_title">Удалить будильник?</string>
+    <string name="alarm_list_delete_text">Будильник %1$s будет удалён.</string>
+    <string name="alarm_list_cancel">Отмена</string>
+
+    <string name="alarm_list_schedule_failed">Не удалось запланировать будильник</string>
+    <string name="alarm_list_disable_failed">Не удалось выключить будильник</string>
+    <string name="alarm_list_delete_failed">Не удалось удалить будильник</string>
+</resources>

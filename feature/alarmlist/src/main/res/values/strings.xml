@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Шапка списка (NextAlarmHeader). %1$s — «7 hr, 12 min» из :core:format. -->
+    <string name="alarm_list_next_in">Next alarm in %1$s</string>
+    <string name="alarm_list_no_active">No active alarms</string>
+
+    <!-- Пустой список -->
+    <string name="alarm_list_empty_title">No alarms yet</string>
+    <string name="alarm_list_empty_hint">Tap + to add your first alarm</string>
+
+    <string name="alarm_list_add">Add alarm</string>
+
+    <!-- Подзаголовок карточки -->
+    <string name="alarm_list_today">Today</string>
+    <string name="alarm_list_tomorrow">Tomorrow</string>
+    <string name="alarm_list_snoozed_until">Snoozed until %1$s</string>
+
+    <!-- TalkBack: «Alarm 7:30 AM, Gym, on weekdays, Tomorrow, on». Части соединяются запятой. -->
+    <string name="alarm_list_card_alarm">Alarm %1$s</string>
+    <string name="alarm_list_card_on">on</string>
+    <string name="alarm_list_card_off">off</string>
+    <string name="alarm_list_repeat_once">once</string>
+    <string name="alarm_list_repeat_every_day">every day</string>
+    <string name="alarm_list_repeat_weekdays">on weekdays</string>
+    <string name="alarm_list_repeat_weekends">on weekends</string>
+    <string name="alarm_list_action_edit">Edit</string>
+    <string name="alarm_list_action_more">Show actions</string>
+
+    <!-- Удаление -->
+    <string name="alarm_list_delete">Delete</string>
+    <string name="alarm_list_delete_title">Delete alarm?</string>
+    <string name="alarm_list_delete_text">Alarm %1$s will be deleted.</string>
+    <string name="alarm_list_cancel">Cancel</string>
+
+    <!-- Тосты-ошибки -->
+    <string name="alarm_list_schedule_failed">Couldn\'t schedule the alarm</string>
+    <string name="alarm_list_disable_failed">Couldn\'t turn off the alarm</string>
+    <string name="alarm_list_delete_failed">Couldn\'t delete the alarm</string>
+</resources>
