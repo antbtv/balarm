@@ -44,6 +44,27 @@ object BalarmDimens {
 
     /** Зазор между колонкой минут и AM/PM в `TimeWheelPicker`. */
     val TimeWheelPeriodGap = 8.dp
+
+    /** Видимый круг дня в `DayChipsRow` (зона тапа вокруг — ячейка ≥ [MinTouch] по высоте). */
+    val DayChip = 40.dp
+
+    /**
+     * Строка `DayChipsRow` не растягивается шире: 7 ячеек по 56dp. Ячейка ≥ 48dp по ширине, если строке дали
+     * ≥ 336dp (на экране 360dp — горизонтальные отступы строки ≤ 12dp).
+     */
+    val DayChipsRowMaxWidth = 392.dp
+
+    /** Высота видимой «таблетки» `PresetChips` (зона тапа — ≥ [MinTouch]). */
+    val PresetChipHeight = 40.dp
+
+    /** Горизонтальный отступ текста внутри «таблетки» `PresetChips`. */
+    val ChipPaddingHorizontal = 16.dp
+
+    /** Обводка выбранного чипа (второй признак выбора, кроме цвета — WCAG 1.4.1). */
+    val SelectedBorder = 2.dp
+
+    /** Минимальная высота строки списка: `SettingRow`, варианты `SingleChoiceDialog`. */
+    val ListRowMinHeight = 56.dp
 }
 
 /** Формы Balarm: кнопки — 16dp, карточки — 20dp, FAB и точки-индикаторы — круг. */

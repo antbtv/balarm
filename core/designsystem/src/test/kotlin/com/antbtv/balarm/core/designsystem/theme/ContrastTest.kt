@@ -36,6 +36,21 @@ class ContrastTest {
         assertContrast("$name unchecked border/surface", c.textSecondary, c.surface, AA_LARGE)
     }
 
+    /** Подпись невыбранного пресета в `PresetChips` — на заливке `surfaceVariant`. */
+    @Test
+    fun textPrimaryOnSurfaceVariantMeetsAa() = bothThemes { name, c ->
+        assertContrast("$name textPrimary/surfaceVariant", c.textPrimary, c.surfaceVariant, AA_NORMAL)
+    }
+
+    /**
+     * WCAG 1.4.11 (≥ 3:1) на фоне экрана: заливка выбранного дня `DayChipsRow`, обводка выбранного пресета,
+     * рамка `LabelField` в фокусе. Рамка без фокуса (`textSecondary`) покрыта `textSecondaryOnSurfacesMeetsAa`.
+     */
+    @Test
+    fun primaryOutlinesOnBackgroundMeetNonTextContrast() = bothThemes { name, c ->
+        assertContrast("$name primary/background", c.primary, c.background, AA_LARGE)
+    }
+
     @Test
     fun onPrimaryOnPrimaryLightMeetsAa() {
         assertContrast("light onPrimary/primary", LightBalarmColors.onPrimary, LightBalarmColors.primary, AA_NORMAL)
