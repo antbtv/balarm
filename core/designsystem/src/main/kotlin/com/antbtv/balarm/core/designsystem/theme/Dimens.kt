@@ -38,6 +38,12 @@ object BalarmDimens {
 
     /** Размер иконок. */
     val Icon = 24.dp
+
+    /** Горизонтальный отступ текста внутри колонки `TimeWheelPicker` (с каждой стороны). */
+    val TimeWheelColumnPadding = 12.dp
+
+    /** Зазор между колонкой минут и AM/PM в `TimeWheelPicker`. */
+    val TimeWheelPeriodGap = 8.dp
 }
 
 /** Формы Balarm: кнопки — 16dp, карточки — 20dp, FAB и точки-индикаторы — круг. */

@@ -15,6 +15,13 @@ object NextAlarmHeaderTestTags {
     const val HEADER = "nextAlarmHeader"
 }
 
+object TimeWheelPickerTestTags {
+    const val PICKER = "timeWheelPicker"
+    const val HOURS = "timeWheelHours"
+    const val MINUTES = "timeWheelMinutes"
+    const val PERIOD = "timeWheelPeriod"
+}
+
 object ConfirmDialogTestTags {
     const val DIALOG = "confirmDialog"
     const val CONFIRM = "confirmDialogConfirm"
