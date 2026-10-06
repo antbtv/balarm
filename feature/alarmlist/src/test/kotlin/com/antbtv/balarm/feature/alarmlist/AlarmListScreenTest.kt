@@ -2,11 +2,16 @@ package com.antbtv.balarm.feature.alarmlist
 
 import android.content.Context
 import android.provider.Settings
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
@@ -16,23 +21,31 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.core.designsystem.component.AlarmCardTestTags
 import com.antbtv.balarm.core.designsystem.component.ConfirmDialogTestTags
 import com.antbtv.balarm.core.designsystem.component.NextAlarmHeaderTestTags
+import com.antbtv.balarm.core.designsystem.theme.BalarmDimens
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.format.ClockFormat
@@ -40,6 +53,7 @@ import com.antbtv.balarm.core.format.WeekdayFormat
 import com.antbtv.balarm.core.format.formatTimeUntil
 import com.antbtv.balarm.core.model.AlarmId
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import java.time.DayOfWeek
 import java.time.LocalTime
 import java.util.Locale
@@ -47,6 +61,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 class AlarmListScreenTest {
@@ -57,6 +72,7 @@ class AlarmListScreenTest {
     private val events = mutableListOf<AlarmListEvent>()
     private val opened = mutableListOf<AlarmId>()
     private var added = 0
+    private var background = Color.Unspecified
 
     private val gym = AlarmItemUi(
         id = AlarmId(1),
@@ -85,12 +101,14 @@ class AlarmListScreenTest {
         state: AlarmListUiState = data,
         clockFormat: ClockFormat = ClockFormat(Locale.US, is24Hour = true),
         fontScale: Float? = null,
+        windowInsets: WindowInsets? = null,
     ) {
         composeRule.setContent {
             val density = LocalDensity.current
             val scaled = fontScale?.let { Density(density = density.density, fontScale = it) } ?: density
             CompositionLocalProvider(LocalDensity provides scaled) {
                 BalarmTheme {
+                    background = BalarmTheme.colors.background
                     AlarmListScreen(
                         state = state,
                         clockFormat = clockFormat,
@@ -98,6 +116,7 @@ class AlarmListScreenTest {
                         onEvent = { events += it },
                         onAddAlarm = { added++ },
                         onOpenAlarm = { opened += it },
+                        windowInsets = windowInsets ?: WindowInsets.safeDrawing,
                     )
                 }
             }
@@ -420,6 +439,125 @@ class AlarmListScreenTest {
         assertThat(added).isEqualTo(1)
     }
 
+    // --- Подложки под системными барами (edge-to-edge) ---
+
+    private fun manyAlarms(count: Int = 10) = List(count) { i ->
+        gym.copy(id = AlarmId(i + 1L), label = "A long label that wraps onto the second line of the card, #$i")
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp")
+    fun `scrims cover the status bar and the navigation bar with a fade`() {
+        show(data.copy(alarms = manyAlarms()), windowInsets = BARS)
+
+        val root = composeRule.onNodeWithTag(AlarmListTestTags.ROOT).getBoundsInRoot()
+        val top = composeRule.onNodeWithTag(AlarmListTestTags.TOP_SCRIM).getBoundsInRoot()
+        val bottom = composeRule.onNodeWithTag(AlarmListTestTags.BOTTOM_SCRIM).getBoundsInRoot()
+        assertDp(top.top, root.top)
+        assertDp(top.height, STATUS_BAR + BalarmDimens.SystemBarScrimFade)
+        assertDp(top.width, root.width)
+        assertDp(bottom.bottom, root.bottom)
+        assertDp(bottom.height, NAVIGATION_BAR + BalarmDimens.SystemBarScrimFade)
+        assertDp(bottom.width, root.width)
+    }
+
+    private fun assertDp(actual: Dp, expected: Dp) {
+        assertThat(actual.value).isWithin(DP_TOLERANCE).of(expected.value)
+    }
+
+    // Регрессия смока 2: при прокрутке текст карточек ложился на время и иконки прозрачного статус-бара.
+    @Test
+    @Config(qualifiers = "w360dp-h640dp")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE) // реальная отрисовка для captureToImage
+    fun `cards scrolled under the bars are hidden by the scrims`() {
+        val alarms = manyAlarms()
+        show(data.copy(alarms = alarms), windowInsets = BARS)
+        // Индекс 0 — шапка; после прокрутки к третьей карточке вторая частично уходит под статус-бар.
+        composeRule.onNodeWithTag(AlarmListTestTags.LIST).performScrollToIndex(3)
+
+        val root = composeRule.onNodeWithTag(AlarmListTestTags.ROOT).getBoundsInRoot()
+        val probeX = (root.left + root.right) / 2
+        // Точки у самой кромки — там, где время/иконки статус-бара и полоска жестов.
+        val topProbe = root.top + EDGE_PROBE
+        val bottomProbe = root.bottom - EDGE_PROBE
+        // Предусловие: под обеими точками действительно лежат карточки (иначе тест ничего не проверяет).
+        assertThat(cardIdAt(alarms, probeX, topProbe)).isNotNull()
+        assertThat(cardIdAt(alarms, probeX, bottomProbe)).isNotNull()
+
+        val image = composeRule.onNodeWithTag(AlarmListTestTags.ROOT).captureToImage().toPixelMap()
+        val density = composeRule.density
+        fun pixel(x: Dp, y: Dp): Color = with(density) { image[x.roundToPx(), y.roundToPx() - 1] }
+        assertColor(pixel(probeX, topProbe), background)
+        assertColor(pixel(probeX, bottomProbe), background)
+    }
+
+    /** Id карточки, видимая часть которой лежит в точке (границы — обрезанные по видимой области), или `null`. */
+    private fun cardIdAt(alarms: List<AlarmItemUi>, x: Dp, y: Dp): AlarmId? = alarms.firstOrNull { item ->
+        val node = composeRule.onAllNodesWithTag(AlarmListTestTags.card(item.id)).fetchSemanticsNodes()
+        node.isNotEmpty() && composeRule.onNodeWithTag(AlarmListTestTags.card(item.id)).getBoundsInRoot().let {
+            x in it.left..it.right && y in it.top..it.bottom
+        }
+    }?.id
+
+    private fun assertColor(actual: Color, expected: Color) {
+        val channels = listOf(
+            actual.red to expected.red,
+            actual.green to expected.green,
+            actual.blue to expected.blue,
+        )
+        channels.forEach { (a, e) -> assertWithMessage("$actual vs $expected").that(a).isWithin(COLOR_TOLERANCE).of(e) }
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp")
+    fun `with system bars the last card is above the fab and the bottom scrim`() {
+        val alarms = manyAlarms()
+        show(data.copy(alarms = alarms), fontScale = 2f, windowInsets = BARS)
+
+        composeRule.onNodeWithTag(AlarmListTestTags.LIST).performScrollToIndex(alarms.size)
+
+        val root = composeRule.onNodeWithTag(AlarmListTestTags.ROOT).getBoundsInRoot()
+        val lastCard = composeRule.onNodeWithTag(AlarmListTestTags.card(alarms.last().id))
+            .assertIsDisplayed()
+            .getBoundsInRoot()
+        val fab = composeRule.onNodeWithTag(AlarmListTestTags.FAB).assertIsDisplayed().getBoundsInRoot()
+        val scrim = composeRule.onNodeWithTag(AlarmListTestTags.BOTTOM_SCRIM).getBoundsInRoot()
+        assertThat(lastCard.bottom.value).isAtMost(fab.top.value)
+        assertThat(lastCard.bottom.value).isAtMost(scrim.top.value)
+        assertThat(fab.bottom.value).isAtMost((root.bottom - NAVIGATION_BAR).value)
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp")
+    fun `taps on cards under the scrims go through to the cards`() {
+        val alarms = manyAlarms()
+        show(data.copy(alarms = alarms), windowInsets = BARS)
+        composeRule.onNodeWithTag(AlarmListTestTags.LIST).performScrollToIndex(3)
+
+        val root = composeRule.onNodeWithTag(AlarmListTestTags.ROOT).getBoundsInRoot()
+        val x = (root.left + root.right) / 2 // середина: не переключатель и не FAB
+        listOf(root.top + EDGE_PROBE, root.bottom - EDGE_PROBE).forEach { y ->
+            // Предусловие: точка внутри подложки, и под ней карточка.
+            val scrim = if (y <
+                (root.top + root.bottom) / 2
+            ) {
+                AlarmListTestTags.TOP_SCRIM
+            } else {
+                AlarmListTestTags.BOTTOM_SCRIM
+            }
+            val scrimBounds = composeRule.onNodeWithTag(scrim).getBoundsInRoot()
+            assertThat(y in scrimBounds.top..scrimBounds.bottom).isTrue()
+            val id = checkNotNull(cardIdAt(alarms, x, y)) { "no card under the $scrim at $y" }
+            opened.clear()
+
+            composeRule.onNodeWithTag(AlarmListTestTags.ROOT).performTouchInput {
+                click(Offset(x.toPx(), y.toPx()))
+            }
+
+            assertThat(opened).containsExactly(id)
+        }
+    }
+
     @Composable
     private fun ScreenUnderTest(state: AlarmListUiState) {
         BalarmTheme {
@@ -435,6 +573,13 @@ class AlarmListScreenTest {
     }
 
     private companion object {
+        val STATUS_BAR = 24.dp
+        val NAVIGATION_BAR = 48.dp
+        val BARS = WindowInsets(top = STATUS_BAR, bottom = NAVIGATION_BAR)
+        const val COLOR_TOLERANCE = 0.01f
+        const val DP_TOLERANCE = 0.5f
+        val EDGE_PROBE = 8.dp
+
         val WEEKDAYS = setOf(
             DayOfWeek.MONDAY,
             DayOfWeek.TUESDAY,

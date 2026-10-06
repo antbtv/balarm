@@ -12,6 +12,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
@@ -21,6 +22,7 @@ import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -32,8 +34,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.core.designsystem.theme.BalarmDimens
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.designsystem.theme.DarkBalarmColors
+import com.antbtv.balarm.core.designsystem.theme.DefaultBalarmTypography
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -210,27 +216,83 @@ class AlarmCardTest {
     fun `RU day labels and time are displayed unclipped at font scale 2 on a narrow screen`() {
         showCard(fontScale = 2f, days = RU_WEEKDAYS)
 
-        // Тексты исключены из объединённого дерева (TalkBack читает описание карточки), но есть в несобранном.
-        val row = composeRule.onNodeWithTag(DayPillsTestTags.ROW, useUnmergedTree = true)
-            .assertIsDisplayed()
-            .getUnclippedBoundsInRoot()
-        RU_WEEKDAYS.forEach { day ->
-            val label = composeRule.onNodeWithText(day.label, useUnmergedTree = true).assertIsDisplayed()
-            assertTextNotClipped(label, day.label)
-            val bounds = label.getUnclippedBoundsInRoot()
-            assertThat(bounds.left).isAtLeast(row.left)
-            assertThat(bounds.right).isAtMost(row.right)
-        }
+        assertDayLabelsFitUnderTheirDots(RU_WEEKDAYS, fontScale = 2f)
         assertTextNotClipped(composeRule.onNodeWithText(TIME, useUnmergedTree = true).assertIsDisplayed(), TIME)
     }
 
-    /** Текст целиком умещается в своём узле: нет переполнения по ширине/высоте и строка не шире узла. */
+    // Регрессия смока 2 (эмулятор, fontScale 2): «Mon» → «Mor», «Wed» → «Wec». Двухбуквенные тестовые подписи
+    // («Mo», «Пн») влезали, реальные трёхбуквенные из :core:format — нет.
+    @Test
+    @Config(qualifiers = "w360dp-h640dp")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE) // реальные метрики шрифта, иначе ширина текста фиктивная
+    fun `EN three-letter day labels are displayed unclipped at font scale 2 on a narrow screen`() {
+        showCard(fontScale = 2f, days = EN_SHORT_WEEKDAYS)
+
+        assertDayLabelsFitUnderTheirDots(EN_SHORT_WEEKDAYS, fontScale = 2f)
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `day labels keep the caption size at font scale 1`() {
+        showCard(days = EN_SHORT_WEEKDAYS)
+
+        EN_SHORT_WEEKDAYS.forEach { day ->
+            val layout = textLayout(composeRule.onNodeWithText(day.label, useUnmergedTree = true))
+            assertThat(layout.layoutInput.style.fontSize)
+                .isEqualTo(DefaultBalarmTypography.captionStrong.fontSize)
+        }
+    }
+
+    /**
+     * Каждая подпись: целиком, внутри строки, не залезает на соседнюю, точка — по центру под ней; размер у всех
+     * подписей один и не меньше [BalarmDimens.DayPillLabelMinSize].
+     */
+    private fun assertDayLabelsFitUnderTheirDots(days: List<DayPillUi>, fontScale: Float) {
+        val row = composeRule.onNodeWithTag(DayPillsTestTags.ROW, useUnmergedTree = true)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val dots = composeRule.onAllNodesWithTag(DayPillsTestTags.DOT, useUnmergedTree = true)
+        dots.assertCountEquals(days.size)
+        var previousRight = row.left
+        val fontSizes = days.mapIndexed { index, day ->
+            val label = composeRule.onNodeWithText(day.label, useUnmergedTree = true).assertIsDisplayed()
+            assertTextNotClipped(label, day.label)
+            val bounds = label.getUnclippedBoundsInRoot()
+            assertWithMessage("\"${day.label}\" inside the row").that(bounds.left).isAtLeast(row.left)
+            assertWithMessage("\"${day.label}\" inside the row").that(bounds.right).isAtMost(row.right)
+            assertWithMessage("\"${day.label}\" overlaps the previous label").that(bounds.left).isAtLeast(previousRight)
+            previousRight = bounds.right
+            val dot = dots[index].getUnclippedBoundsInRoot()
+            val labelCenter = (bounds.left + bounds.right) / 2
+            val dotCenter = (dot.left + dot.right) / 2
+            assertWithMessage("dot under \"${day.label}\"").that((labelCenter - dotCenter).value)
+                .isWithin(CENTER_TOLERANCE_DP)
+                .of(0f)
+            assertWithMessage("dot below \"${day.label}\"").that(dot.top).isAtLeast(bounds.bottom)
+            textLayout(label).layoutInput.style.fontSize
+        }
+        assertWithMessage("all day labels share one size").that(fontSizes.toSet()).hasSize(1)
+        // Размер в sp × fontScale = размер на экране в dp; минимум задан в dp (без учёта fontScale).
+        assertThat(fontSizes.first().value * fontScale).isAtLeast(BalarmDimens.DayPillLabelMinSize.value)
+    }
+
+    private fun textLayout(node: SemanticsNodeInteraction): TextLayoutResult {
+        val results = mutableListOf<TextLayoutResult>()
+        node.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
+        return results.single()
+    }
+
+    /**
+     * Текст целиком умещается в своём узле: строка не шире узла, нет лишних строк и переполнения по высоте.
+     * `hasVisualOverflow` не используем: при `softWrap = false` абзац раскладывается на всю ширину ограничения,
+     * и флаг ширины срабатывает, даже когда узел по ширине текста и ничего не обрезано.
+     */
     private fun assertTextNotClipped(node: SemanticsNodeInteraction, text: String) {
         val semantics = node.fetchSemanticsNode()
-        val results = mutableListOf<TextLayoutResult>()
-        semantics.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
-        val layout = results.single()
-        assertWithMessage("\"$text\" overflows its node").that(layout.hasVisualOverflow).isFalse()
+        val layout = textLayout(node)
+        assertWithMessage("\"$text\" overflows its node height").that(layout.didOverflowHeight).isFalse()
+        assertWithMessage("\"$text\" is cut to one line").that(layout.multiParagraph.didExceedMaxLines).isFalse()
         assertWithMessage("\"$text\" line is wider than its node")
             .that(layout.getLineRight(0) - layout.getLineLeft(0))
             .isAtMost(semantics.size.width.toFloat())
@@ -238,6 +300,7 @@ class AlarmCardTest {
 
     private companion object {
         const val TIME = "07:30"
+        const val CENTER_TOLERANCE_DP = 1f
         const val CARD_DESCRIPTION = "Alarm 07:30, Gym, weekdays, on"
         const val TOGGLE_DESCRIPTION = "Alarm 07:30"
 
@@ -250,6 +313,22 @@ class AlarmCardTest {
             DayPillUi("Sa", selected = false, description = "Saturday"),
             DayPillUi("Su", selected = false, description = "Sunday"),
         )
+
+        val EN_SHORT_WEEKDAYS = listOf(
+            DayOfWeek.SUNDAY,
+            DayOfWeek.MONDAY,
+            DayOfWeek.TUESDAY,
+            DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY,
+            DayOfWeek.FRIDAY,
+            DayOfWeek.SATURDAY,
+        ).map { day ->
+            DayPillUi(
+                label = day.getDisplayName(TextStyle.SHORT_STANDALONE, Locale.ENGLISH),
+                selected = day != DayOfWeek.SUNDAY && day != DayOfWeek.SATURDAY,
+                description = day.getDisplayName(TextStyle.FULL_STANDALONE, Locale.ENGLISH),
+            )
+        }
 
         val RU_WEEKDAYS = listOf(
             DayPillUi("Пн", selected = true, description = "понедельник"),

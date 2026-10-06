@@ -2,6 +2,7 @@ package com.antbtv.balarm.core.designsystem.component
 
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -77,7 +78,9 @@ fun AlarmCard(
         color = colors.surface,
         contentColor = colors.textPrimary,
     ) {
-        Row(
+        // Дни — отдельной строкой во всю ширину карточки (под переключателем тоже): рядом с переключателем
+        // ячейке дня при fontScale 2 на 360dp не хватало места, и «Mon» обрезалось до «Mor».
+        Column(
             modifier = Modifier
                 .heightIn(min = BalarmDimens.MinTouch)
                 .testTag(AlarmCardTestTags.CARD)
@@ -89,26 +92,35 @@ fun AlarmCard(
                 )
                 .semantics { this.contentDescription = contentDescription }
                 .padding(BalarmDimens.CardPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(BalarmDimens.SpacingSmall),
+            verticalArrangement = Arrangement.spacedBy(BalarmDimens.SpacingSmall),
         ) {
-            AlarmCardContent(
-                time = time,
-                amPm = amPm,
-                label = label,
-                days = days,
-                active = active,
-                subtitle = subtitle,
-                modifier = Modifier
-                    .weight(1f)
-                    .clearAndSetSemantics {},
-            )
-            BalarmSwitch(
-                checked = active,
-                onCheckedChange = onToggle,
-                contentDescription = toggleDescription,
-                modifier = Modifier.testTag(AlarmCardTestTags.SWITCH),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(BalarmDimens.SpacingSmall),
+            ) {
+                AlarmCardContent(
+                    time = time,
+                    amPm = amPm,
+                    label = label,
+                    active = active,
+                    subtitle = subtitle,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clearAndSetSemantics {},
+                )
+                BalarmSwitch(
+                    checked = active,
+                    onCheckedChange = onToggle,
+                    contentDescription = toggleDescription,
+                    modifier = Modifier.testTag(AlarmCardTestTags.SWITCH),
+                )
+            }
+            if (days.isNotEmpty()) {
+                // Дни уже есть в contentDescription карточки — своё описание строки в TalkBack не попадает.
+                Box(modifier = Modifier.clearAndSetSemantics {}) {
+                    DayPillsRow(days = days, active = active)
+                }
+            }
         }
     }
 }
@@ -118,7 +130,6 @@ private fun AlarmCardContent(
     time: String,
     amPm: String?,
     label: String,
-    days: List<DayPillUi>,
     active: Boolean,
     subtitle: String?,
     modifier: Modifier = Modifier,
@@ -164,13 +175,6 @@ private fun AlarmCardContent(
         if (subtitle != null) {
             Text(text = subtitle, color = colors.textSecondary, style = type.caption)
         }
-        if (days.isNotEmpty()) {
-            DayPillsRow(
-                days = days,
-                active = active,
-                modifier = Modifier.padding(top = BalarmDimens.SpacingTiny),
-            )
-        }
     }
 }
 
@@ -204,7 +208,7 @@ private fun AlarmCardSheet() {
             active = false,
             contentDescription = "Alarm 09:00, off",
         )
-        // Самые широкие подписи дней (RU) — проверка fontScale 2 на 360dp.
+        // Русские подписи дней (английские «Mon»…«Sun» — в остальных карточках): проверка fontScale 2 на 360dp.
         PreviewAlarmCard(
             time = "23:59",
             label = "Подъём",

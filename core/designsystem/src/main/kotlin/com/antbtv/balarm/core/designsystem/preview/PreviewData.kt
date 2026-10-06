@@ -7,18 +7,21 @@ import java.time.DayOfWeek
 // Данные только для @Preview: подписи не локализуются, это витрина компонентов для разработчика.
 // Прод-код и тесты их не используют — у тестов свои данные.
 
-/** Будни, неделя с понедельника, английские подписи. */
+/**
+ * Будни, неделя с понедельника, английские подписи как в проде (`SHORT_STANDALONE`: «Mon», «Wed») — самые широкие
+ * короткие названия дней среди RU/EN.
+ */
 internal val PreviewWeekdays = listOf(
-    DayPillUi("Mo", selected = true, description = "Monday"),
-    DayPillUi("Tu", selected = true, description = "Tuesday"),
-    DayPillUi("We", selected = true, description = "Wednesday"),
-    DayPillUi("Th", selected = true, description = "Thursday"),
-    DayPillUi("Fr", selected = true, description = "Friday"),
-    DayPillUi("Sa", selected = false, description = "Saturday"),
-    DayPillUi("Su", selected = false, description = "Sunday"),
+    DayPillUi("Mon", selected = true, description = "Monday"),
+    DayPillUi("Tue", selected = true, description = "Tuesday"),
+    DayPillUi("Wed", selected = true, description = "Wednesday"),
+    DayPillUi("Thu", selected = true, description = "Thursday"),
+    DayPillUi("Fri", selected = true, description = "Friday"),
+    DayPillUi("Sat", selected = false, description = "Saturday"),
+    DayPillUi("Sun", selected = false, description = "Sunday"),
 )
 
-/** Будни с русскими подписями — самые широкие короткие названия дней среди RU/EN. */
+/** Будни с русскими подписями («Пн»…«Вс»). */
 internal val PreviewWeekdaysRu = listOf(
     DayPillUi("Пн", selected = true, description = "понедельник"),
     DayPillUi("Вт", selected = true, description = "вторник"),

@@ -13,6 +13,10 @@ object AlarmListTestTags {
     const val EMPTY = "alarmListEmpty"
     const val MENU_DELETE = "alarmListMenuDelete"
 
+    /** Подложки под статус-баром и навигационной панелью (`SystemBarScrim`). */
+    const val TOP_SCRIM = "alarmListTopScrim"
+    const val BOTTOM_SCRIM = "alarmListBottomScrim"
+
     /** Обёртка карточки: `alarmListCard_42`. */
     fun card(id: AlarmId): String = "alarmListCard_${id.value}"
 }

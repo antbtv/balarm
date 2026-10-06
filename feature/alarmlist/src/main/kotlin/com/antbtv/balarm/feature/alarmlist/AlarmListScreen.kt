@@ -2,6 +2,7 @@ package com.antbtv.balarm.feature.alarmlist
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -44,6 +45,8 @@ import com.antbtv.balarm.core.designsystem.component.BalarmFab
 import com.antbtv.balarm.core.designsystem.component.BalarmIcons
 import com.antbtv.balarm.core.designsystem.component.ConfirmDialog
 import com.antbtv.balarm.core.designsystem.component.NextAlarmHeader
+import com.antbtv.balarm.core.designsystem.component.ScrimEdge
+import com.antbtv.balarm.core.designsystem.component.SystemBarScrim
 import com.antbtv.balarm.core.designsystem.theme.BalarmDimens
 import com.antbtv.balarm.core.designsystem.theme.BalarmShapes
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
@@ -107,7 +110,13 @@ fun AlarmListScreen(
     )
 }
 
-/** То же с явными форматами: превью и тесты задают 12/24 ч, не трогая системную настройку. */
+/**
+ * То же с явными форматами: превью и тесты задают 12/24 ч, не трогая системную настройку.
+ *
+ * @param windowInsets системные отступы экрана (в приложении — `safeDrawing`); тесты задают свои, т. к. Robolectric
+ * реальных баров не рисует. Верх/низ считаются один раз: отступ контента списка и высота подложек — из одних
+ * значений.
+ */
 @Composable
 internal fun AlarmListScreen(
     state: AlarmListUiState,
@@ -117,6 +126,7 @@ internal fun AlarmListScreen(
     onAddAlarm: () -> Unit,
     onOpenAlarm: (AlarmId) -> Unit,
     modifier: Modifier = Modifier,
+    windowInsets: WindowInsets = WindowInsets.safeDrawing,
 ) {
     val colors = BalarmTheme.colors
     // Id будильника с открытым меню / с диалогом удаления. Long — чтобы переживать пересоздание Activity.
@@ -139,9 +149,12 @@ internal fun AlarmListScreen(
         color = colors.background,
         contentColor = colors.textPrimary,
     ) {
+        val verticalInsets = windowInsets.only(WindowInsetsSides.Vertical).asPaddingValues()
         Box(modifier = Modifier.fillMaxSize()) {
             AlarmList(
                 state = state,
+                horizontalInsets = windowInsets.only(WindowInsetsSides.Horizontal),
+                verticalInsets = verticalInsets,
                 clockFormat = clockFormat,
                 weekdayFormat = weekdayFormat,
                 menuFor = menuFor,
@@ -154,15 +167,8 @@ internal fun AlarmListScreen(
                     deleteFor = it.value
                 },
             )
-            BalarmFab(
-                onClick = onAddAlarm,
-                contentDescription = stringResource(R.string.alarm_list_add),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(BalarmDimens.ScreenPadding)
-                    .testTag(AlarmListTestTags.FAB),
-            )
+            SystemBarScrims(verticalInsets)
+            AddAlarmFab(windowInsets = windowInsets, onClick = onAddAlarm)
         }
     }
 
@@ -181,9 +187,47 @@ internal fun AlarmListScreen(
     }
 }
 
+/** FAB справа снизу — над навигационной панелью и подложкой. */
+@Composable
+private fun BoxScope.AddAlarmFab(windowInsets: WindowInsets, onClick: () -> Unit) {
+    BalarmFab(
+        onClick = onClick,
+        contentDescription = stringResource(R.string.alarm_list_add),
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .windowInsetsPadding(windowInsets)
+            .padding(BalarmDimens.ScreenPadding)
+            .testTag(AlarmListTestTags.FAB),
+    )
+}
+
+/**
+ * Карточки прокручиваются под прозрачные бары (edge-to-edge) — подложки не дают тексту лечь на время, иконки
+ * статус-бара и полоску жестов. Рисуются поверх списка, но под FAB; касания проходят к списку.
+ */
+@Composable
+private fun BoxScope.SystemBarScrims(verticalInsets: PaddingValues) {
+    SystemBarScrim(
+        edge = ScrimEdge.Top,
+        inset = verticalInsets.calculateTopPadding(),
+        modifier = Modifier
+            .align(Alignment.TopCenter)
+            .testTag(AlarmListTestTags.TOP_SCRIM),
+    )
+    SystemBarScrim(
+        edge = ScrimEdge.Bottom,
+        inset = verticalInsets.calculateBottomPadding(),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .testTag(AlarmListTestTags.BOTTOM_SCRIM),
+    )
+}
+
 @Composable
 private fun AlarmList(
     state: AlarmListUiState,
+    horizontalInsets: WindowInsets,
+    verticalInsets: PaddingValues,
     clockFormat: ClockFormat,
     weekdayFormat: WeekdayFormat,
     menuFor: Long?,
@@ -194,12 +238,12 @@ private fun AlarmList(
     onDeleteRequest: (AlarmId) -> Unit,
 ) {
     // По бокам — не под вырезами/барами. Сверху и снизу — отступ контента: в начале шапка не под статус-баром,
-    // при прокрутке карточки уходят под прозрачные бары, а последняя поднимается над FAB и навигацией.
-    val verticalInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical).asPaddingValues()
+    // при прокрутке карточки уходят под прозрачные бары (там их скрывает SystemBarScrim), а последняя
+    // поднимается над FAB и навигацией.
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+            .windowInsetsPadding(horizontalInsets)
             .testTag(AlarmListTestTags.LIST),
         contentPadding = PaddingValues(
             start = BalarmDimens.ScreenPadding,

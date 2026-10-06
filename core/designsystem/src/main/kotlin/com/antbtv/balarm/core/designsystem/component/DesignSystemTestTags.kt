@@ -11,6 +11,9 @@ object AlarmCardTestTags {
 
 object DayPillsTestTags {
     const val ROW = "dayPillsRow"
+
+    /** Точка-индикатор под подписью дня (у невыбранного — прозрачная, но есть: ячейки одинаковой высоты). */
+    const val DOT = "dayPillDot"
 }
 
 object NextAlarmHeaderTestTags {

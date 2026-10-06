@@ -2,6 +2,7 @@ plugins {
     id("balarm.android.application")
     id("balarm.android.compose")
     id("balarm.hilt")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -17,15 +18,19 @@ android {
 dependencies {
     implementation(projects.core.model)
     implementation(projects.core.designsystem)
-    implementation(projects.core.format)
     implementation(projects.core.domain)
     implementation(projects.core.data)
     implementation(projects.core.alarm)
+    implementation(projects.feature.alarmlist)
     implementation(projects.feature.ringing)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.kotlinx.serialization.core)
 
     testImplementation(libs.junit4)
     testImplementation(libs.truth)

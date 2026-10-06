@@ -1,7 +1,10 @@
 package com.antbtv.balarm.feature.alarmlist
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.format.ClockFormat
@@ -65,8 +68,16 @@ private val PreviewData = AlarmListUiState(
 
 private val PreviewEmpty = AlarmListUiState(loading = false)
 
+/** Отступы «как у телефона» для превью подложек: статус-бар и панель жестов (в превью их нет). */
+private val PreviewBarsInsets = WindowInsets(top = 24.dp, bottom = 24.dp)
+
 @Composable
-private fun PreviewScreen(state: AlarmListUiState, is24Hour: Boolean = true, locale: Locale = Locale.US) {
+private fun PreviewScreen(
+    state: AlarmListUiState,
+    is24Hour: Boolean = true,
+    locale: Locale = Locale.US,
+    windowInsets: WindowInsets = WindowInsets.safeDrawing,
+) {
     AlarmListScreen(
         state = state,
         clockFormat = ClockFormat(locale, is24Hour),
@@ -74,6 +85,7 @@ private fun PreviewScreen(state: AlarmListUiState, is24Hour: Boolean = true, loc
         onEvent = {},
         onAddAlarm = {},
         onOpenAlarm = {},
+        windowInsets = windowInsets,
     )
 }
 
@@ -111,6 +123,12 @@ private fun AlarmListLightPreview() {
 @Composable
 private fun AlarmListSystemBarsPreview() {
     BalarmTheme { PreviewScreen(PreviewData) }
+}
+
+@Preview(name = "List — bar scrims (insets 24dp), fontScale 2", widthDp = 360, heightDp = 640, fontScale = 2f)
+@Composable
+private fun AlarmListScrimsPreview() {
+    BalarmTheme { PreviewScreen(PreviewData, windowInsets = PreviewBarsInsets) }
 }
 
 @Preview(name = "Empty — dark", widthDp = 360, heightDp = 640)

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Balarm</string>
-    <string name="placeholder_subtitle">Будильники скоро появятся</string>
-    <string name="placeholder_time_description">Текущее время: %1$s</string>
+    <!-- Заглушка редактора до M2-T15 -->
+    <string name="edit_stub_title">Редактор будильника</string>
+    <string name="edit_stub_new">Новый будильник</string>
+    <string name="edit_stub_existing">Будильник №%1$d</string>
 </resources>

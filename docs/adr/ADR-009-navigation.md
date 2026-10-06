@@ -17,7 +17,7 @@ Proposed (2026-10-04, этап M2). Закрывает отложенный вы
 1. **Navigation3 1.2.0** (`navigation3-runtime`, `navigation3-ui`) + `lifecycle-viewmodel-navigation3` 2.11.0. `navigation-compose` не подключается.
 2. **Граф и стек — только в `:app`.** `:app` держит:
    * ключи `@Serializable sealed interface BalarmKey : NavKey` — `AlarmListKey` (data object), `AlarmEditKey(alarmId: Long?)` (`null` — новый будильник; `Long`, а не `AlarmId`: value class в сериализации ключа не нужен);
-   * стек `rememberNavBackStack(AlarmListKey)` (переживает поворот и смерть процесса);
+   * стек `rememberNavBackStack(NavConfiguration, AlarmListKey)` (переживает поворот и смерть процесса); `NavConfiguration` регистрирует **все** подтипы `NavKey` (полиморфная сериализация) — забытый ключ падает в рантайме при сохранении стека, полноту проверяет `NavKeysTest`;
    * `NavDisplay(entryDecorators = [rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator()])` и `entryProvider`, где колбэки экранов превращаются в `backStack.add(...)` / `removeLastOrNull()`.
 3. **Feature-модули не знают о навигации.** Публичный контракт feature-модуля — один `@Composable` Route с колбэками, без `NavKey` и без зависимости от navigation3:
    ```kotlin

@@ -4,7 +4,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /** Размеры и отступы Balarm (PRD §4.2, скилл alarmy-ui). */
 object BalarmDimens {
@@ -24,17 +23,23 @@ object BalarmDimens {
     /** Внутренний отступ карточки будильника. */
     val CardPadding = 16.dp
 
-    /** Точка-индикатор под выбранным днём в `DayPillsRow` (не только цвет — WCAG 1.4.1). */
+    /**
+     * Минимальный диаметр точки-индикатора под выбранным днём в `DayPillsRow` (не только цвет — WCAG 1.4.1).
+     * С крупной подписью точка растёт пропорционально ей.
+     */
     val DayPillIndicator = 4.dp
 
     /**
-     * Нижняя граница autoSize подписи дня в `DayPillsRow`. Масштабируется `fontScale` (при 2f — как 20sp),
-     * так что «Пн»…«Вс» жирным влезают в ячейку ≈ 29dp карточки на экране 360dp.
+     * Нижняя граница размера подписи дня в `DayPillsRow` — в dp, т. е. **без** учёта `fontScale`: при
+     * fontScale 2 подписи ужимаются, чтобы целиком влезть в ячейку, но не мельче этого значения.
      */
-    val DayPillLabelMinFontSize = 10.sp
+    val DayPillLabelMinSize = 10.dp
 
-    /** Строка дней не растягивается на планшете/в ландшафте шире этого значения. */
-    val DayPillsRowMaxWidth = 280.dp
+    /** Строка дней не растягивается на планшете/в ландшафте шире этого значения (7 ячеек по 48dp). */
+    val DayPillsRowMaxWidth = 336.dp
+
+    /** Плавный переход `SystemBarScrim` в прозрачный — сверх высоты самого системного бара. */
+    val SystemBarScrimFade = 16.dp
 
     /** Размер иконок. */
     val Icon = 24.dp
