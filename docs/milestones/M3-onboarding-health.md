@@ -46,7 +46,7 @@
 | [x] | M3-T02 🔔 | Схема v2 `schedule_failed`, движок пишет отказ планирования | FR-LIST-5 | M | T01 | |
 | [x] | M3-T03 | `SetupStateRepository` на DataStore (device-protected) | §3.7 | S | T01 | |
 | [x] | M3-T04 🔔 | `:core:permissions`: чекер, манифесты, лаунчер «Исправить» | FR-REL-7 | L | T01 | |
-| [ ] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
+| [x] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
 | [ ] | M3-T06 🎨 | Компоненты дизайн-системы: баннер, строка статуса, шаг онбординга, nav bar | §4.2 | M | — | |
 | [ ] | M3-T07 | Логика настроек/здоровья (`HealthViewModel`, retry, тест-будильник, OEM-чекбокс) | FR-REL-7 | M | T02, T03, T04 | |
 | [ ] | M3-T08 🎨 | Экраны настроек, здоровья, «О приложении» (7 тапов → debug flags) | FR-REL-7, FR-FLAG-5 | M | T06, T07 | |
@@ -95,8 +95,8 @@
 ### M3-T05 🔔 — Overlay-путь звонка
 **Описание:** при `canDrawOverlays` `RingingService` дублирующе вызывает `startActivity(RingingActivity)` (FR-REL-5); защита от двойного старта (`singleTask`/`onNewIntent`).
 **Критерии приёмки:**
-- [ ] Без разрешения поведение прежнее (FSI)
-- [ ] С разрешением поверх стороннего приложения — один экран звонка, не два
+- [x] Без разрешения поведение прежнее (FSI)
+- [x] С разрешением поверх стороннего приложения — один экран звонка, не два (Robolectric; живой R10 — T-test)
 **Тесты:** Robolectric на сервис; **R10, R1**.
 
 ### M3-T06 🎨 — Компоненты дизайн-системы
@@ -156,6 +156,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 - **T02 (ревью ⚠️ → учтено):** принятый успешный snooze при `scheduleFailed` снимает признак (в системе есть snooze-будильник), обычное расписание остаётся не запланированным до следующего `rescheduleAll` — T07/T11 это учитывать; `AlarmSchedulerImpl` сам превращает `SecurityException` в отказ. R9 (поверх v1) — в T-test; `USER_RETRY` добавлен в `RescheduleReason`.
 - **T03 (ревью ⚠️ → учтено):** `edit` при `IOException` бросает вызывающему — обработать в ViewModel T07/T09 (не падать на «Я сделал»/завершении онбординга). Direct Boot чтения DataStore — проверить в T-test вместе с R3.
 - **T04 (ревью ⚠️ → учтено):** `resolveActivity` заменён на try/catch `ActivityNotFoundException` (package visibility без `<queries>`); отказ POST_NOTIFICATIONS «навсегда» (`shouldShowRequestPermissionRationale == false`) сразу ведёт в настройки, без мёртвого нажатия. `SYSTEM_ALERT_WINDOW` в манифест — в T05 (без него экран overlay не покажет приложение; до T08 обязательно). Ссылка dontkillmyapp.com для OEM — в UI T08/T10. Robolectric не управляет `canScheduleExactAlarms`/`canUseFullScreenIntent` (нет shadow-сеттеров) — эти два пункта проверяются на эмуляторе в T-test (FSI: `appops set … USE_FULL_SCREEN_INTENT deny`); `rememberHealthFixLauncher` без автотеста — проверить на смоках T08/T10.
+- **T05 (ревью ⚠️ → учтено):** на Android 15+ исключение `SYSTEM_ALERT_WINDOW` для старта Activity из фона может требовать видимого окна → **в T-test проверить на API 37** (overlay выдан, FSI выключен, экран заблокирован/приложение в фоне); если не работает — оставить FSI основным, формулировку в PRD/UI не обещает гарантий. Проверить очередь из двух будильников (второй экран появляется после dismiss первого). `SYSTEM_ALERT_WINDOW` — пометка для Play-деклараций (M8).
 
 ## Уроки
 

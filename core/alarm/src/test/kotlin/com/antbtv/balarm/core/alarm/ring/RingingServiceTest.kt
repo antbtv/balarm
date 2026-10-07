@@ -50,6 +50,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ServiceController
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowPowerManager
+import org.robolectric.shadows.ShadowSettings
 
 @HiltAndroidTest
 @Config(application = HiltTestApplication::class)
@@ -110,6 +111,40 @@ class RingingServiceTest {
         val notification = shadow.lastForegroundNotification
         assertThat(notification.category).isEqualTo(Notification.CATEGORY_ALARM)
         assertThat(shadowOf(notification.fullScreenIntent).savedIntent.action).isEqualTo(FakeUiIntents.RINGING_SCREEN)
+    }
+
+    @Test
+    fun `with the overlay permission the ringing screen is also started from the service`() {
+        ShadowSettings.setCanDrawOverlays(true)
+
+        start(ringIntent(ALARM.id))
+
+        val started = shadowOf(service.get()).nextStartedActivity
+        assertThat(started.action).isEqualTo(FakeUiIntents.RINGING_SCREEN)
+        assertThat(shadowOf(service.get()).nextStartedActivity).isNull()
+    }
+
+    @Test
+    fun `without the overlay permission only the full screen intent is used`() {
+        ShadowSettings.setCanDrawOverlays(false)
+
+        start(ringIntent(ALARM.id))
+
+        assertThat(shadowOf(service.get()).nextStartedActivity).isNull()
+        assertThat(fakeSound.playing).isTrue()
+    }
+
+    @Test
+    fun `a failed start of the ringing screen does not stop the sound`() {
+        ShadowSettings.setCanDrawOverlays(true)
+        shadowOf(app).checkActivities(true) // нет Activity под интент → ActivityNotFoundException
+
+        start(ringIntent(ALARM.id))
+
+        assertThat(fakeSound.playing).isTrue()
+        assertThat(
+            events,
+        ).contains(AlarmEvent.RingingCommandFailed("start_ringing_screen", "ActivityNotFoundException"))
     }
 
     @Test
@@ -272,6 +307,22 @@ class RingingServiceTest {
         assertThat(events).contains(AlarmEvent.FireSkipped(ALARM.id, SkipReason.DELETED))
         assertThat(fakeSound.starts).isEqualTo(0)
         assertStoppedAndReleased()
+    }
+
+    @Test
+    fun `each ring of the queue starts the ringing screen once`() {
+        ShadowSettings.setCanDrawOverlays(true)
+
+        start(ringIntent(ALARM.id))
+        start(ringIntent(OTHER.id)) // в очереди: экран не запускается повторно
+        val shadow = shadowOf(service.get())
+        assertThat(shadow.nextStartedActivity).isNotNull()
+        assertThat(shadow.nextStartedActivity).isNull()
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+
+        assertThat(shadow.nextStartedActivity).isNotNull()
+        assertThat(shadow.nextStartedActivity).isNull()
     }
 
     @Test

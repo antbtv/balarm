@@ -9,7 +9,9 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.os.PowerManager
+import android.provider.Settings
 import com.antbtv.balarm.core.alarm.AlarmIntents
+import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.notification.AlarmNotifications
 import com.antbtv.balarm.core.alarm.notification.RingingActions
 import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
@@ -65,6 +67,8 @@ class RingingService : Service() {
     @Inject lateinit var vibrator: AlarmVibrator
 
     @Inject lateinit var notifications: AlarmNotifications
+
+    @Inject lateinit var uiIntents: AlarmUiIntents
 
     @Inject lateinit var controller: RingingControllerImpl
 
@@ -266,6 +270,24 @@ class RingingService : Service() {
             scope.launch { command("auto_stop") { autoStop(id) } }
         }
         publish()
+        startRingingScreen()
+    }
+
+    /**
+     * FR-REL-5: дублирующий запуск экрана звонка, когда есть разрешение «поверх других приложений» (исключение
+     * из ограничений на старт Activity из фона; на новых Android оно может требовать видимого окна — гарантии нет,
+     * поэтому основной путь остаётся за full-screen intent). Без него остаётся full-screen intent уведомления. Экран
+     * `singleTask`: повторный старт (FSI + этот) даёт `onNewIntent`, а не второй экран. Сбой старта звук не трогает.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun startRingingScreen() {
+        if (!Settings.canDrawOverlays(this)) return
+        try {
+            // NEW_TASK обязателен для не-Activity контекста, даже если реализация интента его уже добавила.
+            startActivity(uiIntents.ringingScreen().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            log.log(AlarmEvent.RingingCommandFailed("start_ringing_screen", e.javaClass.simpleName))
+        }
     }
 
     /** Заканчивает текущий звонок и переходит к следующему в очереди. */

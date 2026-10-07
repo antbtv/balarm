@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- Экран звонка поверх блокировки (FR-RING-1, FR-RING-2) -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Экран звонка поверх других приложений через startActivity из сервиса (FR-REL-5, FR-RING-5, ADR-012 §7) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Перепланирование после перезагрузки, в т.ч. до разблокировки (FR-REL-2) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Процессор не засыпает, пока идёт звонок (FR-REL-5) -->

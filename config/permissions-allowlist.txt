@@ -16,3 +16,6 @@ android.permission.POST_NOTIFICATIONS
 
 # M3 — экран здоровья/онбординг: диалог «Не ограничивать батарею» (PRD §3.7, ADR-012 §4)
 android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+
+# M3 — экран звонка поверх других приложений (FR-REL-5, ADR-012 §7)
+android.permission.SYSTEM_ALERT_WINDOW
