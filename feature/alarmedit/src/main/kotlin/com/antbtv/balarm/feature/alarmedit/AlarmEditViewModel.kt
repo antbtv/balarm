@@ -167,7 +167,7 @@ class AlarmEditViewModel @AssistedInject constructor(
     }
 
     private fun test(state: AlarmEditUiState) {
-        if (state.loading) return
+        if (state.loading || state.saving) return
         val at = testAlarms.schedule(state.toSave(), TestAlarmRunner.EDITOR_DELAY)
         viewModelScope.launch { effectChannel.send(AlarmEditEffect.TestScheduled(at)) }
     }

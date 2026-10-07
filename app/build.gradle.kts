@@ -22,6 +22,7 @@ dependencies {
     implementation(projects.core.data)
     implementation(projects.core.alarm)
     implementation(projects.feature.alarmlist)
+    implementation(projects.feature.alarmedit)
     implementation(projects.feature.ringing)
 
     implementation(libs.androidx.core.ktx)

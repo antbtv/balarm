@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_edit_title_new">Новый будильник</string>
+    <string name="alarm_edit_title_existing">Будильник</string>
+
+    <string name="alarm_edit_wheel_hours">Часы</string>
+    <string name="alarm_edit_wheel_minutes">Минуты</string>
+    <string name="alarm_edit_wheel_period">До или после полудня</string>
+    <string name="alarm_edit_wheel_increase">Больше</string>
+    <string name="alarm_edit_wheel_decrease">Меньше</string>
+
+    <string name="alarm_edit_preset_weekdays">Будни</string>
+    <string name="alarm_edit_preset_weekend">Выходные</string>
+    <string name="alarm_edit_preset_every_day">Каждый день</string>
+    <string name="alarm_edit_selected">Выбрано</string>
+    <string name="alarm_edit_not_selected">Не выбрано</string>
+
+    <string name="alarm_edit_label">Метка</string>
+    <plurals name="alarm_edit_label_counter">
+        <item quantity="one">%1$d из %2$d символа</item>
+        <item quantity="few">%1$d из %2$d символов</item>
+        <item quantity="many">%1$d из %2$d символов</item>
+        <item quantity="other">%1$d из %2$d символа</item>
+    </plurals>
+
+    <string name="alarm_edit_snooze">Отложить</string>
+    <string name="alarm_edit_snooze_off">Выкл</string>
+    <string name="alarm_edit_snooze_off_wide">выключено</string>
+    <string name="alarm_edit_snooze_interval_title">Отложить на</string>
+    <string name="alarm_edit_snooze_limit">Количество повторов</string>
+    <string name="alarm_edit_snooze_unlimited">Без ограничения</string>
+    <plurals name="alarm_edit_snooze_times">
+        <item quantity="one">%1$d раз</item>
+        <item quantity="few">%1$d раза</item>
+        <item quantity="many">%1$d раз</item>
+        <item quantity="other">%1$d раза</item>
+    </plurals>
+    <string name="alarm_edit_row_description">%1$s, %2$s</string>
+    <string name="alarm_edit_action_change">Изменить</string>
+
+    <string name="alarm_edit_save">Сохранить</string>
+    <string name="alarm_edit_test">Тест</string>
+    <string name="alarm_edit_delete">Удалить</string>
+    <string name="alarm_edit_cancel">Отмена</string>
+
+    <string name="alarm_edit_delete_title">Удалить будильник?</string>
+    <string name="alarm_edit_delete_text">Будильник %1$s будет удалён.</string>
+    <string name="alarm_edit_discard_title">Отменить изменения?</string>
+    <string name="alarm_edit_discard_text">Изменения будильника не будут сохранены.</string>
+    <string name="alarm_edit_discard_confirm">Не сохранять</string>
+    <string name="alarm_edit_discard_dismiss">Продолжить</string>
+
+    <string name="alarm_edit_schedule_failed">Не удалось запланировать будильник</string>
+    <plurals name="alarm_edit_test_in">
+        <item quantity="one">Тестовый звонок через %1$d секунду</item>
+        <item quantity="few">Тестовый звонок через %1$d секунды</item>
+        <item quantity="many">Тестовый звонок через %1$d секунд</item>
+        <item quantity="other">Тестовый звонок через %1$d секунды</item>
+    </plurals>
+    <string name="alarm_edit_test_failed">Не удалось запланировать тестовый звонок</string>
+    <string name="alarm_edit_save_failed">Не удалось сохранить будильник</string>
+    <string name="alarm_edit_delete_failed">Не удалось удалить будильник</string>
+    <string name="alarm_edit_load_failed">Не удалось открыть будильник</string>
+</resources>

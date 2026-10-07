@@ -10,6 +10,8 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
+import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.feature.alarmedit.AlarmEditRoute
 import com.antbtv.balarm.feature.alarmlist.AlarmListRoute
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -53,7 +55,11 @@ private fun BalarmNavDisplay(backStack: NavBackStack<NavKey>, modifier: Modifier
                 )
             }
             entry<AlarmEditKey> { key ->
-                AlarmEditStub(alarmId = key.alarmId)
+                AlarmEditRoute(
+                    alarmId = key.alarmId?.let(::AlarmId),
+                    // Только если редактор ещё на вершине: лишний pop снял бы стартовый список.
+                    onClose = { if (backStack.lastOrNull() is AlarmEditKey) backStack.removeLastOrNull() },
+                )
             }
         },
     )

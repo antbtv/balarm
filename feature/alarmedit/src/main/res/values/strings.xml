@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Заголовок экрана (heading для TalkBack) -->
+    <string name="alarm_edit_title_new">New alarm</string>
+    <string name="alarm_edit_title_existing">Alarm</string>
+
+    <!-- Колесо времени: имена колонок и действия для TalkBack -->
+    <string name="alarm_edit_wheel_hours">Hours</string>
+    <string name="alarm_edit_wheel_minutes">Minutes</string>
+    <string name="alarm_edit_wheel_period">AM or PM</string>
+    <string name="alarm_edit_wheel_increase">Increase</string>
+    <string name="alarm_edit_wheel_decrease">Decrease</string>
+
+    <!-- Дни повтора -->
+    <string name="alarm_edit_preset_weekdays">Weekdays</string>
+    <string name="alarm_edit_preset_weekend">Weekends</string>
+    <string name="alarm_edit_preset_every_day">Every day</string>
+    <string name="alarm_edit_selected">Selected</string>
+    <string name="alarm_edit_not_selected">Not selected</string>
+
+    <!-- Метка. Счётчик для TalkBack: %1$d — длина, %2$d — лимит; форма слова — по лимиту. -->
+    <string name="alarm_edit_label">Label</string>
+    <plurals name="alarm_edit_label_counter">
+        <item quantity="one">%1$d of %2$d character</item>
+        <item quantity="other">%1$d of %2$d characters</item>
+    </plurals>
+
+    <!-- Snooze -->
+    <string name="alarm_edit_snooze">Snooze</string>
+    <string name="alarm_edit_snooze_off">Off</string>
+    <string name="alarm_edit_snooze_off_wide">turned off</string>
+    <string name="alarm_edit_snooze_interval_title">Snooze for</string>
+    <string name="alarm_edit_snooze_limit">Snooze limit</string>
+    <string name="alarm_edit_snooze_unlimited">Unlimited</string>
+    <plurals name="alarm_edit_snooze_times">
+        <item quantity="one">%1$d time</item>
+        <item quantity="other">%1$d times</item>
+    </plurals>
+    <!-- TalkBack: «Snooze, 5 minutes». -->
+    <string name="alarm_edit_row_description">%1$s, %2$s</string>
+    <string name="alarm_edit_action_change">Change</string>
+
+    <!-- Кнопки -->
+    <string name="alarm_edit_save">Save</string>
+    <string name="alarm_edit_test">Test</string>
+    <string name="alarm_edit_delete">Delete</string>
+    <string name="alarm_edit_cancel">Cancel</string>
+
+    <!-- Диалоги -->
+    <string name="alarm_edit_delete_title">Delete alarm?</string>
+    <string name="alarm_edit_delete_text">Alarm %1$s will be deleted.</string>
+    <string name="alarm_edit_discard_title">Discard changes?</string>
+    <string name="alarm_edit_discard_text">Your changes to this alarm will not be saved.</string>
+    <string name="alarm_edit_discard_confirm">Discard</string>
+    <string name="alarm_edit_discard_dismiss">Keep editing</string>
+
+    <!-- Тосты -->
+    <string name="alarm_edit_schedule_failed">Couldn\'t schedule the alarm</string>
+    <plurals name="alarm_edit_test_in">
+        <item quantity="one">Test alarm in %1$d second</item>
+        <item quantity="other">Test alarm in %1$d seconds</item>
+    </plurals>
+    <string name="alarm_edit_test_failed">Couldn\'t schedule the test alarm</string>
+    <string name="alarm_edit_save_failed">Couldn\'t save the alarm</string>
+    <string name="alarm_edit_delete_failed">Couldn\'t delete the alarm</string>
+    <string name="alarm_edit_load_failed">Couldn\'t open the alarm</string>
+</resources>
