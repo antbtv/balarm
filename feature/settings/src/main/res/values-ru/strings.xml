@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_health">Здоровье будильника</string>
+    <string name="settings_health_ok">Всё в порядке</string>
+    <plurals name="settings_health_problems">
+        <item quantity="one">%d проблема</item>
+        <item quantity="few">%d проблемы</item>
+        <item quantity="many">%d проблем</item>
+        <item quantity="other">%d проблемы</item>
+    </plurals>
+    <string name="settings_about">О приложении</string>
+    <string name="settings_action_open">Открыть</string>
+    <string name="settings_back">Назад</string>
+
+    <string name="health_title">Здоровье будильника</string>
+    <string name="health_fix">Исправить</string>
+    <string name="health_open_settings">Открыть настройки</string>
+    <string name="health_retry">Повторить планирование</string>
+    <string name="health_unscheduled_count">Не запланировано будильников: %1$d</string>
+    <string name="health_scheduling_ok">Все будильники поставлены в системе.</string>
+    <string name="health_volume_ok">Громкость будильника включена.</string>
+    <string name="health_oem_guide">Инструкции для вашего телефона: dontkillmyapp.com</string>
+    <string name="health_oem_confirm">Я сделал</string>
+    <string name="health_no_browser">Не найден браузер</string>
+    <string name="health_oem_guide_action">Открыть в браузере</string>
+    <string name="health_test_hint">Проверьте, что будильник звонит на заблокированном экране.</string>
+    <string name="health_test_button">Тестовый будильник через 1 минуту</string>
+    <string name="health_test_scheduled">Зазвонит в %1$s — заблокируйте экран</string>
+    <string name="health_test_failed">Не удалось запланировать тестовый будильник</string>
+    <string name="health_retry_failed">Не удалось запланировать будильники. Попробуйте ещё раз</string>
+    <string name="health_save_failed">Не удалось сохранить. Попробуйте ещё раз</string>
+
+    <string name="about_title">О приложении</string>
+    <string name="about_version">Версия %1$s</string>
+    <string name="about_version_unknown">неизвестна</string>
+    <string name="about_licenses">Лицензии</string>
+    <string name="about_license_icons">Иконки и иллюстрации — авторские, CC0</string>
+</resources>

@@ -98,3 +98,9 @@ object NavigationBarTestTags {
     /** Вкладка по индексу: `navBarItem_0`. */
     fun item(index: Int): String = "navBarItem_$index"
 }
+
+object TopBarTestTags {
+    const val BAR = "balarmTopBar"
+    const val BACK = "balarmTopBarBack"
+    const val TITLE = "balarmTopBarTitle"
+}

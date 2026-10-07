@@ -17,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -42,6 +44,9 @@ private const val VALUE_MAX_WIDTH_FRACTION = 0.5f
  * @param icon необязательная иконка слева (`BalarmIcons`), декоративная.
  * @param value текущее значение («5 мин»); `null` — не показывается.
  * @param contentDescription замена текста строки для TalkBack (например, развёрнутое «5 минут» вместо «5 мин»).
+ * @param valueColor цвет значения; `Unspecified` — `textSecondary`. Для статуса («2 проблемы» цветом `warning`)
+ * вызывающий сам проверяет контраст (мелкий текст цветом `warning` в светлой теме не проходит 4.5:1).
+ * @param iconTint цвет иконки; `Unspecified` — цвет текста строки (статусная иконка ✅/⚠️ — `success`/`warning`).
  */
 @Composable
 fun SettingRow(
@@ -53,10 +58,14 @@ fun SettingRow(
     onClickLabel: String? = null,
     contentDescription: String? = null,
     enabled: Boolean = true,
+    valueColor: Color = Color.Unspecified,
+    iconTint: Color = Color.Unspecified,
 ) {
     val colors = BalarmTheme.colors
     val type = BalarmTheme.typography
     val contentColor = if (enabled) colors.textPrimary else colors.textSecondary
+    val resolvedValueColor = if (enabled) valueColor.takeOrElse { colors.textSecondary } else colors.textSecondary
+    val resolvedIconTint = if (enabled) iconTint.takeOrElse { contentColor } else contentColor
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -84,7 +93,7 @@ fun SettingRow(
                 Icon(
                     painter = painterResource(icon),
                     contentDescription = null,
-                    tint = contentColor,
+                    tint = resolvedIconTint,
                     modifier = Modifier.size(BalarmDimens.Icon),
                 )
             }
@@ -93,7 +102,7 @@ fun SettingRow(
                 Text(
                     text = value,
                     style = type.body,
-                    color = colors.textSecondary,
+                    color = resolvedValueColor,
                     textAlign = TextAlign.End,
                     modifier = Modifier.widthIn(max = valueMaxWidth),
                 )

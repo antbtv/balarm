@@ -49,7 +49,7 @@
 | [x] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
 | [x] | M3-T06 🎨 | Компоненты дизайн-системы: баннер, строка статуса, шаг онбординга, nav bar | §4.2 | M | — | |
 | [x] | M3-T07 | Логика настроек/здоровья (`HealthViewModel`, retry, тест-будильник, OEM-чекбокс) | FR-REL-7 | M | T02, T03, T04 | |
-| [ ] | M3-T08 🎨 | Экраны настроек, здоровья, «О приложении» (7 тапов → debug flags) | FR-REL-7, FR-FLAG-5 | M | T06, T07 | |
+| [x] | M3-T08 🎨 | Экраны настроек, здоровья, «О приложении» (7 тапов → debug flags) | FR-REL-7, FR-FLAG-5 | M | T06, T07 | |
 | [x] | M3-T09 | Логика онбординга (`OnboardingViewModel`, вычисление шага, пропуск) | §3.7 | M | T03, T04 | |
 | [ ] | M3-T10 🎨 | Экраны онбординга (7 шагов, возврат из настроек) | §3.7 | L | T06, T09 | |
 | [x] | M3-T11 | Баннер в списке: `healthWarning`, `Resumed`, `NotScheduled` | FR-LIST-5 | M | T02, T04, T06 | |
@@ -161,6 +161,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 - **T07 (ревью ⚠️ → учтено):** `healthReportFlow` в `:core:domain` (общий для списка/настроек/здоровья/онбординга; сбой потока будильников → 0 незапланированных, экран не падает); `HealthUiState.retrying` — в T08 **блокировать** кнопку «Повторить»; платформенный `snapshot()` вызывается на main — проверить StrictMode на смоке T08/T12; фейки `FakePermissionHealthChecker`/`FakeSetupStateRepository`/`HEALTHY_SNAPSHOT` — в testFixtures домена (для T09, T11).
 - **T09 (ревью ⚠️ → учтено):** `OnboardingViewModel` принимает ещё и `AlarmRepository` (для `healthReportFlow`) — привести ADR-013 §4 в T-docs. Чек-бокс «Я сделал» держит экран (T10): `OemConfirmed(true)` шлётся по «Продолжить», иначе шаг исчез бы при отметке. `stepNumber = ordinal+1` из 7 — при пропуске выполненных шагов номер скачет (T10: показать позицию среди оставшихся или принять). `SaveFailed` в T10 — не блокирующее сообщение; `Finished` приходит и после сбоя записи (онбординг покажется снова).
 - **T11 (ревью ⚠️ → учтено):** `onOpenHealth` обязателен на всех перегрузках `AlarmListScreen`; в `BalarmApp` пока `{}` → **обязательно подключить в T12**. Живой TalkBack баннера (live region) — T-test.
+- **T08 (ревью ⚠️ → учтено):** нижний отступ вкладок — через `modifier` из `:app`: `Scaffold(bottomBar, contentWindowInsets = WindowInsets(0)) { innerPadding -> Route(modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) }`; здоровье/«О приложении» — без панели, сами обрабатывают safeDrawing; `onOpenDebugFlags` не-null только из debug source set. Системный Back экраны не перехватывают (predictive back). В T12/T-test: `rememberHealthFixLauncher` на устройстве (OEM → App details), StrictMode `snapshot()`, ссылка dontkillmyapp в браузере. В T-docs: `BalarmTopBar` в таблицу скилла `alarmy-ui`.
 
 ## Уроки
 

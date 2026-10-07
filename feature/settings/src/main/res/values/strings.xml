@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Вкладка «Настройки» -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_health">Alarm health</string>
+    <string name="settings_health_ok">All good</string>
+    <plurals name="settings_health_problems">
+        <item quantity="one">%d problem</item>
+        <item quantity="other">%d problems</item>
+    </plurals>
+    <string name="settings_about">About</string>
+    <!-- TalkBack: действие строки настроек («двойное касание, чтобы открыть»). -->
+    <string name="settings_action_open">Open</string>
+    <string name="settings_back">Back</string>
+
+    <!-- «Здоровье будильника» (FR-REL-7) -->
+    <string name="health_title">Alarm health</string>
+    <string name="health_fix">Fix</string>
+    <string name="health_open_settings">Open settings</string>
+    <string name="health_retry">Retry scheduling</string>
+    <string name="health_unscheduled_count">Alarms not scheduled: %1$d</string>
+    <string name="health_scheduling_ok">All alarms are scheduled in the system.</string>
+    <string name="health_volume_ok">Alarm volume is on.</string>
+    <string name="health_oem_guide">Instructions for your phone: dontkillmyapp.com</string>
+    <string name="health_oem_confirm">I\'ve done it</string>
+    <string name="health_no_browser">No browser found</string>
+    <string name="health_oem_guide_action">Open in browser</string>
+    <string name="health_test_hint">Make sure the alarm rings on the locked screen.</string>
+    <string name="health_test_button">Test alarm in 1 minute</string>
+    <!-- Тост: %1$s — время звонка («7:31 AM»). -->
+    <string name="health_test_scheduled">Rings at %1$s — lock the screen</string>
+    <string name="health_test_failed">Couldn\'t schedule the test alarm</string>
+    <string name="health_retry_failed">Couldn\'t schedule alarms. Try again</string>
+    <string name="health_save_failed">Couldn\'t save. Try again</string>
+
+    <!-- «О приложении» -->
+    <string name="about_title">About</string>
+    <string name="about_app_name" translatable="false">Balarm</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_version_unknown">unknown</string>
+    <string name="about_licenses">Licenses</string>
+    <string name="about_license_icons">Icons and illustrations — original artwork, CC0</string>
+</resources>

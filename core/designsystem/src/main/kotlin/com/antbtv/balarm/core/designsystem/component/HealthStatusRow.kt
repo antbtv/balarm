@@ -40,6 +40,7 @@ import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
  * @param description пояснение («Без уведомлений экран звонка не появится»); `null` — нет.
  * @param actionLabel подпись кнопки; `null` — кнопки нет (обычно у [HealthStatusUi.Ok]).
  * @param onAction нажатие на кнопку действия.
+ * @param actionEnabled `false` — кнопка видна, но недоступна (идёт «Повторить планирование»).
  */
 @Composable
 fun HealthStatusRow(
@@ -49,6 +50,7 @@ fun HealthStatusRow(
     actionLabel: String?,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    actionEnabled: Boolean = true,
 ) {
     val colors = BalarmTheme.colors
     val type = BalarmTheme.typography
@@ -92,6 +94,7 @@ fun HealthStatusRow(
             SecondaryButton(
                 text = actionLabel,
                 onClick = onAction,
+                enabled = actionEnabled,
                 minHeight = BalarmDimens.MinTouch,
                 modifier = Modifier
                     // Кнопка выровнена по тексту, а не по иконке.

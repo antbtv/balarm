@@ -19,6 +19,10 @@ object BalarmIcons {
     @DrawableRes
     val ChevronRight: Int = R.drawable.ic_chevron_right
 
+    /** Стрелка «Назад» в `BalarmTopBar`. Зеркалится в RTL (`autoMirrored`). */
+    @DrawableRes
+    val ArrowBack: Int = R.drawable.ic_arrow_back
+
     @DrawableRes
     val Keyboard: Int = R.drawable.ic_keyboard
 
