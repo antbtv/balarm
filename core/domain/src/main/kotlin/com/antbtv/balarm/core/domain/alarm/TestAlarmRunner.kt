@@ -9,6 +9,7 @@ import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 /** Снимок черновика для тестового звонка; живёт в памяти процесса, в БД не попадает (ADR-010 §3). */
 interface TestAlarmStore {
@@ -46,12 +47,22 @@ class TestAlarmRunner @Inject constructor(
     private val clock: Clock,
     private val log: AlarmEventLog,
 ) {
-    /** Момент звонка или `null`, если система отказала (нет права на точные будильники). Повтор заменяет предыдущий. */
+    /**
+     * Момент звонка или `null`, если система отказала или планировщик бросил исключение (одно место для редактора
+     * и экрана здоровья). Повтор заменяет предыдущий.
+     */
     fun schedule(alarm: Alarm, delay: Duration): Instant? {
         val at = clock.instant() + delay
         val previous = store.get()
         store.put(alarm.copy(id = AlarmId.TEST))
-        if (!scheduler.schedule(ScheduleRequest(AlarmId.TEST, at, FireKind.REGULAR))) {
+        val accepted = try {
+            scheduler.schedule(ScheduleRequest(AlarmId.TEST, at, FireKind.REGULAR))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+        if (!accepted) {
             // Прежний тест (если был) остаётся запланированным — снимок у него не отбираем.
             previous?.let(store::put) ?: store.clear()
             log.log(AlarmEvent.ScheduleFailed(AlarmId.TEST, at))
@@ -75,7 +86,10 @@ class TestAlarmRunner @Inject constructor(
     )
 
     companion object {
-        /** FR-EDIT-10; для экрана здоровья (M3) — `Duration.ofMinutes(1)`. */
+        /** FR-EDIT-10. */
         val EDITOR_DELAY: Duration = Duration.ofSeconds(5)
+
+        /** FR-REL-7: «Тестовый будильник через 1 минуту» на экране здоровья. */
+        val HEALTH_DELAY: Duration = Duration.ofMinutes(1)
     }
 }

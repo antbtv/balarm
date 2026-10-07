@@ -1,0 +1,161 @@
+# M3: Онбординг и здоровье будильника
+
+| | |
+|---|---|
+| Статус | In progress |
+| Утверждён | 2026-10-07 |
+| Завершён | — |
+| Требования | FR-LIST-5, FR-REL-7, FR-REL-5 (путь overlay), §3.7 (онбординг), §3.9 (минимум), FR-FLAG-5 (вход в debug-экран), NFR-2; перенесено из M2 (ADR-011 §11 Б) |
+| Definition of Done (PRD §8) | Все статусы разрешений/здоровья корректны на API 34 и 37 (переключение через adb); онбординг проходится, баннер появляется при отзыве критичного и ведёт на экран здоровья; тестовый будильник через 1 мин звонит. Сценарии R12, R10, R9, R3, R1 (API 34) |
+
+## Цель
+Пользователь при первом запуске проходит онбординг (7 шагов), видит в списке баннер, если будильник может не сработать (отозвано разрешение или планирование не удалось), и открывает вкладку «Настройки» → «Здоровье будильника»: статусы ✅/⚠️ с кнопкой «Исправить» и тестовый будильник через 1 минуту. Появляется нижняя навигация (Будильники / Настройки).
+
+Вне скоупа M3: OEM-интенты автозапуска (бэклог), звук/громкость (M4), миссии (M5), R20 (→ M5), полноценные настройки (язык, автостоп и т. д.), baseline profile и общий Kover (→ M8), возврат экрана звонка наверх после Home (FR-RING-5 — M5).
+
+## Архитектура этапа
+Резюме architect (детали — ADR-012…015):
+* `:core:domain/health` — `HealthItem` (+severity), `HealthStatus{OK,PROBLEM,UNCONFIRMED}`, `PermissionSnapshot`, чистая `healthReport(snapshot, setup, unscheduledAlarms)`, интерфейсы `PermissionHealthChecker`, `SetupStateRepository`; `AlarmDefaults.testAlarm`, `TestAlarmRunner.HEALTH_DELAY = 1 мин`, try/catch внутри `TestAlarmRunner.schedule`.
+* `:core:data` — `DataStoreSetupStateRepository` (DataStore на device-protected, `app_prefs`); схема Room v2: `alarm_runtime.schedule_failed` (AutoMigration 1→2).
+* `:core:permissions` (новый) — `AndroidPermissionHealthChecker`, `rememberHealthFixLauncher`, тексты пунктов RU/EN.
+* `:core:alarm` — `SYSTEM_ALERT_WINDOW` и путь `startActivity(RingingActivity)` при `canDrawOverlays`.
+* `:feature:onboarding` (новый), `:feature:settings` (новый: настройки, здоровье, «О приложении»), `:feature:alarmlist` — баннер, `Resumed` → новый снимок.
+* `:app` — два стека Nav3 (`BalarmNavState`, вкладки ALARMS/SETTINGS), ключи `SettingsKey/HealthKey/AboutKey/OnboardingKey` в `NavConfiguration`, splash до чтения `SetupState`, удаление временного запроса `POST_NOTIFICATIONS` из `MainActivity`.
+* `:core:designsystem` — `HealthBanner`, строка статуса, раскладка шага онбординга, `BalarmNavigationBar`, иконки.
+* Новых feature-флагов нет: онбординг/здоровье — ядро надёжности (FR-FLAG-4).
+
+## Решения на утверждение
+- [ ] ADR-012: модель здоровья будильника (Proposed)
+- [ ] ADR-013: онбординг (Proposed)
+- [ ] ADR-014: нижняя навигация и настройки (Proposed)
+- [ ] ADR-015: состояние отказа планирования, схема v2; R20 → M5 (Proposed)
+
+Вопросы к пользователю (рекомендации architect приняты в плане по умолчанию):
+1. Баннер — только для пунктов, ломающих звонок (рек.). Overlay и оптимизация батареи — RECOMMENDED, без баннера, только в экране здоровья. *(правка PRD §3.7/FR-LIST-5)*
+2. Overlay-путь старта экрана звонка — в M3 (рек.); возврат наверх после Home — M5.
+3. Отказ планирования — флаг в схеме Room v2 (рек.).
+4. R20 → M5.
+5. Строка «Язык» в настройках — **не** в M3 (рек.), если не скажете иначе.
+6. Шаг OEM — показывать на всех устройствах (рек.: проще и тестируемо).
+7. PRD §3.7: у критичного шага «Продолжить без этого» после первой попытки (иначе отказавший застревает); новый критичный пункт BACKGROUND_RESTRICTION.
+
+## Задачи
+| ✓ | ID | Задача | FR | Оценка | Зависит от | Commit |
+|---|---|---|---|---|---|---|
+| [x] | M3-T01 | Домен: модель здоровья, `healthReport`, интерфейсы, `testAlarm`, try/catch в runner | FR-REL-7 | M | — | |
+| [ ] | M3-T02 🔔 | Схема v2 `schedule_failed`, движок пишет отказ планирования | FR-LIST-5 | M | T01 | |
+| [ ] | M3-T03 | `SetupStateRepository` на DataStore (device-protected) | §3.7 | S | T01 | |
+| [ ] | M3-T04 🔔 | `:core:permissions`: чекер, манифесты, лаунчер «Исправить» | FR-REL-7 | L | T01 | |
+| [ ] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
+| [ ] | M3-T06 🎨 | Компоненты дизайн-системы: баннер, строка статуса, шаг онбординга, nav bar | §4.2 | M | — | |
+| [ ] | M3-T07 | Логика настроек/здоровья (`HealthViewModel`, retry, тест-будильник, OEM-чекбокс) | FR-REL-7 | M | T02, T03, T04 | |
+| [ ] | M3-T08 🎨 | Экраны настроек, здоровья, «О приложении» (7 тапов → debug flags) | FR-REL-7, FR-FLAG-5 | M | T06, T07 | |
+| [ ] | M3-T09 | Логика онбординга (`OnboardingViewModel`, вычисление шага, пропуск) | §3.7 | M | T03, T04 | |
+| [ ] | M3-T10 🎨 | Экраны онбординга (7 шагов, возврат из настроек) | §3.7 | L | T06, T09 | |
+| [ ] | M3-T11 | Баннер в списке: `healthWarning`, `Resumed`, `NotScheduled` | FR-LIST-5 | M | T02, T04, T06 | |
+| [ ] | M3-T12 🎨 | `:app`: вкладки/два стека Nav3, стартовый экран, splash, смок | §4.1 | L | T08, T10, T11 | |
+| [ ] | M3-T-test | Тестирование этапа (tester) + R12, R10, R9, R3, R1(API 34) | §9.2 | L | T12 | |
+| [ ] | M3-T-review | Ревью этапа (reviewer) | — | M | T-test | |
+| [ ] | M3-T-docs | PRD/ADR/CLAUDE.md, реестр флагов, итоги | — | S | T-review | |
+
+### M3-T01 — Домен здоровья
+**Описание:** `:core:domain/health`: `HealthItem` (NOTIFICATIONS, EXACT_ALARMS, FULL_SCREEN_INTENT, OVERLAY, BATTERY_OPTIMIZATION, BACKGROUND_RESTRICTION, OEM_BACKGROUND, DO_NOT_DISTURB, ALARM_VOLUME, SCHEDULING) с severity; `HealthStatus`, `PermissionSnapshot`, `HealthReport.needsAttention`; чистая `healthReport(...)`; интерфейсы `PermissionHealthChecker`, `SetupStateRepository`/`SetupState`; `AlarmDefaults.testAlarm`, `TestAlarmRunner.HEALTH_DELAY`; try/catch в `TestAlarmRunner.schedule` (перенос M2).
+**Модули:** `:core:domain`, `:core:model`
+**Критерии приёмки:**
+- [x] Без Android-зависимостей; `healthReport` — чистая функция
+- [x] Исключение планировщика в `schedule` → результат «отказ», не падение
+- [x] Kover `:core:domain` ≥ 80 %
+**Тесты:** unit: таблица snapshot → report (все severity, UNCONFIRMED), runner с бросающим планировщиком.
+
+### M3-T02 🔔 — Схема v2: `schedule_failed`
+**Описание:** колонка `alarm_runtime.schedule_failed`, AutoMigration 1→2, экспорт схемы; `AlarmEngine` пишет/сбрасывает флаг при результате планирования; `upcomingTrigger`/шапка пропускают `scheduleFailed` (ADR-015, закрывает ADR-011 §11 Б).
+**Модули:** `:core:data`, `:core:domain`
+**Критерии приёмки:**
+- [ ] Миграция v1→v2 сохраняет данные (`MigrationTestHelper`)
+- [ ] Отказ `setAlarmClock` → флаг true; успешный `rescheduleAll` → false
+- [ ] Включённый будильник с флагом не попадает в «Следующий через»
+**Тесты:** unit на фейках; instrumented/Robolectric миграции; сценарий R9 (обновление поверх v1).
+
+### M3-T03 — Состояние онбординга
+**Описание:** `DataStoreSetupStateRepository` на `@DeviceProtected`, `app_prefs`; Hilt-модуль.
+**Критерии приёмки:**
+- [ ] `completeOnboarding`/`setOemBackgroundConfirmed` переживают перезапуск процесса
+- [ ] Чтение работает в Direct Boot
+**Тесты:** Robolectric/unit с `TemporaryFolder`.
+
+### M3-T04 🔔 — `:core:permissions`
+**Описание:** модуль, `AndroidPermissionHealthChecker` (уведомления + канал `alarm_ringing`, exact alarm, FSI, overlay, батарея, background restriction, DND, громкость будильника), манифест (`SYSTEM_ALERT_WINDOW`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), `rememberHealthFixLauncher` (runtime-запрос / системные настройки / App details как запасной), тексты RU+EN.
+**Модули:** `:core:permissions`, `:core:alarm` (id канала), `:app` (манифест)
+**Критерии приёмки:**
+- [ ] Каждый пункт читает свой платформенный API (PRD §3.7)
+- [ ] Нет обратной зависимости `:core:alarm → :core:permissions`
+- [ ] Для каждого пункта есть интент «Исправить» с запасным вариантом
+**Тесты:** Robolectric (shadow-менеджеры); ручная проверка на API 34/37 — T-test.
+
+### M3-T05 🔔 — Overlay-путь звонка
+**Описание:** при `canDrawOverlays` `RingingService` дублирующе вызывает `startActivity(RingingActivity)` (FR-REL-5); защита от двойного старта (`singleTask`/`onNewIntent`).
+**Критерии приёмки:**
+- [ ] Без разрешения поведение прежнее (FSI)
+- [ ] С разрешением поверх стороннего приложения — один экран звонка, не два
+**Тесты:** Robolectric на сервис; **R10, R1**.
+
+### M3-T06 🎨 — Компоненты дизайн-системы
+`HealthBanner`, строка статуса ✅/⚠️ с «Исправить», раскладка шага онбординга, `BalarmNavigationBar`, иконки (CC0). Токены только из `:core:designsystem`, превью, fontScale 2f/360dp.
+**Тесты:** Compose UI, semantics (TalkBack-описания).
+
+### M3-T07 — Логика настроек и здоровья
+`HealthViewModel`: отчёт из чекера + `SetupState` + число не запланированных; «Исправить», «Повторить планирование» (`rescheduleAll(USER_RETRY)`), тестовый будильник 1 мин, OEM-чекбокс; пересчёт на `Resumed`.
+**Критерии приёмки:** [ ] immutable `UiState`, события одноразовые через effects; [ ] ошибка тест-будильника → понятное сообщение.
+**Тесты:** Turbine + MockK.
+
+### M3-T08 🎨 — Экраны настроек
+`SettingsRoute` (строки «Здоровье будильника», «О приложении»), `HealthRoute`, `AboutRoute` (версия, 7 тапов → `FeatureFlagsActivity` только в debug).
+**Тесты:** Compose UI; смок на эмуляторе.
+
+### M3-T09 — Логика онбординга
+`OnboardingViewModel`: шаг = первый не-OK и не пропущенный; `skipped/attempted` в `SavedStateHandle`; «Продолжить без этого» после первой попытки; уже выданные шаги пропускаются (шаг 2 на API 34+); завершение → `completeOnboarding`.
+**Тесты:** unit-таблица состояний.
+
+### M3-T10 🎨 — Экраны онбординга
+7 шагов: иллюстрация, «Зачем это нужно», «Разрешить», «Позже/Продолжить без этого». Возврат из системных настроек и `ON_RESUME` — автопереход. Шаг 6 упрощённый (пояснение + dontkillmyapp.com + App details + чекбокс «Я сделал»).
+**Тесты:** Compose UI; возврат на правильный шаг после смерти процесса (отзыв уведомлений).
+
+### M3-T11 — Баннер в списке
+`AlarmListUiState.healthWarning`, событие `Resumed` → `snapshot()`, подзаголовок `NotScheduled` на карточке при `scheduleFailed`, `onOpenHealth`. Баннер — только для пунктов, ломающих звонок.
+**Тесты:** reducer/ViewModel, Compose UI (баннер виден/скрыт).
+
+### M3-T12 🎨 — Сборка навигации в `:app`
+`BalarmNavState` (стек на вкладку; выход — через ALARMS), ключи в `NavConfiguration`, стартовый экран онбординг/список, splash до чтения `SetupState`, нижний inset задаёт `:app`, удалить временный `POST_NOTIFICATIONS` из `MainActivity`. **Смок 4.**
+**Критерии приёмки:** [ ] нет двойных/пропавших отступов (fontScale 2f); [ ] Back на корне вкладки SETTINGS → ALARMS; [ ] `am start -W` до/после (NFR-2).
+
+### M3-T-test — Тестирование этапа (agent: tester)
+API 37 (и разово API 34): статусы каждого пункта переключаются через adb (команды — ADR-012 «Consequences»); R12 (основной), R10, R9 (поверх v1), R3, R1 на API 34; тестовый будильник 1 мин; онбординг с нуля; fontScale 2f; живой TalkBack — по желанию. EXACT_ALARMS/SCHEDULING — только Robolectric. Один эмулятор за раз, `./gradlew --stop` до, `adb emu kill` после.
+
+### M3-T-review — Ревью этапа (agent: reviewer)
+Весь диф этапа; особое внимание: схема v2, overlay-путь, отсутствие флагов на ядре.
+
+### M3-T-docs — Документация
+ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого», BACKGROUND_RESTRICTION, severity баннера, §3.9, R20 → M5, §8); CLAUDE.md; заполнить «Уроки/Перенесено».
+
+## Риски
+| Риск | Митигация |
+|---|---|
+| Insets: контракт списка меняется (нижний отступ — у `:app`) | Robolectric fontScale 2f/360dp + визуально на эмуляторе |
+| `SavedStateHandle` в записи Nav3 | запасной путь — `rememberSaveable` |
+| Отзыв уведомлений убивает процесс | сценарий возврата на правильный шаг в T10/T-test |
+| NFR-2: DataStore до первого кадра | splash через `OnPreDrawListener`; замер `am start -W` |
+| DND на API 35+ (режимы) | проверка на API 37; пункт INFO, на баннер не влияет |
+| Play-ревью `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | запасной `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS` |
+| Первая миграция Room на AGP 9 | `MigrationTestHelper`, R9 поверх v1 |
+| Двойной старт `RingingActivity` (FSI + overlay) | `singleTask`/`onNewIntent`, R10 |
+| Нет AVD API 34 | поставить разово, прогнать, удалить |
+| Память машины | сборки и эмулятор строго по одному, лимиты Gradle не повышать |
+
+## Добавлено по ходу
+- **T01 (ревью ⚠️ → учтено):** в `PermissionSnapshot` добавлено вычисляемое `notificationsReady` (разрешение И канал) — в T-docs привести ADR-012 §1 в соответствие. Исключение планировщика в `TestAlarmRunner.schedule` не логируется отдельно (`ScheduleFailed` без причины) — принято.
+
+## Уроки
+
+## Перенесено в следующий этап
+* **M5:** R20 (флаг «звонит» в runtime, схема v3); возврат экрана звонка наверх после Home (FR-RING-5).
+* **M8:** baseline profile / вердикт NFR-2 на устройстве; общий Kover; живой TalkBack; `DayChipsRow` при fontScale 2f.

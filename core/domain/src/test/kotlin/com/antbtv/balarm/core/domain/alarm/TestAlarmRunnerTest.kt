@@ -56,6 +56,33 @@ class TestAlarmRunnerTest {
     }
 
     @Test
+    fun `an exception of the scheduler is reported as a refusal`() {
+        scheduler.throwFor += AlarmId.TEST
+
+        val at = runner.schedule(draft, TestAlarmRunner.HEALTH_DELAY)
+
+        assertThat(at).isNull()
+        assertThat(store.get()).isNull()
+        assertThat(log.events.filterIsInstance<AlarmEvent.ScheduleFailed>().map { it.id }).containsExactly(AlarmId.TEST)
+    }
+
+    @Test
+    fun `an exception keeps the snapshot of the previous test that is still scheduled`() {
+        runner.schedule(draft, Duration.ofSeconds(5))
+        scheduler.throwFor += AlarmId.TEST
+
+        assertThat(runner.schedule(draft.copy(label = "Other"), Duration.ofSeconds(5))).isNull()
+        assertThat(store.get()).isEqualTo(draft.copy(id = AlarmId.TEST))
+    }
+
+    @Test
+    fun `health test rings in one minute`() {
+        val at = runner.schedule(AlarmDefaults.testAlarm(LocalTime.now(clock)), TestAlarmRunner.HEALTH_DELAY)
+
+        assertThat(at).isEqualTo(clock.now + Duration.ofMinutes(1))
+    }
+
+    @Test
     fun `a refusal keeps the snapshot of the previous test that is still scheduled`() {
         runner.schedule(draft, Duration.ofSeconds(5))
         scheduler.accept = false

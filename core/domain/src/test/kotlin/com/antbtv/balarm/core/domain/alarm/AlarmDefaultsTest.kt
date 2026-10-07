@@ -31,4 +31,14 @@ class AlarmDefaultsTest {
     fun `after 23 the next hour wraps to midnight`() {
         assertThat(AlarmDefaults.newAlarm(LocalTime.of(23, 40)).time).isEqualTo(LocalTime.MIDNIGHT)
     }
+
+    @Test
+    fun `test alarm has the reserved id, whole minutes and no snooze`() {
+        val alarm = AlarmDefaults.testAlarm(LocalTime.of(5, 0, 20, 5))
+
+        assertThat(alarm.id).isEqualTo(AlarmId.TEST)
+        assertThat(alarm.time).isEqualTo(LocalTime.of(5, 0))
+        assertThat(alarm.isOneShot).isTrue()
+        assertThat(alarm.snooze).isEqualTo(SnoozeSettings.DISABLED)
+    }
 }
