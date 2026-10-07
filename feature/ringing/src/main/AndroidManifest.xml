@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ADR-007 §10: экран звонка. showWhenLocked/turnScreenOn/keepScreenOn и скрытие баров — в RingingActivity.onCreate.
+<!-- ADR-007 §10: экран звонка. showWhenLocked/turnScreenOn/keepScreenOn — в RingingActivity.onCreate (системные бары видимы).
      directBootAware: звонок после перезагрузки до разблокировки (ADR-001). Открывается только интентом
      из уведомления сервиса (fullScreenIntent/contentIntent) → exported=false. Своя задача без следа в Recents. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">

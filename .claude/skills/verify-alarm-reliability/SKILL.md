@@ -36,7 +36,9 @@ dbg DISMISS                                    # команда текущему
 dbg SNOOZE                                     # то же для «Отложить»
 dbg RESCHEDULE_ALL | dbg CLEAR_ALL
 dbg CRASH                                      # необработанное исключение на главном потоке
+dbg TEST --ei seconds 5                        # тестовый звонок (как «Тест» редактора, ADR-010): AlarmId.TEST, через N с (по умолчанию 5, не меньше 1)
 ```
+`TEST` → `DEBUG_TEST at=…` (или `DEBUG_TEST refused=true` при отказе системы), `TEST_SCHEDULED at=…`; срабатывание — `ALARM_FIRED id=9223372036854775807 …` (`Long.MAX_VALUE`). Тест в БД нет: `dbg LIST` его не показывает, `RESCHEDULE_ALL` его не трогает и не считает; кнопки «Отложить» нет; при автостопе уведомления «Пропущенный будильник» нет. Повторный `TEST` заменяет предыдущий (тот же `PendingIntent`).
 `SCHEDULE_IN` округляет момент **вверх до целой минуты** (время будильника — целые минуты): фактическое время — в `DEBUG_SCHEDULED … time=`. Закладывай +1 мин к ожиданию. С `--es days` без сегодняшнего дня будильник сработает в ближайший из указанных дней.
 Ресивер закрыт разрешением `DUMP`: команды работают только из `adb shell`.
 
@@ -45,13 +47,14 @@ dbg CRASH                                      # необработанное и
 adb shell dumpsys alarm | grep -B2 -A8 "$PKG"   # тип RTC_WAKEUP и alarmClock (только setAlarmClock)
 adb logcat -s Balarm:I AndroidRuntime:E          # события, см. ниже
 ```
-При первом показе экрана звонка Android может показать подсказку «Viewing full screen» (скрытые системные панели) — это не ошибка. Экран звонка — скриншот или `mobile_list_elements_on_screen` (mobile-mcp), либо `adb shell dumpsys window | grep mCurrentFocus` → `RingingActivity`.
+Системные панели на экране звонка видимы (с M2), подсказка «Viewing full screen» больше не появляется — если появилась, это регрессия `RingingActivity`. Экран звонка — скриншот или `mobile_list_elements_on_screen` (mobile-mcp), либо `adb shell dumpsys window | grep mCurrentFocus` → `RingingActivity`.
 
 ### События лога (тег `Balarm`, формат `EVENT key=value`)
 | Событие | Значит |
 |---|---|
 | `SCHEDULED id at kind` / `SCHEDULE_FAILED id at` | отдано в `setAlarmClock` / система отказала |
-| `CANCELLED id` | будильник снят из `AlarmManager` (удалён) |
+| `CANCELLED id` | будильник удалён и снят из `AlarmManager` (только при удалении; выключение тумблером `CANCELLED` не пишет — проверяй `dumpsys alarm`) |
+| `TEST_SCHEDULED at` | тестовый звонок запланирован (`AlarmId.TEST`, ADR-010) |
 | `RESCHEDULE_ERROR id error` | один будильник не перепланировался; остальные — дальше |
 | `RESCHEDULE_ALL reason count` / `RESCHEDULE_ALL_FAILED reason error` | перепланирование (LOCKED_BOOT, BOOT, TIME_SET, TIMEZONE_CHANGED, PACKAGE_REPLACED, LOCALE_CHANGED, APP_LAUNCH, DEBUG); `error=BroadcastTimeout` — сторож goAsync |
 | `CATCH_UP id missed_at` | пропуск ≤ 10 мин (перезагрузка) — догоняющий звонок через 3 с |
@@ -89,7 +92,7 @@ adb logcat -s Balarm:I AndroidRuntime:E          # события, см. ниж�
 | R16–R17 | миссии | M5 |
 | R18 | OEM — ручной, реальное устройство | |
 | R19 | API 37: `adb shell cmd audio set-enable-hardening throw` (в образе balarm_api37 команды нет — молча rc=0, `mHardeningOverride=0`); звонок с выключенным экраном | звук есть, исключений нет; `adb shell dumpsys audio \| grep -i AudioHardening`: строки `would be muted … usage: USAGE_ALARM … exemption: 4` при `mutedState:none` — известный риск M1 (исключение exact alarm + USAGE_ALARM), не провал; провал — `mutedState` ≠ none или исключение |
-| CRASH | schedule +2; во время звонка `dbg CRASH` (один раз: два падения за < 60 с — система останавливает процесс и снимает alarms, ADR-007 §7) | `CRASH_REARMED`, процесс умер (`pidof` сменился), через ~3–5 с снова `RINGING_STARTED` (у RESUME нет `ALARM_FIRED`); после «Отключить» `dbg LIST` — у повторяющегося обычное следующее срабатывание (`kind=REGULAR`), разовый `enabled=false`. Если экран уже был включён и разблокирован — после возврата только heads-up (overlay — M3) |
+| CRASH | schedule +2; во время звонка `dbg CRASH` (один раз: два падения за < 60 с — система останавливает процесс и снимает alarms, ADR-007 §7) | `CRASH_REARMED`, процесс умер (`pidof` сменился), через ~3–5 с снова `RINGING_STARTED` (у RESUME будильника пользователя `ALARM_FIRED` нет — движок не считает его новым срабатыванием; у тестового звонка `dbg TEST` перед ним есть `ALARM_FIRED id=9223372036854775807 kind=RESUME`); после «Отключить» `dbg LIST` — у повторяющегося обычное следующее срабатывание (`kind=REGULAR`), разовый `enabled=false`. Если экран уже был включён и разблокирован — после возврата только heads-up (overlay — M3) |
 | AUTO | (долго) звонок без реакции 30 мин | `RINGING_STOPPED reason=auto_stop`, `DISMISSED reason=AUTO_STOP`, уведомление «Пропущенный будильник» |
 
 ## 2. После сценариев
