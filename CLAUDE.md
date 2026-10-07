@@ -13,6 +13,9 @@
 4. Скиллы: `plan-milestone`, `implement-task`, `verify-alarm-reliability`, `add-mission`, `alarmy-ui`.
 5. Коммиты — только по просьбе пользователя, формат `M<N>-T<NN>: описание`.
 
+## Состояние
+M0–M3 завершены (движок, список/редактор, онбординг и здоровье). Модули: `:core:{model,designsystem,format,domain,data,alarm,permissions}`, `:feature:{alarmlist,alarmedit,ringing,onboarding,settings}`.
+
 ## Стек и соглашения
 Kotlin · Jetpack Compose + Material 3 · Hilt · Room · DataStore · Coroutines/Flow · kotlinx.serialization · java.time. minSdk 34 (Android 14+), compileSdk/targetSdk 37, сборка на JDK 21 (`.sdkmanrc`). Многомодульность по PRD §6.2, version catalog `gradle/libs.versions.toml`.
 * UI: UDF/MVVM, immutable `UiState`, токены только из `:core:designsystem`, строки RU+EN.

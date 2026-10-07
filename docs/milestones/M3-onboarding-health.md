@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Статус | In progress |
+| Статус | Done |
 | Утверждён | 2026-10-07 |
-| Завершён | — |
+| Завершён | 2026-10-07 |
 | Требования | FR-LIST-5, FR-REL-7, FR-REL-5 (путь overlay), §3.7 (онбординг), §3.9 (минимум), FR-FLAG-5 (вход в debug-экран), NFR-2; перенесено из M2 (ADR-011 §11 Б) |
 | Definition of Done (PRD §8) | Все статусы разрешений/здоровья корректны на API 34 и 37 (переключение через adb); онбординг проходится, баннер появляется при отзыве критичного и ведёт на экран здоровья; тестовый будильник через 1 мин звонит. Сценарии R12, R10, R9, R3, R1 (API 34) |
 
@@ -25,10 +25,10 @@
 * Новых feature-флагов нет: онбординг/здоровье — ядро надёжности (FR-FLAG-4).
 
 ## Решения на утверждение
-- [ ] ADR-012: модель здоровья будильника (Proposed)
-- [ ] ADR-013: онбординг (Proposed)
-- [ ] ADR-014: нижняя навигация и настройки (Proposed)
-- [ ] ADR-015: состояние отказа планирования, схема v2; R20 → M5 (Proposed)
+- [x] ADR-012: модель здоровья будильника (Accepted)
+- [x] ADR-013: онбординг (Accepted)
+- [x] ADR-014: нижняя навигация и настройки (Accepted)
+- [x] ADR-015: состояние отказа планирования, схема v2; R20 → M5 (Accepted)
 
 Вопросы к пользователю (рекомендации architect приняты в плане по умолчанию):
 1. Баннер — только для пунктов, ломающих звонок (рек.). Overlay и оптимизация батареи — RECOMMENDED, без баннера, только в экране здоровья. *(правка PRD §3.7/FR-LIST-5)*
@@ -55,8 +55,8 @@
 | [x] | M3-T11 | Баннер в списке: `healthWarning`, `Resumed`, `NotScheduled` | FR-LIST-5 | M | T02, T04, T06 | |
 | [x] | M3-T12 🎨 | `:app`: вкладки/два стека Nav3, стартовый экран, splash, смок | §4.1 | L | T08, T10, T11 | |
 | [x] | M3-T-test | Тестирование этапа (tester) + R12, R10, R9, R3, R1(API 34) | §9.2 | L | T12 | |
-| [ ] | M3-T-review | Ревью этапа (reviewer) | — | M | T-test | |
-| [ ] | M3-T-docs | PRD/ADR/CLAUDE.md, реестр флагов, итоги | — | S | T-review | |
+| [x] | M3-T-review | Ревью этапа (reviewer) | — | M | T-test | |
+| [x] | M3-T-docs | PRD/ADR/CLAUDE.md, реестр флагов, итоги | — | S | T-review | |
 
 ### M3-T01 — Домен здоровья
 **Описание:** `:core:domain/health`: `HealthItem` (NOTIFICATIONS, EXACT_ALARMS, FULL_SCREEN_INTENT, OVERLAY, BATTERY_OPTIMIZATION, BACKGROUND_RESTRICTION, OEM_BACKGROUND, DO_NOT_DISTURB, ALARM_VOLUME, SCHEDULING) с severity; `HealthStatus`, `PermissionSnapshot`, `HealthReport.needsAttention`; чистая `healthReport(...)`; интерфейсы `PermissionHealthChecker`, `SetupStateRepository`/`SetupState`; `AlarmDefaults.testAlarm`, `TestAlarmRunner.HEALTH_DELAY`; try/catch в `TestAlarmRunner.schedule` (перенос M2).
@@ -197,7 +197,17 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 - **T-test → фикс:** DataStore `app_prefs` лежал в credential-protected `filesDir` (`preferencesDataStoreFile` берёт applicationContext) — исправлено: путь от device-protected контекста + тест `DeviceProtectedDataStoreTest`. Открыто (minor): «Исправить» для overlay открывает общий список, а не страницу Balarm на API 37 (проверить `package:` URI); StrictMode в debug-Application не включён; «Тест через 1 минуту» без видимой обратной связи кроме тоста; R1 на API 34 / отказ планирования / DND-priority / TalkBack — не проверены (см. T-test выше).
 
 ## Уроки
+* `preferencesDataStoreFile` берёт `applicationContext` и теряет device-protected: путь для DataStore в DE строить вручную от своего контекста (ловит только проверка на эмуляторе, Robolectric-тест — после находки).
+* Без `<queries>` `resolveActivity` для системных экранов возвращает `null`: запуск интентов — try/catch `ActivityNotFoundException`/`SecurityException`.
+* Панель навигации внутри записей корней, а не вокруг `NavDisplay`: иначе FAB прыгает при переходе.
+* Платформенный `OnPreDrawListener` вместо core-splashscreen хватает; чтение настроек на старте нужно с таймаутом.
+* `Resumed` приходит дважды при возврате из настроек — события должны быть идемпотентными.
+* Robolectric не управляет `canScheduleExactAlarms`/`canUseFullScreenIntent`; `USE_EXACT_ALARM` через adb не отзывается — такие пункты проверяются только фейками.
+* Субагент может завершиться с ошибкой API (403) уже после работы: состояние репозитория и сборку проверять самому.
 
 ## Перенесено в следующий этап
+* **M4:** обработка `DataStore` настроек звонка (громкость/snooze) уже в DE; «Тест через 1 минуту» без видимой обратной связи (кроме тоста); пункт ALARM_VOLUME (INFO) пересмотреть под FR-SND-7.
+* **M8:** R1 на API 34 (нет образа, мало диска); живой TalkBack баннера/экрана здоровья; fade vs slide при predictive back на корне настроек; StrictMode в debug `Application` (нарушений при `snapshot()` на main не найдено, детектор не включён); «Исправить» для overlay на API 37 открывает общий список (поведение ОС); контраст иконок статусов в светлой теме < 3:1 (бэклог светлой темы); отказ планирования/EXACT_ALARMS/SCHEDULING проверены только фейками; DND-priority без категории «будильники»; R7/R18; обоснования Play для `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` и `SYSTEM_ALERT_WINDOW`; вердикт NFR-2 на устройстве (release после `speed-profile` 768–838 мс на эмуляторе); общий Kover; `DayChipsRow` при fontScale 2f.
+* **M5:** R20 (флаг «звонит» в runtime, схема v3); возврат экрана звонка наверх после Home (FR-RING-5).
 * **M5:** R20 (флаг «звонит» в runtime, схема v3); возврат экрана звонка наверх после Home (FR-RING-5).
 * **M8:** baseline profile / вердикт NFR-2 на устройстве; общий Kover; живой TalkBack; `DayChipsRow` при fontScale 2f.

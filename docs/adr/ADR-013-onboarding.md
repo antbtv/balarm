@@ -1,7 +1,7 @@
 # ADR-013: Онбординг: когда показывается, состояние в DE DataStore, шаги и возврат из системных настроек
 
 ## Status
-Proposed (2026-10-07, план M3). Реализует PRD §3.7; заменяет временный запрос `POST_NOTIFICATIONS` в `MainActivity` (ADR-007 §8). Первое использование DataStore (ADR-004 §6).
+Accepted (2026-10-07, M3 завершён; уточнения по итогам реализации — в конце файла). Реализует PRD §3.7; заменяет временный запрос `POST_NOTIFICATIONS` в `MainActivity` (ADR-007 §8). Первое использование DataStore (ADR-004 §6).
 
 ## Context
 * PRD §3.7: первый запуск, по одному разрешению на экран, «Разрешить» и «Позже» (кроме критичных); возврат из системных настроек автоматически отмечает шаг. Шаг 6 (OEM) — пояснение + dontkillmyapp.com + `ACTION_APPLICATION_DETAILS_SETTINGS` + чек-бокс «Я сделал». Шаг 7 — опциональная подсказка про DND.
@@ -53,3 +53,11 @@ Proposed (2026-10-07, план M3). Реализует PRD §3.7; заменяе
 
 ## Related
 ADR-001, ADR-004 §6, ADR-007 §8, ADR-009, ADR-012, ADR-014; PRD §3.7, §3.9, FR-REL-7, NFR-2, NFR-7; R12.
+
+## Уточнения по итогам M3
+* §4: `OnboardingViewModel` принимает ещё `AlarmRepository` (для `healthReportFlow`, ADR-012).
+* OEM-шаг: чек-бокс «Я сделал» держит экран; `OemConfirmed(true)` уходит по «Готово» (недоступна без отметки), иначе выход — «Позже». Событие `OemConfirmed(false)` экран не шлёт.
+* Номер шага — `ordinal + 1` из 7; при пропуске выполненных шагов номер «скачет» (принято).
+* `AppViewModel` читает `SetupState` один раз с таймаутом 2 с; ошибка/таймаут → онбординг (безопасно: он завершается сам, когда шагов не осталось). `Finished` приходит и после сбоя записи (`SaveFailed`) — онбординг покажется снова.
+* DataStore строится от device-protected контекста **вручную** (`File(context.filesDir, "datastore/app_prefs.preferences_pb")`): `preferencesDataStoreFile` берёт `applicationContext` и теряет device-protected (находка T-test).
+* `Resumed` при возврате приходит дважды (callback лаунчера + `ON_RESUME`) — идемпотентно.

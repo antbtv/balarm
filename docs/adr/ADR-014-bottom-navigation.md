@@ -1,7 +1,7 @@
 # ADR-014: Нижняя навигация: два top-level стека Navigation3, экраны настроек, здоровья и «О приложении»
 
 ## Status
-Proposed (2026-10-07, план M3). Дополняет ADR-009 §5 («нижняя навигация — M3, рецепт multiple back stacks»); остальные решения ADR-009 не меняются.
+Accepted (2026-10-07, M3 завершён; уточнения по итогам реализации — в конце файла). Дополняет ADR-009 §5 («нижняя навигация — M3, рецепт multiple back stacks»); остальные решения ADR-009 не меняются.
 
 ## Context
 * PRD §4.1: нижняя навигация «Будильники · Настройки»; полноэкранные потоки вне навигации — онбординг, редактор, выбор мелодии, настройки миссии (звонок и миссия — `RingingActivity`).
@@ -41,3 +41,10 @@ Proposed (2026-10-07, план M3). Дополняет ADR-009 §5 («нижня
 
 ## Related
 ADR-009 §2–§5, ADR-012, ADR-013; PRD §3.9, §4.1, §6.2, FR-LIST-5, FR-REL-7, FR-FLAG-5, NFR-7.
+
+## Уточнения по итогам M3
+* Панель живёт внутри записей корней (`TabRoot`: `Scaffold(bottomBar, contentWindowInsets = WindowInsets(0))`), а не вокруг `NavDisplay`: иначе при переходе в редактор панель исчезает мгновенно, и FAB уходящего списка прыгает. Запись `SettingsKey` несёт fade-`transitionSpec` для переключения вкладок; `visibleStacks` — плоский список для `NavDisplay`, `contentKey` с префиксом стека.
+* `Tab` — просто `enum { ALARMS, SETTINGS }`; корневые ключи задаёт `BalarmNavState`.
+* Старт: `AppViewModel` + платформенный `OnPreDrawListener` (splash); `DebugTools` с `@BindsOptionalOf` — в release `Optional` пуст, `onOpenDebugFlags = null`.
+* Нижний отступ вкладок: `Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)`; Health/About/Edit/Onboarding обрабатывают `safeDrawing` сами.
+* Не подтверждено инструментально: fade vs slide при predictive back на корне настроек (смотреть на устройстве, M8).

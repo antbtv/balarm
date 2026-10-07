@@ -63,7 +63,7 @@
 * **FR-LIST-2** Шапка: «Следующий будильник через 7 ч 12 мин» / «Нет активных будильников».
 * **FR-LIST-3** FAB «+» (красный круг) — создать будильник.
 * **FR-LIST-4** Тап по карточке — редактор; долгий тап / свайп — меню: удалить, дублировать (C), пропустить следующий [бэклог]. **v0.1 (M2):** только долгий тап → меню «Удалить» → диалог подтверждения; свайп-меню, «дублировать», «пропустить следующий» и snackbar «Отменить» — бэклог.
-* **FR-LIST-5** Если какое-либо критичное разрешение отозвано — баннер сверху «Будильник может не сработать → Исправить» (ведёт на экран здоровья, FR-REL-7).
+* **FR-LIST-5** Если отозвано критичное разрешение или планирование не удалось — баннер сверху «Будильник может не сработать → Исправить» (ведёт на экран здоровья, FR-REL-7). **Критичные** (баннер): уведомления + канал звонка, полноэкранные уведомления, режим фона «Ограничено», точные будильники, планирование (`scheduleFailed`). Overlay и оптимизация батареи — рекомендуемые: ⚠️ на экране здоровья, без баннера (ADR-012 §2).
 * **AC:** выключение тумблера немедленно отменяет запланированный `AlarmManager`-интент (проверка: `adb shell dumpsys alarm | grep <package>`).
 
 ### 3.2 Редактор будильника
@@ -127,7 +127,7 @@
 
 | Шаг | Разрешение / настройка | API | Критично | Проверка статуса |
 |---|---|---|---|---|
-| 1 | Уведомления | `POST_NOTIFICATIONS` runtime | да | `NotificationManagerCompat.areNotificationsEnabled()` |
+| 1 | Уведомления (+ канал звонка `alarm_ringing` ≥ HIGH) | `POST_NOTIFICATIONS` runtime | да | `NotificationManagerCompat.areNotificationsEnabled()` |
 | 2 | Точные будильники | `USE_EXACT_ALARM` (выдаётся при установке) | да | `AlarmManager.canScheduleExactAlarms()` |
 | 3 | Полноэкранные уведомления | `USE_FULL_SCREEN_INTENT` (API 34+ может быть отозвано) → `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` | да | `NotificationManager.canUseFullScreenIntent()` |
 | 4 | Поверх других приложений | `SYSTEM_ALERT_WINDOW` → `Settings.ACTION_MANAGE_OVERLAY_PERMISSION` | да (для FR-RING-5) | `Settings.canDrawOverlays()` |
@@ -135,6 +135,7 @@
 | 6 | Фоновая работа на OEM-оболочках (Xiaomi, Huawei, Oppo, Vivo, Samsung) — **упрощённо** | Пояснение + ссылка dontkillmyapp.com + `Settings.ACTION_APPLICATION_DETAILS_SETTINGS`; OEM-интенты автозапуска — [бэклог] | рекомендовано | не проверяемо → чек-бокс «Я сделал» |
 | 7 | (опц.) Звук в режиме «Не беспокоить» | подсказка: будильники по умолчанию разрешены | нет | `NotificationManager.getCurrentInterruptionFilter()` |
 
+* **Правила онбординга (M3, ADR-013):** показываются только шаги со статусом ≠ OK (шаг 2 на API 34+ пропускается — `USE_EXACT_ALARM` выдан); у критичных шагов «Продолжить без этого» появляется **после первой попытки** с предупреждением, у рекомендуемых «Позже» сразу; шаг 5 покрывает и режим «Ограничено» (критичный пункт `BACKGROUND_RESTRICTION` — ограниченное приложение не получает alarms и не запускает FGS); шаг 6 (OEM) — чек-бокс «Я сделал» + «Готово», ссылка dontkillmyapp.com.
 * **FR-REL-7 Экран «Здоровье будильника»** (Настройки → Надёжность): список всех пунктов с ✅/⚠️, кнопка «Исправить» у каждого, кнопка «Тестовый будильник через 1 минуту».
 * При каждом `onResume` главного экрана статусы перепроверяются; при отзыве критичного — баннер (FR-LIST-5).
 * Возврат из системных настроек обратно в онбординг — автоматически отмечает шаг.
@@ -150,7 +151,7 @@
 * **FR-REL-9** Наушники: звук идёт через динамик и наушники одновременно (как у системного будильника, поведение USAGE_ALARM) — зафиксировать в тестах.
 
 ### 3.9 Настройки (глобальные)
-Язык, автостоп звонка, таймер бездействия миссий, громкость миссии, первый день недели, «Здоровье будильника», о приложении/лицензии мелодий, (C) бэкап/восстановление. Тема — только тёмная (выбор темы [бэклог]). Настройки озвучки — [v1.1].
+**В M3 реализовано только:** «Здоровье будильника» и «О приложении» (версия, лицензии, debug: 7 тапов → feature flags). Остальное — с этапами (автостоп — M7, миссии — M5, язык — по решению). Язык, автостоп звонка, таймер бездействия миссий, громкость миссии, первый день недели, «Здоровье будильника», о приложении/лицензии мелодий, (C) бэкап/восстановление. Тема — только тёмная (выбор темы [бэклог]). Настройки озвучки — [v1.1].
 
 ### 3.10 Экран «Доброе утро» [бэклог]
 После отключения: приветствие по времени суток, дата, **погода в Москве** (иконка, температура сейчас, мин/макс за день, осадки), цитата крупно (кнопка «в избранное»), «Вы проснулись с N-й попытки», кнопки «Повторить озвучку» / «Замолчать» и «Закрыть». Цитата здесь — не в v0.1 (цитаты исключены).
@@ -295,7 +296,7 @@ Kotlin 2.x · Jetpack Compose + Material 3 · Navigation3 (ADR-009; Navigation C
 :core:designsystem        — тема, токены, базовые компоненты (TimeWheel, DayChips…)
 :core:format              — единое форматирование: время 12/24h, «через X ч Y мин» (ICU), дни недели (с M2, ADR-011 §6)
 :core:alarm               — AlarmScheduler, ресиверы, RingingService, AudioPlayer, Vibrator
-:core:permissions         — PermissionHealthChecker (OEM-интенты — бэклог)
+:core:permissions         — AndroidPermissionHealthChecker, интенты «Исправить», тексты пунктов (с M3, ADR-012; OEM-интенты — бэклог)
 :core:weather [v1.1]      — WeatherConfig (BuildConfig), Open-Meteo клиент, кеш, WMO-коды → текст
 :core:speech [v1.1]       — MorningBriefingComposer (текст, чистый Kotlin в :core:domain) + TtsSpeaker (TextToSpeech)
 :feature:alarmlist
@@ -323,7 +324,8 @@ Alarm(id, hour, minute, daysOfWeek: Set<DayOfWeek>, date: LocalDate?, label,
       [v1.1: morningBriefing: Boolean])
 [v1.1] WeatherSnapshot(fetchedAt: Instant, tempNow, weatherCode, windSpeed, tempMax, tempMin, precipProbability)
 AlarmRuntimeState(alarmId, nextTriggerAt: Instant?, nextTriggerKind: REGULAR|SNOOZE|CATCH_UP,
-                  snoozeCount, lastFiredAt: Instant?)   // M1; флаг «звонит» — кандидат для R20
+                  snoozeCount, lastFiredAt: Instant?,
+                  scheduleFailed: Boolean)   // M1; scheduleFailed — M3 (схема v2, ADR-015); флаг «звонит» (R20) — M5, схема v3
 Sound(id, title, type: BUILTIN|CUSTOM|SYSTEM, uri/path, durationMs)
 MissionConfig = sealed: Math(level,count)   // Memory | Typing | Shake — бэклог
 ```
@@ -361,7 +363,7 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 | M0 | Фундамент | Android-проект, модули, version catalog, convention plugins, Hilt, Compose, тема/токены, feature flags (FR-FLAG), detekt/ktlint, CI (GitHub Actions: build+test+lint), `.mcp.json` проверен | `./gradlew build` зелёный, пустое приложение с тёмной темой запускается на эмуляторе |
 | M1 | Движок будильника | Модель, Room (device-protected), `NextTriggerCalculator`, `AlarmScheduler`, ресиверы (boot/locked boot/time/tz/update), `RingingService`, минимальный `RingingActivity` | Будильник звенит в Doze, после `adb reboot` до разблокировки, после смены TZ |
 | M2 | UI списка и редактора | Главный экран, карточки, редактор, колесо времени, дни, snooze-настройки, «через X ч Y мин» | E2E: создать → включить → звонит |
-| M3 | Онбординг и здоровье | Онбординг 7 шагов (шаг 6 — упрощённый, без OEM-интентов), `PermissionHealthChecker`, баннер, экран здоровья, тестовый будильник | Все статусы корректны на API 34/37 |
+| M3 ✅ | Онбординг и здоровье | Онбординг 7 шагов (шаг 6 — упрощённый, без OEM-интентов), `PermissionHealthChecker`, баннер, экран здоровья, тестовый будильник | Все статусы корректны на API 34/37 (проверено на 37; API 34 — перенос). R20 → M5, возврат экрана звонка после Home (FR-RING-5) → M5 |
 | M4 | Звуки | Встроенные мелодии, SAF-импорт с копированием, библиотека, громкость, fade-in, вибрация, резервный звук | Кастомная мелодия играет после перезагрузки до разблокировки |
 | M5 | Миссии | Контракт миссий, хост, таймер бездействия, **Math**, превью | Нельзя отключить без миссии; бездействие → громко |
 | M6 | ~~Цитаты и утренняя озвучка~~ — **снят** | Цитаты исключены из продукта; озвучка (FR-TTS) → v1.1, отдельный этап после релиза | — |

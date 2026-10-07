@@ -1,7 +1,7 @@
 # ADR-012: Здоровье будильника: модель статусов, PermissionHealthChecker, баннер и «Исправить»
 
 ## Status
-Proposed (2026-10-07, план M3). Реализует PRD §3.7 (таблица разрешений, FR-REL-7), FR-LIST-5, сценарий R12; закрывает ADR-011 §11 Б вместе с ADR-015.
+Accepted (2026-10-07, M3 завершён; уточнения по итогам реализации — в конце файла). Реализует PRD §3.7 (таблица разрешений, FR-REL-7), FR-LIST-5, сценарий R12; закрывает ADR-011 §11 Б вместе с ADR-015.
 
 ## Context
 * M3 (PRD §8): онбординг 7 шагов, `PermissionHealthChecker`, баннер FR-LIST-5, экран «Здоровье будильника» (Настройки → Надёжность), «Тестовый будильник через 1 минуту». DoD: все статусы корректны на API 34 и 37.
@@ -81,3 +81,11 @@ Proposed (2026-10-07, план M3). Реализует PRD §3.7 (таблица
 
 ## Related
 ADR-002, ADR-007 §2, §8, §10, ADR-009, ADR-010, ADR-011 §11 Б, ADR-013, ADR-014, ADR-015; PRD §3.7, FR-LIST-5, FR-REL-5, FR-REL-7, FR-RING-1, FR-RING-5, FR-FLAG-4, NFR-9, §7; R10, R11, R12.
+
+## Уточнения по итогам M3
+* §1: в `PermissionSnapshot` добавлено вычисляемое `notificationsReady = notificationsEnabled && ringingChannelEnabled`.
+* §4: вместо `resolveActivity` — `try/catch ActivityNotFoundException/SecurityException` по цепочке интентов (без `<queries>` на API 30+ `resolveActivity` вернул бы `null` для системных экранов). Порядок: специфичный интент → запасной → App details; канал звонка (`channelOnly`) — `ACTION_CHANNEL_NOTIFICATION_SETTINGS`; DND → `ZEN_MODE_PRIORITY_SETTINGS` → Sound.
+* §4: отказ `POST_NOTIFICATIONS` — после **первого** отказа следующее «Разрешить» ведёт в настройки (флаг `notificationsDenied`); если диалога уже нет (`shouldShowRequestPermissionRationale == false`) — настройки сразу. Проще и безопаснее «навсегда».
+* §4: на API 37 `ACTION_MANAGE_OVERLAY_PERMISSION` открывает общий список приложений, а не страницу Balarm (поведение ОС; `package:` URI передаётся).
+* §7: overlay-старт экрана звонка проверен на API 37 (T-test, R10): работает при выданном `SYSTEM_ALERT_WINDOW` и выключенном FSI; гарантий платформа не даёт, основной путь — full-screen intent.
+* `ensureCreated` внутри `snapshot()` обёрнут в `runCatching`.

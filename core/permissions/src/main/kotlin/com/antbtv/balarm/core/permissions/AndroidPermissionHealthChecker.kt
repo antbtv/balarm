@@ -40,7 +40,8 @@ class AndroidPermissionHealthChecker @Inject constructor(@ApplicationContext pri
 
     /** Канал звонка нужен с важностью HIGH: иначе нет full-screen intent и экрана звонка (ADR-007 §8). */
     private fun ringingChannelEnabled(notifications: NotificationManager): Boolean {
-        AlarmNotificationChannels.ensureCreated(context)
+        // Побочный эффект ради честного чтения: удалённый канал воссоздаётся. Сбой не должен ронять экран.
+        runCatching { AlarmNotificationChannels.ensureCreated(context) }
         val channel = notifications.getNotificationChannel(AlarmNotificationChannels.RINGING)
         return channel != null && channel.importance >= NotificationManager.IMPORTANCE_HIGH
     }

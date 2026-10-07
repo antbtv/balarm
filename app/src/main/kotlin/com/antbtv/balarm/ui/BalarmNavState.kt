@@ -13,10 +13,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 
 /** Вкладки нижней панели; порядок — порядок пунктов панели. */
-internal enum class Tab(val root: NavKey) {
-    ALARMS(AlarmListKey),
-    SETTINGS(SettingsKey),
-}
+internal enum class Tab { ALARMS, SETTINGS }
 
 /** Стек навигации: две вкладки и онбординг. Имя входит в `contentKey` записей — стеки не делят состояние. */
 internal enum class StackId { ONBOARDING, ALARMS, SETTINGS }

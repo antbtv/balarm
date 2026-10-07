@@ -59,7 +59,11 @@ object BalarmDimens {
 | `BalarmFab` | 64dp круг Primary, иконка `BalarmIcons.Add` |
 | `NextAlarmHeader` | «Следующий будильник через 7 ч 12 мин» / «Нет активных будильников», `title` + подпись `caption`; TalkBack — один узел-заголовок (полная форма «через 7 часов 12 минут» — `titleDescription`) |
 | `SystemBarScrim` | Подложка под прозрачным системным баром (`ScrimEdge.Top/Bottom`): сплошная `background` под баром → прозрачная за `SystemBarScrimFade`; касания не перехватывает, в дереве доступности нет. Для списка и редактора сверху и снизу |
-| `PermissionBanner` | (M3) Warning-фон 15 %, иконка, текст, кнопка «Исправить» |
+| `HealthBanner` | (M3) Баннер FR-LIST-5: `warningContainer`, иконка, текст, подпись «Исправить», live region |
+| `HealthStatusRow` | (M3) Строка ✅/⚠️/? экрана здоровья + «Исправить: <пункт>»; `HealthStatusUi`, `actionEnabled` |
+| `OnboardingStepLayout` / `OnboardingIllustration` | (M3) Шаг онбординга: индикатор, иллюстрация, «зачем», основная и «Позже»; `primaryEnabled`, `warning`, слот `extraContent` |
+| `BalarmNavigationBar` / `NavBarItem` | (M3) Нижняя панель на 2 вкладки; список `NavBarItem` — через `remember` |
+| `BalarmTopBar` | (M3) «Назад» + заголовок для полноэкранных экранов без панели |
 | `MissionProgressBar` | (M5) Сегментированный прогресс «2/5» наверху экрана миссии + полоска таймера бездействия |
 | `ShakeOnError` | (M5) Modifier: горизонтальная тряска 300 мс + haptic `Reject` |
 
