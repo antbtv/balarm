@@ -44,7 +44,7 @@
 |---|---|---|---|---|---|---|
 | [x] | M3-T01 | Домен: модель здоровья, `healthReport`, интерфейсы, `testAlarm`, try/catch в runner | FR-REL-7 | M | — | |
 | [x] | M3-T02 🔔 | Схема v2 `schedule_failed`, движок пишет отказ планирования | FR-LIST-5 | M | T01 | |
-| [ ] | M3-T03 | `SetupStateRepository` на DataStore (device-protected) | §3.7 | S | T01 | |
+| [x] | M3-T03 | `SetupStateRepository` на DataStore (device-protected) | §3.7 | S | T01 | |
 | [ ] | M3-T04 🔔 | `:core:permissions`: чекер, манифесты, лаунчер «Исправить» | FR-REL-7 | L | T01 | |
 | [ ] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
 | [ ] | M3-T06 🎨 | Компоненты дизайн-системы: баннер, строка статуса, шаг онбординга, nav bar | §4.2 | M | — | |
@@ -79,8 +79,8 @@
 ### M3-T03 — Состояние онбординга
 **Описание:** `DataStoreSetupStateRepository` на `@DeviceProtected`, `app_prefs`; Hilt-модуль.
 **Критерии приёмки:**
-- [ ] `completeOnboarding`/`setOemBackgroundConfirmed` переживают перезапуск процесса
-- [ ] Чтение работает в Direct Boot
+- [x] `completeOnboarding`/`setOemBackgroundConfirmed` переживают перезапуск процесса
+- [x] Чтение работает в Direct Boot (контекст `@DeviceProtected`; проверка на эмуляторе — T-test, R3)
 **Тесты:** Robolectric/unit с `TemporaryFolder`.
 
 ### M3-T04 🔔 — `:core:permissions`
@@ -154,6 +154,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 ## Добавлено по ходу
 - **T01 (ревью ⚠️ → учтено):** в `PermissionSnapshot` добавлено вычисляемое `notificationsReady` (разрешение И канал) — в T-docs привести ADR-012 §1 в соответствие. Исключение планировщика в `TestAlarmRunner.schedule` не логируется отдельно (`ScheduleFailed` без причины) — принято.
 - **T02 (ревью ⚠️ → учтено):** принятый успешный snooze при `scheduleFailed` снимает признак (в системе есть snooze-будильник), обычное расписание остаётся не запланированным до следующего `rescheduleAll` — T07/T11 это учитывать; `AlarmSchedulerImpl` сам превращает `SecurityException` в отказ. R9 (поверх v1) — в T-test; `USER_RETRY` добавлен в `RescheduleReason`.
+- **T03 (ревью ⚠️ → учтено):** `edit` при `IOException` бросает вызывающему — обработать в ViewModel T07/T09 (не падать на «Я сделал»/завершении онбординга). Direct Boot чтения DataStore — проверить в T-test вместе с R3.
 
 ## Уроки
 

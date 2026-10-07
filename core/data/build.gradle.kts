@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     api(projects.core.domain)
+    implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
