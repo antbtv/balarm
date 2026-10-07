@@ -201,6 +201,62 @@ class AlarmEngineScheduleTest {
     }
 
     @Test
+    fun `a refusal marks the runtime and a later successful reschedule clears the mark`() = runTest {
+        scheduler.accept = false
+        val id = engine.save(wakeUp).id
+        assertThat(repository.runtimes[id]?.scheduleFailed).isTrue()
+
+        scheduler.accept = true
+        assertThat(engine.rescheduleAll(RescheduleReason.USER_RETRY)).isEqualTo(1)
+
+        assertThat(repository.runtimes[id]?.scheduleFailed).isFalse()
+        assertThat(scheduler.scheduled).containsKey(id)
+    }
+
+    @Test
+    fun `disabling a failed alarm clears the mark`() = runTest {
+        scheduler.accept = false
+        val id = engine.save(wakeUp).id
+
+        engine.setEnabled(id, false)
+
+        assertThat(repository.runtimes[id]?.scheduleFailed).isFalse()
+    }
+
+    @Test
+    fun `a refused reschedule keeps the mark`() = runTest {
+        scheduler.accept = false
+        val id = engine.save(wakeUp).id
+
+        assertThat(engine.rescheduleAll(RescheduleReason.USER_RETRY)).isEqualTo(0)
+
+        assertThat(repository.runtimes[id]?.scheduleFailed).isTrue()
+    }
+
+    @Test
+    fun `a refused snooze does not touch the mark of the regular schedule`() = runTest {
+        val id = engine.save(wakeUp).id
+        engine.onFired(id, local("2026-09-28T06:30"), FireKind.REGULAR)
+        repository.updateRuntime(repository.runtimes.getValue(id).copy(scheduleFailed = true))
+        scheduler.accept = false
+
+        engine.snooze(id)
+
+        assertThat(repository.runtimes[id]?.scheduleFailed).isTrue()
+    }
+
+    @Test
+    fun `an accepted snooze clears the mark because a trigger is in the system`() = runTest {
+        val id = engine.save(wakeUp).id
+        engine.onFired(id, local("2026-09-28T06:30"), FireKind.REGULAR)
+        repository.updateRuntime(repository.runtimes.getValue(id).copy(scheduleFailed = true))
+
+        engine.snooze(id)
+
+        assertThat(repository.runtimes[id]?.scheduleFailed).isFalse()
+    }
+
+    @Test
     fun `concurrent reschedules produce one consistent schedule`() = runTest {
         val id = engine.save(wakeUp).id
 

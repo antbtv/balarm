@@ -367,20 +367,21 @@ class AlarmEngine @Inject constructor(
 
     /**
      * Отдаёт план в `AlarmManager` и сохраняет runtime. При отказе системы момент по умолчанию всё равно
-     * сохраняется (следующий rescheduleAll попробует снова); [persistOnFailure] = false — не сохранять.
+     * сохраняется с `scheduleFailed = true` (следующий rescheduleAll попробует снова и снимет признак);
+     * [persistOnFailure] = false — не сохранять, прежнее расписание и признак остаются.
      */
     private suspend fun applySchedule(alarm: Alarm, plan: Plan, persistOnFailure: Boolean = true): Outcome {
         val at = plan.runtime.nextTriggerAt
         if (plan.kind == null || at == null) {
             scheduler.cancel(alarm.id)
-            repository.updateRuntime(plan.runtime)
+            repository.updateRuntime(plan.runtime.copy(scheduleFailed = false))
             return Outcome.CANCELLED
         }
         val accepted = scheduler.schedule(ScheduleRequest(alarm.id, at, plan.kind))
         log.log(
             if (accepted) AlarmEvent.Scheduled(alarm.id, at, plan.kind) else AlarmEvent.ScheduleFailed(alarm.id, at),
         )
-        if (accepted || persistOnFailure) repository.updateRuntime(plan.runtime)
+        if (accepted || persistOnFailure) repository.updateRuntime(plan.runtime.copy(scheduleFailed = !accepted))
         return if (accepted) Outcome.SCHEDULED else Outcome.FAILED
     }
 

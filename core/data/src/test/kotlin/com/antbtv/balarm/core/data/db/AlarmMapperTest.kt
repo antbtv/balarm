@@ -1,6 +1,8 @@
 package com.antbtv.balarm.core.data.db
 
 import com.antbtv.balarm.core.model.Alarm
+import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.AlarmRuntimeState
 import com.antbtv.balarm.core.model.SnoozeSettings
 import com.antbtv.balarm.core.model.TriggerKind
 import com.google.common.truth.Truth.assertThat
@@ -76,6 +78,13 @@ class AlarmMapperTest {
         )
 
         assertThat(alarm.label.codePointCount(0, alarm.label.length)).isEqualTo(Alarm.MAX_LABEL_LENGTH)
+    }
+
+    @Test
+    fun `schedule failed mark survives the round trip`() {
+        val state = AlarmRuntimeState(alarmId = AlarmId(1), scheduleFailed = true)
+
+        assertThat(AlarmMapper.toDomain(AlarmMapper.toEntity(state))).isEqualTo(state)
     }
 
     @Test

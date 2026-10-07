@@ -26,6 +26,23 @@ class AlarmScheduleTest {
     )
 
     @Test
+    fun `a failed schedule has no upcoming trigger but stays enabled`() {
+        val item = AlarmWithRuntime(alarm, AlarmRuntimeState(id, now.plusSeconds(3_600), scheduleFailed = true))
+
+        assertThat(item.upcomingTrigger(now)).isNull()
+        assertThat(item.isActive(now)).isTrue()
+        assertThat(listOf(item, item()).nextTrigger(now)).isEqualTo(now.plusSeconds(3_600))
+        assertThat(listOf(item).nextTrigger(now)).isNull()
+    }
+
+    @Test
+    fun `unscheduled count counts only marked alarms`() {
+        val failed = AlarmWithRuntime(alarm, AlarmRuntimeState(id, null, scheduleFailed = true))
+
+        assertThat(listOf(failed, failed, item(), item(hasRuntime = false)).unscheduledCount()).isEqualTo(2)
+    }
+
+    @Test
     fun `enabled alarm shows its planned regular trigger`() {
         val item = item()
 

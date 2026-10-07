@@ -12,6 +12,9 @@ enum class RescheduleReason {
     PACKAGE_REPLACED,
     LOCALE_CHANGED,
     APP_LAUNCH,
+
+    /** «Повторить планирование» на экране здоровья (ADR-015). */
+    USER_RETRY,
     DEBUG,
 }
 

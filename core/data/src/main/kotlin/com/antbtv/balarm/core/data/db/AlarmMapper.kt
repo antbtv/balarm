@@ -48,6 +48,7 @@ internal object AlarmMapper {
         nextTriggerKind = TriggerKind.entries.firstOrNull { it.name == entity.nextTriggerKind } ?: TriggerKind.REGULAR,
         snoozeCount = entity.snoozeCount.coerceAtLeast(0),
         lastFiredAt = entity.lastFiredAt?.let(Instant::ofEpochMilli),
+        scheduleFailed = entity.scheduleFailed,
     )
 
     fun toEntity(state: AlarmRuntimeState): AlarmRuntimeEntity = AlarmRuntimeEntity(
@@ -56,6 +57,7 @@ internal object AlarmMapper {
         nextTriggerKind = state.nextTriggerKind.name,
         snoozeCount = state.snoozeCount,
         lastFiredAt = state.lastFiredAt?.toEpochMilli(),
+        scheduleFailed = state.scheduleFailed,
     )
 
     fun maskFromDays(days: Set<DayOfWeek>): Int = days.fold(0) { mask, day -> mask or (1 shl (day.value - 1)) }

@@ -41,4 +41,6 @@ data class AlarmRuntimeEntity(
     @ColumnInfo(name = "next_trigger_kind", defaultValue = "REGULAR") val nextTriggerKind: String,
     @ColumnInfo(name = "snooze_count", defaultValue = "0") val snoozeCount: Int,
     @ColumnInfo(name = "last_fired_at") val lastFiredAt: Long?,
+    /** Система отказала в `setAlarmClock` (схема v2, ADR-015). */
+    @ColumnInfo(name = "schedule_failed", defaultValue = "0") val scheduleFailed: Boolean = false,
 )

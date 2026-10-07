@@ -43,7 +43,7 @@
 | ✓ | ID | Задача | FR | Оценка | Зависит от | Commit |
 |---|---|---|---|---|---|---|
 | [x] | M3-T01 | Домен: модель здоровья, `healthReport`, интерфейсы, `testAlarm`, try/catch в runner | FR-REL-7 | M | — | |
-| [ ] | M3-T02 🔔 | Схема v2 `schedule_failed`, движок пишет отказ планирования | FR-LIST-5 | M | T01 | |
+| [x] | M3-T02 🔔 | Схема v2 `schedule_failed`, движок пишет отказ планирования | FR-LIST-5 | M | T01 | |
 | [ ] | M3-T03 | `SetupStateRepository` на DataStore (device-protected) | §3.7 | S | T01 | |
 | [ ] | M3-T04 🔔 | `:core:permissions`: чекер, манифесты, лаунчер «Исправить» | FR-REL-7 | L | T01 | |
 | [ ] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
@@ -71,9 +71,9 @@
 **Описание:** колонка `alarm_runtime.schedule_failed`, AutoMigration 1→2, экспорт схемы; `AlarmEngine` пишет/сбрасывает флаг при результате планирования; `upcomingTrigger`/шапка пропускают `scheduleFailed` (ADR-015, закрывает ADR-011 §11 Б).
 **Модули:** `:core:data`, `:core:domain`
 **Критерии приёмки:**
-- [ ] Миграция v1→v2 сохраняет данные (`MigrationTestHelper`)
-- [ ] Отказ `setAlarmClock` → флаг true; успешный `rescheduleAll` → false
-- [ ] Включённый будильник с флагом не попадает в «Следующий через»
+- [x] Миграция v1→v2 сохраняет данные (`MigrationTestHelper`)
+- [x] Отказ `setAlarmClock` → флаг true; успешный `rescheduleAll` → false
+- [x] Включённый будильник с флагом не попадает в «Следующий через»
 **Тесты:** unit на фейках; instrumented/Robolectric миграции; сценарий R9 (обновление поверх v1).
 
 ### M3-T03 — Состояние онбординга
@@ -153,6 +153,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 
 ## Добавлено по ходу
 - **T01 (ревью ⚠️ → учтено):** в `PermissionSnapshot` добавлено вычисляемое `notificationsReady` (разрешение И канал) — в T-docs привести ADR-012 §1 в соответствие. Исключение планировщика в `TestAlarmRunner.schedule` не логируется отдельно (`ScheduleFailed` без причины) — принято.
+- **T02 (ревью ⚠️ → учтено):** принятый успешный snooze при `scheduleFailed` снимает признак (в системе есть snooze-будильник), обычное расписание остаётся не запланированным до следующего `rescheduleAll` — T07/T11 это учитывать; `AlarmSchedulerImpl` сам превращает `SecurityException` в отказ. R9 (поверх v1) — в T-test; `USER_RETRY` добавлен в `RescheduleReason`.
 
 ## Уроки
 
