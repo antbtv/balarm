@@ -1,6 +1,5 @@
 package com.antbtv.balarm
 
-import android.Manifest
 import android.app.Application
 import android.database.sqlite.SQLiteException
 import android.os.Looper
@@ -80,27 +79,16 @@ class MainActivityTest {
         assertThat(ringingRedirect(RingingState.Idle, intents)).isNull()
     }
 
+    /** ADR-013 §5: разрешения запрашивает онбординг; временный запрос из M1 удалён. */
     @Test
-    fun `notification permission is requested once, not on recreation`() {
+    fun `launch and recreation request no runtime permission`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            scenario.onActivity { activity ->
-                assertThat(shadowOf(activity).lastRequestedPermission?.requestedPermissions)
-                    .asList().containsExactly(Manifest.permission.POST_NOTIFICATIONS)
-            }
+            shadowOf(Looper.getMainLooper()).idle()
+            scenario.onActivity { assertThat(shadowOf(it).lastRequestedPermission).isNull() }
 
             scenario.recreate()
+            shadowOf(Looper.getMainLooper()).idle()
 
-            scenario.onActivity { activity ->
-                assertThat(shadowOf(activity).lastRequestedPermission).isNull()
-            }
-        }
-    }
-
-    @Test
-    fun `granted notification permission is not requested`() {
-        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-
-        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { assertThat(shadowOf(it).lastRequestedPermission).isNull() }
         }
     }

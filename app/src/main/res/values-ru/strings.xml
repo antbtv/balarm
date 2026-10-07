@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Balarm</string>
+    <!-- Нижняя панель (ADR-014): подписи вкладок, их же читает TalkBack. -->
+    <string name="nav_tab_alarms">Будильники</string>
+    <string name="nav_tab_settings">Настройки</string>
 </resources>

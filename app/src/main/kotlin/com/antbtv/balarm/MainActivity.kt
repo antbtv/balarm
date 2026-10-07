@@ -1,15 +1,17 @@
 package com.antbtv.balarm
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.SafeRescheduler
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
@@ -19,6 +21,7 @@ import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.di.ApplicationScope
 import com.antbtv.balarm.ui.BalarmApp
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.Optional
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -37,8 +40,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var uiIntents: AlarmUiIntents
 
-    // До онбординга M3 — временный запрос (ADR-007 §8): без него на звонке нет экрана, только звук.
-    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    @Inject lateinit var debugTools: Optional<DebugTools>
+
+    private val appViewModel: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Тема всегда тёмная (светлая — в бэклоге, PRD §2): светлые иконки системных баров.
@@ -48,23 +52,39 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             // ADR-005 §2: страховка после force-stop/восстановления — идемпотентно, переживает закрытие экрана.
             appScope.launch { rescheduler.reschedule(RescheduleReason.APP_LAUNCH) }
-            requestNotificationsOnce()
         }
+        // Разрешения запрашивает онбординг (ADR-013); временный запрос POST_NOTIFICATIONS из M1 удалён.
+        val openDebugFlags: (() -> Unit)? =
+            debugTools.orElse(null)?.let { tools -> { startActivity(tools.featureFlagsIntent()) } }
         setContent {
+            val showOnboarding by appViewModel.showOnboarding.collectAsStateWithLifecycle()
             BalarmTheme {
-                BalarmApp()
+                BalarmApp(showOnboarding = showOnboarding, onOpenDebugFlags = openDebugFlags)
             }
         }
+        keepSplashUntilReady()
+    }
+
+    /**
+     * Системный splash держится, пока не прочитан `SetupState` (ADR-013 §2): первый кадр — сразу нужный экран,
+     * без мигания списка перед онбордингом. Платформенный приём вместо `core-splashscreen`.
+     */
+    private fun keepSplashUntilReady() {
+        val content: View = findViewById(android.R.id.content)
+        content.viewTreeObserver.addOnPreDrawListener(
+            object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    val ready = appViewModel.showOnboarding.value != null
+                    if (ready) content.viewTreeObserver.removeOnPreDrawListener(this)
+                    return ready
+                }
+            },
+        )
     }
 
     override fun onStart() {
         super.onStart()
         ringingRedirect(ringing.state.value, uiIntents)?.let(::startActivity)
-    }
-
-    private fun requestNotificationsOnce() {
-        val granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
 

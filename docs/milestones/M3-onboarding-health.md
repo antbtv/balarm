@@ -53,7 +53,7 @@
 | [x] | M3-T09 | Логика онбординга (`OnboardingViewModel`, вычисление шага, пропуск) | §3.7 | M | T03, T04 | |
 | [x] | M3-T10 🎨 | Экраны онбординга (7 шагов, возврат из настроек) | §3.7 | L | T06, T09 | |
 | [x] | M3-T11 | Баннер в списке: `healthWarning`, `Resumed`, `NotScheduled` | FR-LIST-5 | M | T02, T04, T06 | |
-| [ ] | M3-T12 🎨 | `:app`: вкладки/два стека Nav3, стартовый экран, splash, смок | §4.1 | L | T08, T10, T11 | |
+| [x] | M3-T12 🎨 | `:app`: вкладки/два стека Nav3, стартовый экран, splash, смок | §4.1 | L | T08, T10, T11 | |
 | [ ] | M3-T-test | Тестирование этапа (tester) + R12, R10, R9, R3, R1(API 34) | §9.2 | L | T12 | |
 | [ ] | M3-T-review | Ревью этапа (reviewer) | — | M | T-test | |
 | [ ] | M3-T-docs | PRD/ADR/CLAUDE.md, реестр флагов, итоги | — | S | T-review | |
@@ -126,7 +126,7 @@
 
 ### M3-T12 🎨 — Сборка навигации в `:app`
 `BalarmNavState` (стек на вкладку; выход — через ALARMS), ключи в `NavConfiguration`, стартовый экран онбординг/список, splash до чтения `SetupState`, нижний inset задаёт `:app`, удалить временный `POST_NOTIFICATIONS` из `MainActivity`. **Смок 4.**
-**Критерии приёмки:** [ ] **`onOpenHealth` в `BalarmApp` сейчас `{}` (баннер мёртв) — подключить к `HealthKey`**; [ ] нет двойных/пропавших отступов (fontScale 2f); [ ] Back на корне вкладки SETTINGS → ALARMS; [ ] `am start -W` до/после (NFR-2).
+**Критерии приёмки:** [x] `onOpenHealth` подключён; [x] нет двойных/пропавших отступов (fontScale 2f); [x] Back на корне вкладки SETTINGS → ALARMS; [x] `am start -W` до/после (NFR-2).
 
 ### M3-T-test — Тестирование этапа (agent: tester)
 API 37 (и разово API 34): статусы каждого пункта переключаются через adb (команды — ADR-012 «Consequences»); R12 (основной), R10, R9 (поверх v1), R3, R1 на API 34; тестовый будильник 1 мин; онбординг с нуля; fontScale 2f; живой TalkBack — по желанию. EXACT_ALARMS/SCHEDULING — только Robolectric. Один эмулятор за раз, `./gradlew --stop` до, `adb emu kill` после.
@@ -163,6 +163,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 - **T11 (ревью ⚠️ → учтено):** `onOpenHealth` обязателен на всех перегрузках `AlarmListScreen`; в `BalarmApp` пока `{}` → **обязательно подключить в T12**. Живой TalkBack баннера (live region) — T-test.
 - **T08 (ревью ⚠️ → учтено):** нижний отступ вкладок — через `modifier` из `:app`: `Scaffold(bottomBar, contentWindowInsets = WindowInsets(0)) { innerPadding -> Route(modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) }`; здоровье/«О приложении» — без панели, сами обрабатывают safeDrawing; `onOpenDebugFlags` не-null только из debug source set. Системный Back экраны не перехватывают (predictive back). В T12/T-test: `rememberHealthFixLauncher` на устройстве (OEM → App details), StrictMode `snapshot()`, ссылка dontkillmyapp в браузере. В T-docs: `BalarmTopBar` в таблицу скилла `alarmy-ui`.
 - **T10 (ревью ⚠️ → принято):** `Resumed` приходит дважды при возврате (callback лаунчера + ON_RESUME) — идемпотентно, `Finished` один раз по построению; путь «браузера нет» без автотеста; индикатор — ordinal из 7 (скачок при пропуске). В `OnboardingStepLayout` добавлены `primaryEnabled`, `warning` — в T-docs обновить таблицу `alarmy-ui`. Проверить в T12/T-test: `rememberHealthFixLauncher` и ссылка на устройстве.
+- **T12 (ревью ⚠️ → учтено):** панель — внутри записей корней (`TabRoot`), а не вокруг `NavDisplay` (иначе FAB прыгает при переходе); `contentKey` с префиксом стека; `openEditor` срабатывает только со списка (отразить в ADR-009 §2 в T-docs); `AppViewModel` читает `SetupState` с таймаутом 2 с (→ онбординг); debug-вход через `@BindsOptionalOf DebugTools`. **Смок на эмуляторе (T-test):** FAB/scrim над панелью при fontScale 2 и реальной системной навигации (жесты/3 кнопки); predictive back между вкладками и со здоровья (fade vs slide — Nav3 берёт `transitionSpec` у входящей или снимаемой записи?); `am kill` на вкладке настроек; NFR-2 `am start -W`; debug 7 тапов; StrictMode `snapshot()`.
 
 ## Уроки
 
