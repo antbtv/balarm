@@ -5,6 +5,9 @@ import androidx.compose.ui.tooling.preview.Preview
 /** ARGB фона превью = `DarkBalarmColors.background`. */
 internal const val PREVIEW_BACKGROUND = 0xFF0E0F14
 
+/** ARGB фона светлого превью = `LightBalarmColors.background`. */
+internal const val PREVIEW_BACKGROUND_LIGHT = 0xFFF5F6FA
+
 /**
  * Набор превью компонентов: тёмная тема на узком экране (360dp) обычным шрифтом и с `fontScale = 2f`.
  * Светлая тема — бэклог (PRD §4.2), поэтому её здесь нет.
@@ -21,3 +24,10 @@ internal const val PREVIEW_BACKGROUND = 0xFF0E0F14
     backgroundColor = PREVIEW_BACKGROUND,
 )
 annotation class BalarmComponentPreviews
+
+/**
+ * Светлая тема (бэклог, PRD §4.2) на 360dp — для компонентов M3+, чтобы светлая палитра не ломалась незаметно.
+ * Тело превью оборачивается в `BalarmTheme(darkTheme = false)`.
+ */
+@Preview(name = "light, 360dp", widthDp = 360, showBackground = true, backgroundColor = PREVIEW_BACKGROUND_LIGHT)
+annotation class BalarmComponentLightPreview

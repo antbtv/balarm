@@ -21,4 +21,24 @@ object BalarmIcons {
 
     @DrawableRes
     val Keyboard: Int = R.drawable.ic_keyboard
+
+    /** Будильник: вкладка «Будильники» нижней панели. */
+    @DrawableRes
+    val Alarm: Int = R.drawable.ic_alarm
+
+    /** Шестерёнка: вкладка «Настройки» нижней панели. */
+    @DrawableRes
+    val Settings: Int = R.drawable.ic_settings
+
+    /** Статус «в порядке» — галочка в круге. */
+    @DrawableRes
+    val StatusOk: Int = R.drawable.ic_status_ok
+
+    /** Статус «требует внимания» — восклицательный знак в треугольнике (и иконка `HealthBanner`). */
+    @DrawableRes
+    val StatusWarning: Int = R.drawable.ic_status_warning
+
+    /** Статус «не подтверждено» (не проверяется программно) — вопросительный знак в круге. */
+    @DrawableRes
+    val StatusUnconfirmed: Int = R.drawable.ic_status_unconfirmed
 }

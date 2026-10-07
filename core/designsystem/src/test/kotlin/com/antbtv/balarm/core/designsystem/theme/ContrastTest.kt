@@ -51,6 +51,29 @@ class ContrastTest {
         assertContrast("$name primary/background", c.primary, c.background, AA_LARGE)
     }
 
+    /** Текст `HealthBanner` (заголовок и подпись действия) — на `warningContainer`. */
+    @Test
+    fun textPrimaryOnWarningContainerMeetsAa() = bothThemes { name, c ->
+        assertContrast("$name textPrimary/warningContainer", c.textPrimary, c.warningContainer, AA_NORMAL)
+    }
+
+    /**
+     * Иконки состояния (WCAG 1.4.11, ≥ 3:1) в тёмной теме: `HealthStatusRow` на карточке и фоне, треугольник
+     * `HealthBanner` на `warningContainer`, выбранная иконка `BalarmNavigationBar` на индикаторе. Светлая тема —
+     * бэклог (PRD §4.2): её `warning`/`success` на светлом фоне ниже 3:1, состояние там дублируется формой иконки.
+     */
+    @Test
+    fun statusIconsMeetNonTextContrastInDarkTheme() {
+        val c = DarkBalarmColors
+        listOf(c.background, c.surface).forEach { bg ->
+            assertContrast("dark success/$bg", c.success, bg, AA_LARGE)
+            assertContrast("dark warning/$bg", c.warning, bg, AA_LARGE)
+            assertContrast("dark textSecondary/$bg", c.textSecondary, bg, AA_LARGE)
+        }
+        assertContrast("dark warning/warningContainer", c.warning, c.warningContainer, AA_LARGE)
+        assertContrast("dark primary/surfaceVariant", c.primary, c.surfaceVariant, AA_LARGE)
+    }
+
     @Test
     fun onPrimaryOnPrimaryLightMeetsAa() {
         assertContrast("light onPrimary/primary", LightBalarmColors.onPrimary, LightBalarmColors.primary, AA_NORMAL)

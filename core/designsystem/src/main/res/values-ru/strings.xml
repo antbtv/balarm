@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="designsystem_health_status_ok">В порядке</string>
+    <string name="designsystem_health_status_problem">Требует внимания</string>
+    <string name="designsystem_health_status_unconfirmed">Не подтверждено</string>
+    <string name="designsystem_health_status_action">%1$s: %2$s</string>
+
+    <string name="designsystem_onboarding_step">Шаг %1$d из %2$d</string>
+</resources>

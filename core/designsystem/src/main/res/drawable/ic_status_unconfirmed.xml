@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Не подтверждено (вопросительный знак в круге)». Авторский рисунок Balarm (CC0 1.0), не производная от Material Symbols: штрих 2, скруглённые концы.
+     Цвет задаётся tint-ом (Icon/LocalContentColor). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,3A9,9 0,1 1,12 21A9,9 0,1 1,12 3Z" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M9.5,9.5A2.5,2.5 0,1 1,13 11.8C12.4,12.1 12,12.6 12,13.3V13.6M12,17H12.01" />
+</vector>

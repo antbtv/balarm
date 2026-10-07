@@ -1,7 +1,9 @@
 package com.antbtv.balarm.core.designsystem.preview
 
+import com.antbtv.balarm.core.designsystem.component.BalarmIcons
 import com.antbtv.balarm.core.designsystem.component.DayChipUi
 import com.antbtv.balarm.core.designsystem.component.DayPillUi
+import com.antbtv.balarm.core.designsystem.component.NavBarItem
 import java.time.DayOfWeek
 
 // Данные только для @Preview: подписи не локализуются, это витрина компонентов для разработчика.
@@ -52,4 +54,16 @@ internal val PreviewDayChipsRu = listOf(
     DayChipUi(DayOfWeek.FRIDAY, "Пт", "пятница", selected = false),
     DayChipUi(DayOfWeek.SATURDAY, "Сб", "суббота", selected = true),
     DayChipUi(DayOfWeek.SUNDAY, "Вс", "воскресенье", selected = true),
+)
+
+/** Вкладки нижней панели, английские подписи. */
+internal val PreviewNavItems = listOf(
+    NavBarItem("Alarms", BalarmIcons.Alarm),
+    NavBarItem("Settings", BalarmIcons.Settings),
+)
+
+/** Вкладки нижней панели, русские подписи — самые длинные. */
+internal val PreviewNavItemsRu = listOf(
+    NavBarItem("Будильники", BalarmIcons.Alarm),
+    NavBarItem("Настройки", BalarmIcons.Settings),
 )

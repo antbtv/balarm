@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HealthStatusRow: состояние пункта для TalkBack («Notifications. Needs attention. …»). -->
+    <string name="designsystem_health_status_ok">OK</string>
+    <string name="designsystem_health_status_problem">Needs attention</string>
+    <string name="designsystem_health_status_unconfirmed">Not confirmed</string>
+    <!-- Кнопка действия строки для TalkBack: %1$s — подпись кнопки («Fix»), %2$s — пункт («Notifications»). -->
+    <string name="designsystem_health_status_action">%1$s: %2$s</string>
+
+    <!-- Индикатор шагов онбординга. -->
+    <string name="designsystem_onboarding_step">Step %1$d of %2$d</string>
+</resources>

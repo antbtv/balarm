@@ -12,6 +12,9 @@ import androidx.compose.ui.graphics.Color
  *
  * Текст на [primary] (красные кнопки) в тёмной теме проходит только порог WCAG для крупного текста (≥ 3:1),
  * поэтому такой текст — не меньше 19sp Bold ([BalarmTypography.buttonLarge]).
+ *
+ * @property warningContainer фон предупреждений (`HealthBanner`): [warning] 15 % поверх [surface], заранее
+ * смешанный в непрозрачный цвет — контраст текста на нём проверяется `ContrastTest`.
  */
 @Immutable
 data class BalarmColors(
@@ -24,6 +27,7 @@ data class BalarmColors(
     val textSecondary: Color,
     val success: Color,
     val warning: Color,
+    val warningContainer: Color,
     val isDark: Boolean,
 )
 
@@ -38,6 +42,7 @@ internal val DarkBalarmColors = BalarmColors(
     textSecondary = Color(0xFF8B8FA3),
     success = Color(0xFF3DD68C),
     warning = Color(0xFFFFB020),
+    warningContainer = Color(0xFF3D3325),
     isDark = true,
 )
 
@@ -56,6 +61,7 @@ internal val LightBalarmColors = BalarmColors(
     textSecondary = Color(0xFF646879),
     success = Color(0xFF1FAF6A),
     warning = Color(0xFFE08E00),
+    warningContainer = Color(0xFFFAEED9),
     isDark = false,
 )
 

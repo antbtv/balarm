@@ -70,6 +70,19 @@ object BalarmDimens {
 
     /** Минимальная высота строки списка: `SettingRow`, варианты `SingleChoiceDialog`. */
     val ListRowMinHeight = 56.dp
+
+    /** Круг-подложка иллюстрации шага онбординга (`OnboardingIllustration`). */
+    val OnboardingIllustration = 160.dp
+
+    /** Иконка внутри [OnboardingIllustration]. */
+    val OnboardingIllustrationIcon = 72.dp
+
+    /** Высота сегмента индикатора шагов онбординга. */
+    val StepIndicatorHeight = 6.dp
+
+    /** Ширина сегмента индикатора шагов; текущий шаг — [StepIndicatorSegmentCurrent] (не только цвет — WCAG 1.4.1). */
+    val StepIndicatorSegment = 16.dp
+    val StepIndicatorSegmentCurrent = 32.dp
 }
 
 /** Формы Balarm: кнопки — 16dp, карточки — 20dp, FAB и точки-индикаторы — круг. */
@@ -80,6 +93,9 @@ object BalarmShapes {
 
     /** Круг для мелких элементов: точка-индикатор дня, цветовые образцы. */
     val Circle = CircleShape
+
+    /** Сегмент индикатора шагов онбординга — «таблетка». */
+    val Pill = RoundedCornerShape(percent = 50)
 }
 
 /** M3 [Shapes]: `medium` — кнопки/поля, `large` — карточки. */

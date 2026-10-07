@@ -67,3 +67,34 @@ object ConfirmDialogTestTags {
     const val CONFIRM = "confirmDialogConfirm"
     const val DISMISS = "confirmDialogDismiss"
 }
+
+object HealthBannerTestTags {
+    const val BANNER = "healthBanner"
+}
+
+/**
+ * Теги по умолчанию у [HealthStatusRow]. На экране здоровья строк несколько: вызывающий задаёт свой тег строки
+ * через `modifier` (перекрывает [ROW]), а кнопку находит внутри строки (`hasTestTag(ACTION)` + `hasAnyAncestor`).
+ */
+object HealthStatusRowTestTags {
+    const val ROW = "healthStatusRow"
+
+    /** Текстовая часть строки: один узел TalkBack с заголовком, состоянием и описанием. */
+    const val INFO = "healthStatusRowInfo"
+    const val ACTION = "healthStatusRowAction"
+}
+
+object OnboardingStepTestTags {
+    const val LAYOUT = "onboardingStep"
+    const val PROGRESS = "onboardingStepProgress"
+    const val TITLE = "onboardingStepTitle"
+    const val PRIMARY = "onboardingStepPrimary"
+    const val SECONDARY = "onboardingStepSecondary"
+}
+
+object NavigationBarTestTags {
+    const val BAR = "balarmNavigationBar"
+
+    /** Вкладка по индексу: `navBarItem_0`. */
+    fun item(index: Int): String = "navBarItem_$index"
+}
