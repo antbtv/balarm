@@ -27,9 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import com.antbtv.balarm.core.designsystem.R
@@ -55,7 +57,10 @@ import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
  * @param secondaryLabel «Позже» / «Продолжить без этого»; `null` — кнопки нет (критичный шаг до первой попытки).
  * @param currentStep номер текущего шага, с 1; приводится к `1..totalSteps`.
  * @param totalSteps число шагов (≥ 1).
- * @param extraContent дополнительное содержимое под пояснением (ссылка, чек-бокс «Я сделал», предупреждение).
+ * @param extraContent дополнительное содержимое под пояснением (ссылка, чек-бокс «Я сделал»).
+ * @param primaryEnabled главная кнопка доступна (шаг OEM: «Готово» — только после отметки «Я сделал»).
+ * @param warning предупреждение над второстепенной кнопкой («Будильник может не сработать»): иконка + текст
+ * (не только цвет), закреплено рядом с кнопкой, к которой относится; `null` — нет.
  */
 @Composable
 fun OnboardingStepLayout(
@@ -69,6 +74,8 @@ fun OnboardingStepLayout(
     currentStep: Int,
     totalSteps: Int,
     modifier: Modifier = Modifier,
+    primaryEnabled: Boolean = true,
+    warning: String? = null,
     extraContent: @Composable ColumnScope.() -> Unit = {},
 ) {
     val total = totalSteps.coerceAtLeast(1)
@@ -101,8 +108,10 @@ fun OnboardingStepLayout(
         StepButtons(
             primaryLabel = primaryLabel,
             onPrimary = onPrimary,
+            primaryEnabled = primaryEnabled,
             secondaryLabel = secondaryLabel,
             onSecondary = onSecondary,
+            warning = warning,
         )
     }
 }
@@ -147,13 +156,15 @@ private fun StepBody(
     }
 }
 
-/** Закреплённые снизу кнопки: главная `primary` и необязательная текстовая «Позже». */
+/** Закреплённые снизу кнопки: главная `primary`, необязательные предупреждение и текстовая «Позже». */
 @Composable
 private fun StepButtons(
     primaryLabel: String,
     onPrimary: () -> Unit,
+    primaryEnabled: Boolean,
     secondaryLabel: String?,
     onSecondary: () -> Unit,
+    warning: String?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -169,10 +180,12 @@ private fun StepButtons(
         PrimaryButton(
             text = primaryLabel,
             onClick = onPrimary,
+            enabled = primaryEnabled,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(OnboardingStepTestTags.PRIMARY),
         )
+        if (warning != null) StepWarning(text = warning)
         if (secondaryLabel != null) {
             TextButton(
                 onClick = onSecondary,
@@ -186,6 +199,29 @@ private fun StepButtons(
                 Text(text = secondaryLabel, style = BalarmTheme.typography.body, textAlign = TextAlign.Center)
             }
         }
+    }
+}
+
+/** Предупреждение у кнопки «Продолжить без этого»: иконка `warning` + текст `textPrimary`, один узел TalkBack. */
+@Composable
+private fun StepWarning(text: String, modifier: Modifier = Modifier) {
+    val colors = BalarmTheme.colors
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = BalarmDimens.SpacingSmall)
+            .testTag(OnboardingStepTestTags.WARNING)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        horizontalArrangement = Arrangement.spacedBy(BalarmDimens.SpacingSmall, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(BalarmIcons.StatusWarning),
+            contentDescription = null,
+            tint = colors.warning,
+            modifier = Modifier.size(BalarmDimens.Icon),
+        )
+        Text(text = text, style = BalarmTheme.typography.body, color = colors.textPrimary)
     }
 }
 
@@ -283,6 +319,7 @@ private fun OnboardingStepLayoutRuExtraPreview() {
             onSecondary = {},
             currentStep = 6,
             totalSteps = 7,
+            warning = "Будильник может не сработать",
         ) {
             Text(
                 text = "dontkillmyapp.com",

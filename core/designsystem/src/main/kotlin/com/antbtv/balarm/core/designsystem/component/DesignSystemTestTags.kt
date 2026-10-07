@@ -90,6 +90,7 @@ object OnboardingStepTestTags {
     const val TITLE = "onboardingStepTitle"
     const val PRIMARY = "onboardingStepPrimary"
     const val SECONDARY = "onboardingStepSecondary"
+    const val WARNING = "onboardingStepWarning"
 }
 
 object NavigationBarTestTags {

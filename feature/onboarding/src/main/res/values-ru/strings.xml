@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_allow">Разрешить</string>
+    <string name="onboarding_open_settings">Открыть настройки</string>
+    <string name="onboarding_later">Позже</string>
+    <string name="onboarding_continue_without">Продолжить без этого</string>
+    <string name="onboarding_skip_warning">Будильник может не сработать</string>
+
+    <string name="onboarding_oem_hint">В настройках приложения разрешите автозапуск и работу в фоне и отключите ограничения батареи. Названия пунктов зависят от производителя телефона.</string>
+    <string name="onboarding_oem_open_app_settings">Открыть настройки приложения</string>
+    <string name="onboarding_oem_guide">Инструкции для вашего телефона: dontkillmyapp.com</string>
+    <string name="onboarding_oem_guide_action">Открыть в браузере</string>
+    <string name="onboarding_oem_confirm">Я сделал</string>
+    <string name="onboarding_done">Готово</string>
+    <string name="onboarding_no_browser">Не найден браузер</string>
+
+    <string name="onboarding_save_failed">Не удалось сохранить. Попробуйте ещё раз</string>
+</resources>

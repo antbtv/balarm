@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Телефон с кнопкой включения». Авторский рисунок Balarm (CC0 1.0), не производная от Material Symbols: штрих 2, скруглённые концы.
+     Иллюстрация шага онбординга (OnboardingIllustration), цвет задаётся tint-ом. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8,2.5H16A2,2 0,0 1,18 4.5V19.5A2,2 0,0 1,16 21.5H8A2,2 0,0 1,6 19.5V4.5A2,2 0,0 1,8 2.5Z" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M9.88,10.38A3,3 0,1 0,14.12 10.38M12,8.5V12M12,19H12.01" />
+</vector>

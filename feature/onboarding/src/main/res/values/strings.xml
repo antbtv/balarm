@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Онбординг (PRD §3.7, ADR-013). Заголовки и «зачем» шагов — из :core:permissions (общие с экраном здоровья). -->
+    <!-- Главная кнопка: системный диалог прямо поверх шага (уведомления, батарея). -->
+    <string name="onboarding_allow">Allow</string>
+    <!-- Главная кнопка: ведёт на экран системных настроек, переключатель пользователь включает сам. -->
+    <string name="onboarding_open_settings">Open settings</string>
+    <!-- Рекомендуемый шаг: пропустить сразу. -->
+    <string name="onboarding_later">Later</string>
+    <!-- Критичный шаг после попытки: пропуск с предупреждением onboarding_skip_warning. -->
+    <string name="onboarding_continue_without">Continue without it</string>
+    <string name="onboarding_skip_warning">The alarm may not ring</string>
+
+    <!-- Шаг OEM (автозапуск, фоновая работа у производителя) -->
+    <string name="onboarding_oem_hint">In the app settings, allow autostart and background activity and turn off battery restrictions. The names of these options depend on the phone maker.</string>
+    <string name="onboarding_oem_open_app_settings">Open app settings</string>
+    <string name="onboarding_oem_guide">Instructions for your phone: dontkillmyapp.com</string>
+    <!-- TalkBack: действие ссылки. -->
+    <string name="onboarding_oem_guide_action">Open in browser</string>
+    <string name="onboarding_oem_confirm">I\'ve done it</string>
+    <!-- Главная кнопка шага OEM: доступна после отметки «Я сделал». -->
+    <string name="onboarding_done">Done</string>
+    <string name="onboarding_no_browser">No browser found</string>
+
+    <!-- Тост: не удалось записать подтверждение OEM или завершение онбординга. -->
+    <string name="onboarding_save_failed">Couldn\'t save. Try again</string>
+</resources>

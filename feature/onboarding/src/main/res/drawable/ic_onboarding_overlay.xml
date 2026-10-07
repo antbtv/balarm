@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Окно поверх окна». Авторский рисунок Balarm (CC0 1.0), не производная от Material Symbols: штрих 2, скруглённые концы.
+     Иллюстрация шага онбординга (OnboardingIllustration), цвет задаётся tint-ом. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M15,7V5A2,2 0,0 0,13 3H5A2,2 0,0 0,3 5V13A2,2 0,0 0,5 15H7" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M9,9H19A2,2 0,0 1,21 11V19A2,2 0,0 1,19 21H9A2,2 0,0 1,7 19V11A2,2 0,0 1,9 9Z" />
+</vector>

@@ -21,6 +21,7 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
@@ -261,6 +262,8 @@ class HealthComponentsTest {
         title: String = STEP_TITLE,
         why: String = WHY,
         primaryLabel: String = ALLOW,
+        primaryEnabled: Boolean = true,
+        warning: String? = null,
         extra: @Composable () -> Unit = {},
     ) {
         OnboardingStepLayout(
@@ -273,7 +276,10 @@ class HealthComponentsTest {
             onSecondary = { calls += "secondary" },
             currentStep = currentStep,
             totalSteps = TOTAL_STEPS,
-        ) { extra() }
+            extraContent = { extra() },
+            primaryEnabled = primaryEnabled,
+            warning = warning,
+        )
     }
 
     @Test
@@ -311,6 +317,27 @@ class HealthComponentsTest {
     }
 
     @Test
+    fun `onboarding step warning is one polite node with an icon, disabled primary does not click`() {
+        val calls = mutableListOf<String>()
+        setContent { Step(calls = calls, primaryEnabled = false, warning = BANNER_TEXT) }
+
+        composeRule.onNodeWithTag(OnboardingStepTestTags.WARNING)
+            .assertIsDisplayed()
+            .assert(hasText(BANNER_TEXT))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        composeRule.onNodeWithTag(OnboardingStepTestTags.PRIMARY).assertIsNotEnabled().performClick()
+
+        assertThat(calls).isEmpty()
+    }
+
+    @Test
+    fun `onboarding step without warning shows none`() {
+        setContent { Step() }
+
+        composeRule.onNodeWithTag(OnboardingStepTestTags.WARNING).assertDoesNotExist()
+    }
+
+    @Test
     fun `onboarding step clamps the current step into range`() {
         setContent { Step(currentStep = TOTAL_STEPS + 2) }
 
@@ -338,11 +365,12 @@ class HealthComponentsTest {
                     "и вы можете проспать. Разрешите полноэкранные уведомления в настройках.",
                 primaryLabel = primary,
                 secondaryLabel = secondary,
+                warning = BANNER_TEXT_RU,
             )
         }
 
         val root = composeRule.onRoot().getUnclippedBoundsInRoot()
-        listOf(primary, secondary).forEach { text ->
+        listOf(primary, BANNER_TEXT_RU, secondary).forEach { text ->
             val node = composeRule.onNodeWithText(text, useUnmergedTree = true).assertIsDisplayed()
             assertTextNotClipped(node, text)
             val bounds = node.getUnclippedBoundsInRoot()
