@@ -48,7 +48,7 @@
 | [x] | M3-T04 🔔 | `:core:permissions`: чекер, манифесты, лаунчер «Исправить» | FR-REL-7 | L | T01 | |
 | [x] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
 | [x] | M3-T06 🎨 | Компоненты дизайн-системы: баннер, строка статуса, шаг онбординга, nav bar | §4.2 | M | — | |
-| [ ] | M3-T07 | Логика настроек/здоровья (`HealthViewModel`, retry, тест-будильник, OEM-чекбокс) | FR-REL-7 | M | T02, T03, T04 | |
+| [x] | M3-T07 | Логика настроек/здоровья (`HealthViewModel`, retry, тест-будильник, OEM-чекбокс) | FR-REL-7 | M | T02, T03, T04 | |
 | [ ] | M3-T08 🎨 | Экраны настроек, здоровья, «О приложении» (7 тапов → debug flags) | FR-REL-7, FR-FLAG-5 | M | T06, T07 | |
 | [ ] | M3-T09 | Логика онбординга (`OnboardingViewModel`, вычисление шага, пропуск) | §3.7 | M | T03, T04 | |
 | [ ] | M3-T10 🎨 | Экраны онбординга (7 шагов, возврат из настроек) | §3.7 | L | T06, T09 | |
@@ -105,7 +105,7 @@
 
 ### M3-T07 — Логика настроек и здоровья
 `HealthViewModel`: отчёт из чекера + `SetupState` + число не запланированных; «Исправить», «Повторить планирование» (`rescheduleAll(USER_RETRY)`), тестовый будильник 1 мин, OEM-чекбокс; пересчёт на `Resumed`.
-**Критерии приёмки:** [ ] immutable `UiState`, события одноразовые через effects; [ ] ошибка тест-будильника → понятное сообщение.
+**Критерии приёмки:** [x] immutable `UiState`, события одноразовые через effects; [x] ошибка тест-будильника → понятное сообщение.
 **Тесты:** Turbine + MockK.
 
 ### M3-T08 🎨 — Экраны настроек
@@ -158,6 +158,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 - **T04 (ревью ⚠️ → учтено):** `resolveActivity` заменён на try/catch `ActivityNotFoundException` (package visibility без `<queries>`); отказ POST_NOTIFICATIONS «навсегда» (`shouldShowRequestPermissionRationale == false`) сразу ведёт в настройки, без мёртвого нажатия. `SYSTEM_ALERT_WINDOW` в манифест — в T05 (без него экран overlay не покажет приложение; до T08 обязательно). Ссылка dontkillmyapp.com для OEM — в UI T08/T10. Robolectric не управляет `canScheduleExactAlarms`/`canUseFullScreenIntent` (нет shadow-сеттеров) — эти два пункта проверяются на эмуляторе в T-test (FSI: `appops set … USE_FULL_SCREEN_INTENT deny`); `rememberHealthFixLauncher` без автотеста — проверить на смоках T08/T10.
 - **T05 (ревью ⚠️ → учтено):** на Android 15+ исключение `SYSTEM_ALERT_WINDOW` для старта Activity из фона может требовать видимого окна → **в T-test проверить на API 37** (overlay выдан, FSI выключен, экран заблокирован/приложение в фоне); если не работает — оставить FSI основным, формулировку в PRD/UI не обещает гарантий. Проверить очередь из двух будильников (второй экран появляется после dismiss первого). `SYSTEM_ALERT_WINDOW` — пометка для Play-деклараций (M8).
 - **T06 (ревью ✅):** добавлен токен `warningContainer`; `BalarmNavigationBar(items: List<NavBarItem>)` — в `:app` (T12) делать `remember` списка; контраст иконок статусов в светлой теме < 3:1 (светлая тема — бэклог, форма иконки дублирует смысл) — записать в бэклог в T-docs; в T-docs обновить таблицу компонентов скилла `alarmy-ui` (`PermissionBanner` → `HealthBanner`, + `HealthStatusRow`, `OnboardingStepLayout`, `BalarmNavigationBar`). Перевод `HealthStatus` → `HealthStatusUi` — в feature-модулях (T08/T11).
+- **T07 (ревью ⚠️ → учтено):** `healthReportFlow` в `:core:domain` (общий для списка/настроек/здоровья/онбординга; сбой потока будильников → 0 незапланированных, экран не падает); `HealthUiState.retrying` — в T08 **блокировать** кнопку «Повторить»; платформенный `snapshot()` вызывается на main — проверить StrictMode на смоке T08/T12; фейки `FakePermissionHealthChecker`/`FakeSetupStateRepository`/`HEALTHY_SNAPSHOT` — в testFixtures домена (для T09, T11).
 
 ## Уроки
 
