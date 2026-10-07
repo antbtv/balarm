@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="health_notifications_title">Уведомления</string>
+    <string name="health_notifications_why">Без уведомлений экран звонка не появится поверх блокировки.</string>
+    <string name="health_exact_alarms_title">Точные будильники</string>
+    <string name="health_exact_alarms_why">Нужны, чтобы будильник сработал минута в минуту.</string>
+    <string name="health_full_screen_title">Полноэкранные уведомления</string>
+    <string name="health_full_screen_why">Позволяют показать экран звонка на заблокированном телефоне.</string>
+    <string name="health_overlay_title">Поверх других приложений</string>
+    <string name="health_overlay_why">Экран звонка откроется, даже если вы пользуетесь другим приложением.</string>
+    <string name="health_battery_title">Без ограничений батареи</string>
+    <string name="health_battery_why">Система не будет усыплять приложение в фоне.</string>
+    <string name="health_background_title">Фоновая работа</string>
+    <string name="health_background_why">В режиме «Ограничено» будильник может не сработать. Выберите «Без ограничений» или «Оптимизировано».</string>
+    <string name="health_oem_title">Автозапуск и фоновая работа</string>
+    <string name="health_oem_why">На некоторых телефонах (Xiaomi, Huawei, Oppo, Vivo, Samsung) фоновую работу нужно разрешить отдельно.</string>
+    <string name="health_dnd_title">Не беспокоить</string>
+    <string name="health_dnd_why">Будильники должны проходить через режим «Не беспокоить».</string>
+    <string name="health_volume_title">Громкость будильника</string>
+    <string name="health_volume_why">Громкость будильника выключена — вы не услышите звонок.</string>
+    <string name="health_scheduling_title">Планирование</string>
+    <string name="health_scheduling_why">Не все будильники поставлены в системе. Повторите планирование.</string>
+</resources>

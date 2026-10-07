@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Разрешение запрашивается на шаге «Оптимизация батареи» онбординга и на экране здоровья (PRD §3.7, ADR-012 §4);
+     запасной путь без него — ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS. Строка в config/permissions-allowlist.txt. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+</manifest>

@@ -45,7 +45,7 @@
 | [x] | M3-T01 | Домен: модель здоровья, `healthReport`, интерфейсы, `testAlarm`, try/catch в runner | FR-REL-7 | M | — | |
 | [x] | M3-T02 🔔 | Схема v2 `schedule_failed`, движок пишет отказ планирования | FR-LIST-5 | M | T01 | |
 | [x] | M3-T03 | `SetupStateRepository` на DataStore (device-protected) | §3.7 | S | T01 | |
-| [ ] | M3-T04 🔔 | `:core:permissions`: чекер, манифесты, лаунчер «Исправить» | FR-REL-7 | L | T01 | |
+| [x] | M3-T04 🔔 | `:core:permissions`: чекер, манифесты, лаунчер «Исправить» | FR-REL-7 | L | T01 | |
 | [ ] | M3-T05 🔔 | Overlay-путь старта `RingingActivity` из `RingingService` | FR-REL-5 | M | T04 | |
 | [ ] | M3-T06 🎨 | Компоненты дизайн-системы: баннер, строка статуса, шаг онбординга, nav bar | §4.2 | M | — | |
 | [ ] | M3-T07 | Логика настроек/здоровья (`HealthViewModel`, retry, тест-будильник, OEM-чекбокс) | FR-REL-7 | M | T02, T03, T04 | |
@@ -87,9 +87,9 @@
 **Описание:** модуль, `AndroidPermissionHealthChecker` (уведомления + канал `alarm_ringing`, exact alarm, FSI, overlay, батарея, background restriction, DND, громкость будильника), манифест (`SYSTEM_ALERT_WINDOW`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), `rememberHealthFixLauncher` (runtime-запрос / системные настройки / App details как запасной), тексты RU+EN.
 **Модули:** `:core:permissions`, `:core:alarm` (id канала), `:app` (манифест)
 **Критерии приёмки:**
-- [ ] Каждый пункт читает свой платформенный API (PRD §3.7)
-- [ ] Нет обратной зависимости `:core:alarm → :core:permissions`
-- [ ] Для каждого пункта есть интент «Исправить» с запасным вариантом
+- [x] Каждый пункт читает свой платформенный API (PRD §3.7)
+- [x] Нет обратной зависимости `:core:alarm → :core:permissions`
+- [x] Для каждого пункта есть интент «Исправить» с запасным вариантом
 **Тесты:** Robolectric (shadow-менеджеры); ручная проверка на API 34/37 — T-test.
 
 ### M3-T05 🔔 — Overlay-путь звонка
@@ -155,6 +155,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 - **T01 (ревью ⚠️ → учтено):** в `PermissionSnapshot` добавлено вычисляемое `notificationsReady` (разрешение И канал) — в T-docs привести ADR-012 §1 в соответствие. Исключение планировщика в `TestAlarmRunner.schedule` не логируется отдельно (`ScheduleFailed` без причины) — принято.
 - **T02 (ревью ⚠️ → учтено):** принятый успешный snooze при `scheduleFailed` снимает признак (в системе есть snooze-будильник), обычное расписание остаётся не запланированным до следующего `rescheduleAll` — T07/T11 это учитывать; `AlarmSchedulerImpl` сам превращает `SecurityException` в отказ. R9 (поверх v1) — в T-test; `USER_RETRY` добавлен в `RescheduleReason`.
 - **T03 (ревью ⚠️ → учтено):** `edit` при `IOException` бросает вызывающему — обработать в ViewModel T07/T09 (не падать на «Я сделал»/завершении онбординга). Direct Boot чтения DataStore — проверить в T-test вместе с R3.
+- **T04 (ревью ⚠️ → учтено):** `resolveActivity` заменён на try/catch `ActivityNotFoundException` (package visibility без `<queries>`); отказ POST_NOTIFICATIONS «навсегда» (`shouldShowRequestPermissionRationale == false`) сразу ведёт в настройки, без мёртвого нажатия. `SYSTEM_ALERT_WINDOW` в манифест — в T05 (без него экран overlay не покажет приложение; до T08 обязательно). Ссылка dontkillmyapp.com для OEM — в UI T08/T10. Robolectric не управляет `canScheduleExactAlarms`/`canUseFullScreenIntent` (нет shadow-сеттеров) — эти два пункта проверяются на эмуляторе в T-test (FSI: `appops set … USE_FULL_SCREEN_INTENT deny`); `rememberHealthFixLauncher` без автотеста — проверить на смоках T08/T10.
 
 ## Уроки
 

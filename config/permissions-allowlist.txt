@@ -13,3 +13,6 @@ android.permission.VIBRATE
 android.permission.FOREGROUND_SERVICE
 android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED
 android.permission.POST_NOTIFICATIONS
+
+# M3 — экран здоровья/онбординг: диалог «Не ограничивать батарею» (PRD §3.7, ADR-012 §4)
+android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS

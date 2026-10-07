@@ -21,6 +21,7 @@ dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.data)
     implementation(projects.core.alarm)
+    implementation(projects.core.permissions)
     implementation(projects.feature.alarmlist)
     implementation(projects.feature.alarmedit)
     implementation(projects.feature.ringing)

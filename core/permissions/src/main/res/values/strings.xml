@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="health_notifications_title">Notifications</string>
+    <string name="health_notifications_why">Without notifications the ringing screen cannot appear over the lock screen.</string>
+    <string name="health_exact_alarms_title">Exact alarms</string>
+    <string name="health_exact_alarms_why">Needed so the alarm rings right on time.</string>
+    <string name="health_full_screen_title">Full-screen notifications</string>
+    <string name="health_full_screen_why">Lets the ringing screen open on a locked phone.</string>
+    <string name="health_overlay_title">Display over other apps</string>
+    <string name="health_overlay_why">The ringing screen opens even while you use another app.</string>
+    <string name="health_battery_title">No battery restrictions</string>
+    <string name="health_battery_why">The system will not put the app to sleep in the background.</string>
+    <string name="health_background_title">Background activity</string>
+    <string name="health_background_why">In \"Restricted\" mode the alarm may not ring. Choose \"Unrestricted\" or \"Optimized\".</string>
+    <string name="health_oem_title">Autostart and background work</string>
+    <string name="health_oem_why">Some phones (Xiaomi, Huawei, Oppo, Vivo, Samsung) need background work allowed separately.</string>
+    <string name="health_dnd_title">Do Not Disturb</string>
+    <string name="health_dnd_why">Alarms must be allowed through Do Not Disturb.</string>
+    <string name="health_volume_title">Alarm volume</string>
+    <string name="health_volume_why">The alarm volume is off, so you will not hear the ring.</string>
+    <string name="health_scheduling_title">Scheduling</string>
+    <string name="health_scheduling_why">Not every alarm is set in the system. Retry scheduling.</string>
+</resources>
