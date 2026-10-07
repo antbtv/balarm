@@ -39,11 +39,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.antbtv.balarm.core.designsystem.component.AlarmCard
 import com.antbtv.balarm.core.designsystem.component.BalarmFab
 import com.antbtv.balarm.core.designsystem.component.BalarmIcons
 import com.antbtv.balarm.core.designsystem.component.ConfirmDialog
+import com.antbtv.balarm.core.designsystem.component.HealthBanner
 import com.antbtv.balarm.core.designsystem.component.NextAlarmHeader
 import com.antbtv.balarm.core.designsystem.component.ScrimEdge
 import com.antbtv.balarm.core.designsystem.component.SystemBarScrim
@@ -69,16 +71,23 @@ import com.antbtv.balarm.core.model.AlarmId
 fun AlarmListRoute(
     onAddAlarm: () -> Unit,
     onOpenAlarm: (AlarmId) -> Unit,
+    onOpenHealth: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AlarmListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     AlarmListEffectsHandler(viewModel.effects)
+    // Статусы разрешений перечитываются при каждом возвращении на экран (FR-REL-7: возврат из системных настроек).
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onEvent(AlarmListEvent.Resumed)
+        onPauseOrDispose {}
+    }
     AlarmListScreen(
         state = state,
         onEvent = viewModel::onEvent,
         onAddAlarm = onAddAlarm,
         onOpenAlarm = onOpenAlarm,
+        onOpenHealth = onOpenHealth,
         modifier = modifier,
     )
 }
@@ -97,6 +106,7 @@ fun AlarmListScreen(
     onEvent: (AlarmListEvent) -> Unit,
     onAddAlarm: () -> Unit,
     onOpenAlarm: (AlarmId) -> Unit,
+    onOpenHealth: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AlarmListScreen(
@@ -107,6 +117,7 @@ fun AlarmListScreen(
         onAddAlarm = onAddAlarm,
         onOpenAlarm = onOpenAlarm,
         modifier = modifier,
+        onOpenHealth = onOpenHealth,
     )
 }
 
@@ -125,6 +136,7 @@ internal fun AlarmListScreen(
     onEvent: (AlarmListEvent) -> Unit,
     onAddAlarm: () -> Unit,
     onOpenAlarm: (AlarmId) -> Unit,
+    onOpenHealth: () -> Unit,
     modifier: Modifier = Modifier,
     windowInsets: WindowInsets = WindowInsets.safeDrawing,
 ) {
@@ -160,6 +172,7 @@ internal fun AlarmListScreen(
                 menuFor = menuFor,
                 onEvent = onEvent,
                 onOpenAlarm = onOpenAlarm,
+                onOpenHealth = onOpenHealth,
                 onShowMenu = { menuFor = it.value },
                 onDismissMenu = { menuFor = null },
                 onDeleteRequest = {
@@ -233,6 +246,7 @@ private fun AlarmList(
     menuFor: Long?,
     onEvent: (AlarmListEvent) -> Unit,
     onOpenAlarm: (AlarmId) -> Unit,
+    onOpenHealth: () -> Unit,
     onShowMenu: (AlarmId) -> Unit,
     onDismissMenu: () -> Unit,
     onDeleteRequest: (AlarmId) -> Unit,
@@ -253,6 +267,16 @@ private fun AlarmList(
         ),
         verticalArrangement = Arrangement.spacedBy(BalarmDimens.CardGap),
     ) {
+        if (state.healthWarning) {
+            item(key = BANNER_KEY, contentType = BANNER_KEY) {
+                HealthBanner(
+                    text = stringResource(R.string.alarm_list_health_banner),
+                    actionLabel = stringResource(R.string.alarm_list_health_fix),
+                    onClick = onOpenHealth,
+                    modifier = Modifier.testTag(AlarmListTestTags.HEALTH_BANNER),
+                )
+            }
+        }
         if (!state.loading) {
             item(key = HEADER_KEY, contentType = HEADER_KEY) {
                 ListHeader(
@@ -406,6 +430,7 @@ internal fun DeleteAlarmDialog(
     )
 }
 
+private const val BANNER_KEY = "health_banner"
 private const val HEADER_KEY = "header"
 private const val EMPTY_KEY = "empty"
 private const val CARD_CONTENT_TYPE = "card"

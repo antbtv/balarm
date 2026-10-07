@@ -12,6 +12,7 @@ object AlarmListTestTags {
     const val FAB = "alarmListFab"
     const val EMPTY = "alarmListEmpty"
     const val MENU_DELETE = "alarmListMenuDelete"
+    const val HEALTH_BANNER = "alarmListHealthBanner"
 
     /** Подложки под статус-баром и навигационной панелью (`SystemBarScrim`). */
     const val TOP_SCRIM = "alarmListTopScrim"

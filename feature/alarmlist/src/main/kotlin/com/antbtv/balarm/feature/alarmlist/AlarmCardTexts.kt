@@ -67,6 +67,8 @@ internal fun subtitleText(subtitle: AlarmSubtitle?, clockFormat: ClockFormat, re
 
         AlarmSubtitle.Tomorrow -> resources.getString(R.string.alarm_list_tomorrow)
 
+        AlarmSubtitle.NotScheduled -> resources.getString(R.string.alarm_list_not_scheduled)
+
         is AlarmSubtitle.SnoozedUntil ->
             resources.getString(R.string.alarm_list_snoozed_until, clockFormat.time(subtitle.time))
     }

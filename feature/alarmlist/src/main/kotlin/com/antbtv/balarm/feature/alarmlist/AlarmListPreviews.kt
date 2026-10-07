@@ -85,6 +85,7 @@ private fun PreviewScreen(
         onEvent = {},
         onAddAlarm = {},
         onOpenAlarm = {},
+        onOpenHealth = {},
         windowInsets = windowInsets,
     )
 }

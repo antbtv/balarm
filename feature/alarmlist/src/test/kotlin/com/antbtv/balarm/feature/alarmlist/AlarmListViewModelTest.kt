@@ -6,6 +6,8 @@ import com.antbtv.balarm.core.domain.alarm.FireKind
 import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakePermissionHealthChecker
+import com.antbtv.balarm.core.domain.testing.FakeSetupStateRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.domain.testing.testEngine
@@ -47,6 +49,7 @@ class AlarmListViewModelTest {
     private val moscow = ZoneId.of("Europe/Moscow")
     private val clock = MutableClock(local("2026-09-28T05:00"), moscow)
     private val repository = FakeAlarmRepository()
+    private val checker = FakePermissionHealthChecker()
     private val scheduler = FakeAlarmScheduler()
     private val engine: AlarmEngine =
         testEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, RecordingEventLog())
@@ -66,7 +69,7 @@ class AlarmListViewModelTest {
 
     private fun local(iso: String): Instant = LocalDateTime.parse(iso).atZone(moscow).toInstant()
 
-    private fun viewModel() = AlarmListViewModel(repository, engine, clock)
+    private fun viewModel() = AlarmListViewModel(repository, engine, clock, checker, FakeSetupStateRepository())
 
     /** Подписка на состояние, как у экрана на переднем плане. */
     private fun TestScope.subscribed(viewModel: AlarmListViewModel): AlarmListViewModel {
@@ -347,7 +350,8 @@ class AlarmListViewModelTest {
     fun `nothing is read from the clock while nobody is subscribed`() = runTest(dispatcher) {
         engine.save(oneShot)
         val counting = CountingClock(clock)
-        val viewModel = AlarmListViewModel(repository, engine, counting)
+        val viewModel =
+            AlarmListViewModel(repository, engine, counting, FakePermissionHealthChecker(), FakeSetupStateRepository())
         val subscription = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect {}
         }
@@ -375,6 +379,45 @@ class AlarmListViewModelTest {
             assertThat(awaitItem()).isInstanceOf(AlarmListEffect.RingsIn::class.java)
         }
     }
+
+    @Test
+    fun `healthy device shows no warning, a revoked critical permission shows it after resume`() = runTest(dispatcher) {
+        val viewModel = subscribed(viewModel())
+        assertThat(viewModel.uiState.value.healthWarning).isFalse()
+
+        checker.current = checker.current.copy(fullScreenIntent = false)
+        viewModel.onEvent(AlarmListEvent.Resumed)
+        runCurrent()
+
+        assertThat(viewModel.uiState.value.healthWarning).isTrue()
+
+        checker.current = checker.current.copy(fullScreenIntent = true)
+        viewModel.onEvent(AlarmListEvent.Resumed)
+        runCurrent()
+
+        assertThat(viewModel.uiState.value.healthWarning).isFalse()
+    }
+
+    @Test
+    fun `recommended problems do not raise the warning`() = runTest(dispatcher) {
+        checker.current = checker.current.copy(overlay = false, ignoringBatteryOptimizations = false)
+
+        assertThat(subscribed(viewModel()).uiState.value.healthWarning).isFalse()
+    }
+
+    @Test
+    fun `an alarm the system refused is not scheduled, leaves the header and raises the warning`() =
+        runTest(dispatcher) {
+            scheduler.accept = false
+            val failed = engine.save(oneShot).id
+
+            val viewModel = subscribed(viewModel())
+
+            assertThat(viewModel.item(failed).subtitle).isEqualTo(AlarmSubtitle.NotScheduled)
+            assertThat(viewModel.item(failed).active).isTrue()
+            assertThat(viewModel.uiState.value.nextIn).isNull()
+            assertThat(viewModel.uiState.value.healthWarning).isTrue()
+        }
 }
 
 private val STOP_TIMEOUT = 5.seconds + 1.seconds

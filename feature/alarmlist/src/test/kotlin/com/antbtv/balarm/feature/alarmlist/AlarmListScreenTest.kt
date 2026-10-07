@@ -18,6 +18,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -72,6 +73,7 @@ class AlarmListScreenTest {
     private val events = mutableListOf<AlarmListEvent>()
     private val opened = mutableListOf<AlarmId>()
     private var added = 0
+    private var healthOpened = 0
     private var background = Color.Unspecified
 
     private val gym = AlarmItemUi(
@@ -116,6 +118,7 @@ class AlarmListScreenTest {
                         onEvent = { events += it },
                         onAddAlarm = { added++ },
                         onOpenAlarm = { opened += it },
+                        onOpenHealth = { healthOpened++ },
                         windowInsets = windowInsets ?: WindowInsets.safeDrawing,
                     )
                 }
@@ -132,6 +135,7 @@ class AlarmListScreenTest {
                     onEvent = { events += it },
                     onAddAlarm = { added++ },
                     onOpenAlarm = { opened += it },
+                    onOpenHealth = { healthOpened++ },
                 )
             }
         }
@@ -568,6 +572,7 @@ class AlarmListScreenTest {
                 onEvent = { events += it },
                 onAddAlarm = { added++ },
                 onOpenAlarm = { opened += it },
+                onOpenHealth = { healthOpened++ },
             )
         }
     }
@@ -594,5 +599,34 @@ class AlarmListScreenTest {
                 config.getOrElseNullable(SemanticsActions.OnClick) { null }?.label == click &&
                     config.getOrElseNullable(SemanticsActions.OnLongClick) { null }?.label == longClick
             }
+    }
+
+    @Test
+    fun `health banner is shown on a warning, opens the health screen and hides otherwise`() {
+        show(data.copy(healthWarning = true))
+
+        composeRule.onNodeWithTag(AlarmListTestTags.HEALTH_BANNER).assertIsDisplayed().performClick()
+        assertThat(healthOpened).isEqualTo(1)
+    }
+
+    @Test
+    fun `no health banner without a warning`() {
+        show(data)
+
+        composeRule.onAllNodesWithTag(AlarmListTestTags.HEALTH_BANNER).assertCountEquals(0)
+    }
+
+    @Test
+    fun `banner is shown even when there are no alarms`() {
+        show(AlarmListUiState(loading = false, healthWarning = true))
+
+        composeRule.onNodeWithTag(AlarmListTestTags.HEALTH_BANNER).assertIsDisplayed()
+    }
+
+    @Test
+    fun `an unscheduled alarm says so on its card`() {
+        show(data.copy(alarms = listOf(gym.copy(subtitle = AlarmSubtitle.NotScheduled))))
+
+        card(gym.id).assertContentDescriptionEquals("Alarm 06:30, Gym, on weekdays, Not scheduled, on")
     }
 }

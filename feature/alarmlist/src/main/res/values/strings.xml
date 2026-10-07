@@ -14,6 +14,11 @@
     <string name="alarm_list_today">Today</string>
     <string name="alarm_list_tomorrow">Tomorrow</string>
     <string name="alarm_list_snoozed_until">Snoozed until %1$s</string>
+    <string name="alarm_list_not_scheduled">Not scheduled</string>
+
+    <!-- Баннер FR-LIST-5 -->
+    <string name="alarm_list_health_banner">Your alarm may not ring</string>
+    <string name="alarm_list_health_fix">Fix</string>
 
     <!-- TalkBack: «Alarm 7:30 AM, Gym, on weekdays, Tomorrow, on». Части соединяются запятой. -->
     <string name="alarm_list_card_alarm">Alarm %1$s</string>

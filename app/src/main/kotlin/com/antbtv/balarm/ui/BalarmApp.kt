@@ -52,6 +52,8 @@ private fun BalarmNavDisplay(backStack: NavBackStack<NavKey>, modifier: Modifier
                 AlarmListRoute(
                     onAddAlarm = { backStack.openEditor(alarmId = null) },
                     onOpenAlarm = { backStack.openEditor(alarmId = it.value) },
+                    // Экран здоровья подключается в M3-T12 (HealthKey).
+                    onOpenHealth = {},
                 )
             }
             entry<AlarmEditKey> { key ->

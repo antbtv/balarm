@@ -11,6 +11,11 @@
     <string name="alarm_list_today">Сегодня</string>
     <string name="alarm_list_tomorrow">Завтра</string>
     <string name="alarm_list_snoozed_until">Отложен до %1$s</string>
+    <string name="alarm_list_not_scheduled">Не запланирован</string>
+
+    <!-- Баннер FR-LIST-5 -->
+    <string name="alarm_list_health_banner">Будильник может не сработать</string>
+    <string name="alarm_list_health_fix">Исправить</string>
 
     <string name="alarm_list_card_alarm">Будильник %1$s</string>
     <string name="alarm_list_card_on">включён</string>

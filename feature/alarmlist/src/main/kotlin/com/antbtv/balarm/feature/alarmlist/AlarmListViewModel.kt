@@ -8,6 +8,9 @@ import com.antbtv.balarm.core.domain.alarm.AlarmWithRuntime
 import com.antbtv.balarm.core.domain.alarm.isActive
 import com.antbtv.balarm.core.domain.alarm.nextTrigger
 import com.antbtv.balarm.core.domain.alarm.upcomingTrigger
+import com.antbtv.balarm.core.domain.health.PermissionHealthChecker
+import com.antbtv.balarm.core.domain.health.SetupStateRepository
+import com.antbtv.balarm.core.domain.health.healthReportFlow
 import com.antbtv.balarm.core.domain.schedule.minuteTicks
 import com.antbtv.balarm.core.domain.schedule.timeUntil
 import com.antbtv.balarm.core.model.AlarmId
@@ -20,6 +23,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -38,14 +42,21 @@ class AlarmListViewModel @Inject constructor(
     repository: AlarmRepository,
     private val engine: AlarmEngine,
     private val clock: Clock,
+    private val checker: PermissionHealthChecker,
+    setup: SetupStateRepository,
 ) : ViewModel() {
 
+    private val snapshot = MutableStateFlow(checker.snapshot())
+
+    private val alarms = repository.observeAlarmsWithRuntime().distinctUntilChanged()
+
     val uiState: StateFlow<AlarmListUiState> = combine(
-        repository.observeAlarmsWithRuntime().distinctUntilChanged(),
+        alarms,
         minuteTicks(clock),
-    ) { alarms, _ ->
+        healthReportFlow(snapshot, setup.state, alarms),
+    ) { alarms, _, report ->
         // Тик нужен только как повод пересчитать; момент берём точный, иначе «через 1 мин» округлится не туда.
-        alarms.toUiState(clock)
+        alarms.toUiState(clock).copy(healthWarning = report.needsAttention)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
@@ -59,6 +70,7 @@ class AlarmListViewModel @Inject constructor(
 
     fun onEvent(event: AlarmListEvent) {
         when (event) {
+            AlarmListEvent.Resumed -> snapshot.value = checker.snapshot()
             is AlarmListEvent.Toggle -> toggle(event.id, event.enabled)
             is AlarmListEvent.Delete -> delete(event.id)
         }
@@ -121,7 +133,11 @@ private fun AlarmWithRuntime.toItem(now: Instant, clock: Clock): AlarmItemUi = A
     label = alarm.label,
     repeatDays = alarm.repeatDays,
     active = isActive(now),
-    subtitle = upcomingTrigger(now)?.let { subtitleFor(it, now, clock) },
+    subtitle = if (alarm.enabled && runtime?.scheduleFailed == true) {
+        AlarmSubtitle.NotScheduled
+    } else {
+        upcomingTrigger(now)?.let { subtitleFor(it, now, clock) }
+    },
 )
 
 private fun AlarmWithRuntime.subtitleFor(at: Instant, now: Instant, clock: Clock): AlarmSubtitle? {

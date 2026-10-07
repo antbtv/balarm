@@ -52,7 +52,7 @@
 | [ ] | M3-T08 🎨 | Экраны настроек, здоровья, «О приложении» (7 тапов → debug flags) | FR-REL-7, FR-FLAG-5 | M | T06, T07 | |
 | [x] | M3-T09 | Логика онбординга (`OnboardingViewModel`, вычисление шага, пропуск) | §3.7 | M | T03, T04 | |
 | [ ] | M3-T10 🎨 | Экраны онбординга (7 шагов, возврат из настроек) | §3.7 | L | T06, T09 | |
-| [ ] | M3-T11 | Баннер в списке: `healthWarning`, `Resumed`, `NotScheduled` | FR-LIST-5 | M | T02, T04, T06 | |
+| [x] | M3-T11 | Баннер в списке: `healthWarning`, `Resumed`, `NotScheduled` | FR-LIST-5 | M | T02, T04, T06 | |
 | [ ] | M3-T12 🎨 | `:app`: вкладки/два стека Nav3, стартовый экран, splash, смок | §4.1 | L | T08, T10, T11 | |
 | [ ] | M3-T-test | Тестирование этапа (tester) + R12, R10, R9, R3, R1(API 34) | §9.2 | L | T12 | |
 | [ ] | M3-T-review | Ревью этапа (reviewer) | — | M | T-test | |
@@ -126,7 +126,7 @@
 
 ### M3-T12 🎨 — Сборка навигации в `:app`
 `BalarmNavState` (стек на вкладку; выход — через ALARMS), ключи в `NavConfiguration`, стартовый экран онбординг/список, splash до чтения `SetupState`, нижний inset задаёт `:app`, удалить временный `POST_NOTIFICATIONS` из `MainActivity`. **Смок 4.**
-**Критерии приёмки:** [ ] нет двойных/пропавших отступов (fontScale 2f); [ ] Back на корне вкладки SETTINGS → ALARMS; [ ] `am start -W` до/после (NFR-2).
+**Критерии приёмки:** [ ] **`onOpenHealth` в `BalarmApp` сейчас `{}` (баннер мёртв) — подключить к `HealthKey`**; [ ] нет двойных/пропавших отступов (fontScale 2f); [ ] Back на корне вкладки SETTINGS → ALARMS; [ ] `am start -W` до/после (NFR-2).
 
 ### M3-T-test — Тестирование этапа (agent: tester)
 API 37 (и разово API 34): статусы каждого пункта переключаются через adb (команды — ADR-012 «Consequences»); R12 (основной), R10, R9 (поверх v1), R3, R1 на API 34; тестовый будильник 1 мин; онбординг с нуля; fontScale 2f; живой TalkBack — по желанию. EXACT_ALARMS/SCHEDULING — только Robolectric. Один эмулятор за раз, `./gradlew --stop` до, `adb emu kill` после.
@@ -160,6 +160,7 @@ ADR-012…015 → Accepted; PRD (§3.7 «Продолжить без этого�
 - **T06 (ревью ✅):** добавлен токен `warningContainer`; `BalarmNavigationBar(items: List<NavBarItem>)` — в `:app` (T12) делать `remember` списка; контраст иконок статусов в светлой теме < 3:1 (светлая тема — бэклог, форма иконки дублирует смысл) — записать в бэклог в T-docs; в T-docs обновить таблицу компонентов скилла `alarmy-ui` (`PermissionBanner` → `HealthBanner`, + `HealthStatusRow`, `OnboardingStepLayout`, `BalarmNavigationBar`). Перевод `HealthStatus` → `HealthStatusUi` — в feature-модулях (T08/T11).
 - **T07 (ревью ⚠️ → учтено):** `healthReportFlow` в `:core:domain` (общий для списка/настроек/здоровья/онбординга; сбой потока будильников → 0 незапланированных, экран не падает); `HealthUiState.retrying` — в T08 **блокировать** кнопку «Повторить»; платформенный `snapshot()` вызывается на main — проверить StrictMode на смоке T08/T12; фейки `FakePermissionHealthChecker`/`FakeSetupStateRepository`/`HEALTHY_SNAPSHOT` — в testFixtures домена (для T09, T11).
 - **T09 (ревью ⚠️ → учтено):** `OnboardingViewModel` принимает ещё и `AlarmRepository` (для `healthReportFlow`) — привести ADR-013 §4 в T-docs. Чек-бокс «Я сделал» держит экран (T10): `OemConfirmed(true)` шлётся по «Продолжить», иначе шаг исчез бы при отметке. `stepNumber = ordinal+1` из 7 — при пропуске выполненных шагов номер скачет (T10: показать позицию среди оставшихся или принять). `SaveFailed` в T10 — не блокирующее сообщение; `Finished` приходит и после сбоя записи (онбординг покажется снова).
+- **T11 (ревью ⚠️ → учтено):** `onOpenHealth` обязателен на всех перегрузках `AlarmListScreen`; в `BalarmApp` пока `{}` → **обязательно подключить в T12**. Живой TalkBack баннера (live region) — T-test.
 
 ## Уроки
 

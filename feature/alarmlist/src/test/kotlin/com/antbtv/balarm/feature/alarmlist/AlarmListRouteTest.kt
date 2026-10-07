@@ -21,6 +21,8 @@ import com.antbtv.balarm.core.domain.alarm.AlarmRepository
 import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakePermissionHealthChecker
+import com.antbtv.balarm.core.domain.testing.FakeSetupStateRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.domain.testing.testEngine
@@ -71,9 +73,10 @@ class AlarmListRouteTest {
     private fun save(alarm: Alarm): AlarmId = runBlocking { engine.save(alarm).id }
 
     private fun showRoute() {
-        val viewModel = AlarmListViewModel(repository, engine, clock)
+        val viewModel =
+            AlarmListViewModel(repository, engine, clock, FakePermissionHealthChecker(), FakeSetupStateRepository())
         composeRule.setContent {
-            BalarmTheme { AlarmListRoute(onAddAlarm = {}, onOpenAlarm = {}, viewModel = viewModel) }
+            BalarmTheme { AlarmListRoute(onAddAlarm = {}, onOpenAlarm = {}, onOpenHealth = {}, viewModel = viewModel) }
         }
     }
 

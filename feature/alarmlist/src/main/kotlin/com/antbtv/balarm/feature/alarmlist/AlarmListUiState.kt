@@ -12,12 +12,15 @@ import java.time.LocalTime
  *
  * @property loading первая выборка из БД ещё не пришла: экран не показывает «пусто» раньше времени.
  * @property nextIn время до ближайшего срабатывания любого будильника; `null` — «Нет активных будильников».
+ * @property healthWarning баннер FR-LIST-5: отозвано критичное разрешение или планирование не удалось; показывается
+ * независимо от наличия будильников.
  */
 @Immutable
 data class AlarmListUiState(
     val loading: Boolean = true,
     val alarms: List<AlarmItemUi> = emptyList(),
     val nextIn: TimeUntil? = null,
+    val healthWarning: Boolean = false,
 ) {
     val isEmpty: Boolean get() = !loading && alarms.isEmpty()
 }
@@ -46,9 +49,15 @@ sealed interface AlarmSubtitle {
 
     /** Ожидает повторного звонка (snooze) в [time], локальное время текущей зоны. */
     data class SnoozedUntil(val time: LocalTime) : AlarmSubtitle
+
+    /** Включён, но система отказала в планировании (ADR-015): в `AlarmManager` его нет. */
+    data object NotScheduled : AlarmSubtitle
 }
 
 sealed interface AlarmListEvent {
+    /** `ON_RESUME` экрана: перечитать статусы разрешений для баннера. */
+    data object Resumed : AlarmListEvent
+
     /** [enabled] — желаемое состояние тумблера (UI передаёт `!active`); тумблер не оптимистичный, следует за БД. */
     data class Toggle(val id: AlarmId, val enabled: Boolean) : AlarmListEvent
 
