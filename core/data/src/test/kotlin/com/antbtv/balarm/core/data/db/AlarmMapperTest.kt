@@ -3,7 +3,10 @@ package com.antbtv.balarm.core.data.db
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
+import com.antbtv.balarm.core.model.CustomSoundId
 import com.antbtv.balarm.core.model.SnoozeSettings
+import com.antbtv.balarm.core.model.SoundRef
+import com.antbtv.balarm.core.model.SoundSettings
 import com.antbtv.balarm.core.model.TriggerKind
 import com.google.common.truth.Truth.assertThat
 import java.time.DayOfWeek
@@ -101,5 +104,39 @@ class AlarmMapperTest {
 
         assertThat(runtime.nextTriggerKind).isEqualTo(TriggerKind.REGULAR)
         assertThat(runtime.snoozeCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `sound settings round trip`() {
+        val alarm = Alarm(
+            time = LocalTime.NOON,
+            sound = SoundSettings(
+                sound = SoundRef.Custom(CustomSoundId(5)),
+                volumePercent = 40,
+                fadeIn = Duration.ofSeconds(30),
+            ),
+        )
+
+        val entity = AlarmMapper.toEntity(alarm)
+
+        assertThat(entity.sound).isEqualTo("custom:5")
+        assertThat(entity.volumePercent).isEqualTo(40)
+        assertThat(entity.fadeInSec).isEqualTo(30)
+        assertThat(AlarmMapper.toDomain(entity).sound).isEqualTo(alarm.sound)
+    }
+
+    @Test
+    fun `garbage sound columns fall back to safe defaults`() {
+        val base = AlarmMapper.toEntity(Alarm(time = LocalTime.NOON))
+
+        val garbage = AlarmMapper.toDomain(base.copy(sound = "wat", volumePercent = 0, fadeInSec = 7)).sound
+        val loud = AlarmMapper.toDomain(base.copy(volumePercent = 999)).sound
+        val odd = AlarmMapper.toDomain(base.copy(volumePercent = 47)).sound
+
+        assertThat(garbage.sound).isEqualTo(SoundRef.DEFAULT)
+        assertThat(garbage.volumePercent).isEqualTo(SoundSettings.MIN_VOLUME)
+        assertThat(garbage.fadeIn).isEqualTo(Duration.ZERO)
+        assertThat(loud.volumePercent).isEqualTo(100)
+        assertThat(odd.volumePercent).isEqualTo(40)
     }
 }

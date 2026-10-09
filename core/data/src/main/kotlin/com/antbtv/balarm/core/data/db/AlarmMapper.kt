@@ -4,6 +4,8 @@ import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
 import com.antbtv.balarm.core.model.SnoozeSettings
+import com.antbtv.balarm.core.model.SoundRef
+import com.antbtv.balarm.core.model.SoundSettings
 import com.antbtv.balarm.core.model.TriggerKind
 import com.antbtv.balarm.core.model.takeCodePoints
 import java.time.DayOfWeek
@@ -28,6 +30,7 @@ internal object AlarmMapper {
         enabled = entity.enabled,
         vibrate = entity.vibrate,
         snooze = snoozeFrom(entity.snoozeIntervalMin, entity.snoozeLimit),
+        sound = soundFrom(entity),
     )
 
     fun toEntity(alarm: Alarm): AlarmEntity = AlarmEntity(
@@ -40,6 +43,9 @@ internal object AlarmMapper {
         vibrate = alarm.vibrate,
         snoozeIntervalMin = alarm.snooze.interval?.toMinutes()?.toInt() ?: 0,
         snoozeLimit = alarm.snooze.maxCount ?: UNLIMITED,
+        sound = alarm.sound.sound.encode(),
+        volumePercent = alarm.sound.volumePercent,
+        fadeInSec = alarm.sound.fadeIn.seconds.toInt(),
     )
 
     fun toDomain(entity: AlarmRuntimeEntity): AlarmRuntimeState = AlarmRuntimeState(
@@ -76,6 +82,19 @@ internal object AlarmMapper {
         )
         val maxCount = if (limit < 0) null else limit.coerceIn(1, SnoozeSettings.MAX_COUNT)
         return SnoozeSettings(interval, maxCount)
+    }
+
+    /** Мусор в колонках звука не роняет чтение: неизвестная мелодия → по умолчанию, числа → ближайшие допустимые. */
+    private fun soundFrom(entity: AlarmEntity): SoundSettings {
+        val step = SoundSettings.VOLUME_STEP
+        val volume = (entity.volumePercent.coerceIn(SoundSettings.MIN_VOLUME, SoundSettings.MAX_VOLUME) / step) * step
+        val fadeIn = SoundSettings.FADE_IN_OPTIONS.firstOrNull { it.seconds == entity.fadeInSec.toLong() }
+            ?: Duration.ZERO
+        return SoundSettings(
+            sound = SoundRef.decode(entity.sound) ?: SoundRef.DEFAULT,
+            volumePercent = volume,
+            fadeIn = fadeIn,
+        )
     }
 
     private const val MAX_HOUR = 23

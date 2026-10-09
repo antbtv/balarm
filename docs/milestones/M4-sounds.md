@@ -38,7 +38,7 @@
 | ✓ | ID | Задача | FR | Оценка | Зависит от | Commit |
 |---|---|---|---|---|---|---|
 | [x] | M4-T01 | Модель звука, интерфейсы домена, флаг `alarmSound` 🔔 | FR-SND-1,2 | S | — | |
-| [ ] | M4-T02 | Room v3: колонки + `custom_sound`, AutoMigration 🔔 | FR-SND-2 | M | T01 | |
+| [x] | M4-T02 | Room v3: колонки + `custom_sound`, AutoMigration 🔔 | FR-SND-2 | M | T01 | |
 | [ ] | M4-T03 | Генератор и 10 встроенных мелодий, названия RU/EN, LICENSES 🔔 | FR-SND-1 | M | T01 | |
 | [ ] | M4-T04 | `RoomSoundRepository`, хранилище в DE, `RingVolumeStore` 🔔 | FR-SND-2,3 | L | T02 | |
 | [ ] | M4-T05 | `AlarmSoundPlayer`: источники, цепочка резервов, нарастание 🔔 | FR-SND-5,6 | M | T01, T03 | |
@@ -69,9 +69,9 @@
 **Описание:** колонки `sound TEXT DEFAULT 'builtin:alarm_default'`, `volume_percent INTEGER DEFAULT 80`, `fade_in_sec INTEGER DEFAULT 0`; таблица `custom_sound(id, title, duration_ms, size_bytes, added_at)`; AutoMigration 2→3; маппер с безопасными значениями.
 **Модули:** `:core:data`.
 **Критерии приёмки:**
-- [ ] Миграция 2→3 без потери данных (в т.ч. повторяющийся и SNOOZE) — тест `MigrationTestHelper`
-- [ ] Схема v3 закоммичена в `schemas/`
-- [ ] БД остаётся в device-protected
+- [x] Миграция 2→3 без потери данных (в т.ч. повторяющийся и SNOOZE) — тест `MigrationTestHelper`
+- [x] Схема v3 закоммичена в `schemas/`
+- [x] БД остаётся в device-protected
 **Тесты:** Robolectric/instrumented миграции; unit маппера. Сценарий: R9.
 
 ### M4-T03 — Встроенные мелодии 🔔 reliability

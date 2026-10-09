@@ -59,4 +59,45 @@ class BalarmDatabaseSchemaTest {
             }
         }
     }
+
+    @Test
+    fun `auto migration 2 to 3 keeps alarms and gives them the default sound`() {
+        helper.createDatabase(2).use { db ->
+            db.execSQL(
+                "INSERT INTO alarm (id, hour, minute, repeat_days, label, enabled, vibrate, snooze_interval_min, " +
+                    "snooze_limit) VALUES (1, 6, 30, 31, 'work', 1, 1, 5, 3)",
+            )
+            db.execSQL(
+                "INSERT INTO alarm (id, hour, minute, repeat_days, label, enabled, vibrate, snooze_interval_min, " +
+                    "snooze_limit) VALUES (2, 9, 0, 0, '', 1, 0, 10, 1)",
+            )
+            db.execSQL(
+                "INSERT INTO alarm_runtime (alarm_id, next_trigger_at, next_trigger_kind, snooze_count, " +
+                    "last_fired_at, schedule_failed) VALUES (2, 5000, 'SNOOZE', 1, NULL, 0)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(3, emptyList()).use { db ->
+            db.prepare("SELECT repeat_days, label, sound, volume_percent, fade_in_sec FROM alarm ORDER BY id").use {
+                assertThat(it.step()).isTrue()
+                assertThat(it.getLong(0)).isEqualTo(31)
+                assertThat(it.getText(1)).isEqualTo("work")
+                assertThat(it.getText(2)).isEqualTo("builtin:alarm_default")
+                assertThat(it.getLong(3)).isEqualTo(80)
+                assertThat(it.getLong(4)).isEqualTo(0)
+                assertThat(it.step()).isTrue()
+                assertThat(it.getText(2)).isEqualTo("builtin:alarm_default")
+            }
+            db.prepare("SELECT next_trigger_at, next_trigger_kind, snooze_count FROM alarm_runtime").use {
+                assertThat(it.step()).isTrue()
+                assertThat(it.getLong(0)).isEqualTo(5000)
+                assertThat(it.getText(1)).isEqualTo("SNOOZE")
+                assertThat(it.getLong(2)).isEqualTo(1)
+            }
+            db.prepare("SELECT COUNT(*) FROM custom_sound").use {
+                assertThat(it.step()).isTrue()
+                assertThat(it.getLong(0)).isEqualTo(0)
+            }
+        }
+    }
 }

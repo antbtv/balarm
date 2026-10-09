@@ -12,10 +12,10 @@ import androidx.sqlite.driver.AndroidSQLiteDriver
  * миграции — только аддитивные, `fallbackToDestructiveMigration` запрещён в любой сборке.
  */
 @Database(
-    entities = [AlarmEntity::class, AlarmRuntimeEntity::class],
-    version = 2,
+    entities = [AlarmEntity::class, AlarmRuntimeEntity::class, CustomSoundEntity::class],
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class BalarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao

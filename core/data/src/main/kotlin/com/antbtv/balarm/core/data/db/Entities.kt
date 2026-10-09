@@ -20,6 +20,25 @@ data class AlarmEntity(
     @ColumnInfo(name = "snooze_interval_min", defaultValue = "5") val snoozeIntervalMin: Int,
     /** -1 — без ограничения. */
     @ColumnInfo(name = "snooze_limit", defaultValue = "3") val snoozeLimit: Int,
+    /** `SoundRef.encode()` (схема v3, ADR-016 §6). */
+    @ColumnInfo(defaultValue = "'builtin:alarm_default'") val sound: String = DEFAULT_SOUND,
+    @ColumnInfo(name = "volume_percent", defaultValue = "80") val volumePercent: Int = DEFAULT_VOLUME_PERCENT,
+    @ColumnInfo(name = "fade_in_sec", defaultValue = "0") val fadeInSec: Int = 0,
+) {
+    companion object {
+        const val DEFAULT_SOUND = "builtin:alarm_default"
+        const val DEFAULT_VOLUME_PERCENT = 80
+    }
+}
+
+/** Своя мелодия; файл — `DE files/sounds/<id>` (схема v3, ADR-016 §3, §6). */
+@Entity(tableName = "custom_sound")
+data class CustomSoundEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    @ColumnInfo(name = "duration_ms") val durationMs: Long,
+    @ColumnInfo(name = "size_bytes") val sizeBytes: Long,
+    @ColumnInfo(name = "added_at") val addedAt: Long,
 )
 
 /** Служебное состояние, переживающее перезагрузку (ADR-004, ADR-006 §5). Пишет только движок. */
