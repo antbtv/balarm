@@ -92,6 +92,30 @@ sealed interface AlarmEvent {
         override val fields = mapOf("source" to source, "volume" to volume)
     }
 
+    /** Громкость `STREAM_ALARM` для звонка (FR-SND-7): [original] — до звонка, [applied] — теперь, [max] — предел. */
+    data class VolumeApplied(val original: Int, val applied: Int, val max: Int) : AlarmEvent {
+        override val name = "VOLUME_APPLIED"
+        override val fields = mapOf("original" to original, "applied" to applied, "max" to max)
+    }
+
+    /** Система не применила громкость (Android 17 hardening, ADR-017 §2); звонок идёт на текущей. */
+    data class VolumeNotApplied(val requested: Int, val actual: Int) : AlarmEvent {
+        override val name = "VOLUME_NOT_APPLIED"
+        override val fields = mapOf("requested" to requested, "actual" to actual)
+    }
+
+    /** Громкость потока фиксирована (`isVolumeFixed`) — не трогаем. */
+    data object VolumeFixed : AlarmEvent {
+        override val name = "VOLUME_FIXED"
+        override val fields = emptyMap<String, Any?>()
+    }
+
+    /** Исходная громкость возвращена после звонка (или после падения процесса). */
+    data class VolumeRestored(val to: Int) : AlarmEvent {
+        override val name = "VOLUME_RESTORED"
+        override val fields = mapOf("to" to to)
+    }
+
     /** Вибрация не включилась; звук при этом продолжается. */
     data class VibrationFailed(val error: String) : AlarmEvent {
         override val name = "VIBRATION_FAILED"

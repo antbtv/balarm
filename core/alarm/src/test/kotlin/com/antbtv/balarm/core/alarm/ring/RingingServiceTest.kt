@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -174,6 +175,19 @@ class RingingServiceTest {
 
         assertThat(fakeSound.lastSettings).isEqualTo(custom)
         assertThat(fakeSound.lastFadeIn).isTrue()
+    }
+
+    @Test
+    fun `quiet alarm stream is raised for the ring and restored on dismiss`() {
+        val audio = app.getSystemService(AudioManager::class.java)
+        shadowOf(audio).setStreamMaxVolume(7)
+        audio.setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+
+        start(ringIntent(ALARM.id))
+        assertThat(audio.getStreamVolume(AudioManager.STREAM_ALARM)).isEqualTo(6) // 80 % по умолчанию
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        assertThat(audio.getStreamVolume(AudioManager.STREAM_ALARM)).isEqualTo(1)
     }
 
     @Test

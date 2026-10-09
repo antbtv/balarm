@@ -14,11 +14,13 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.SafeRescheduler
+import com.antbtv.balarm.core.alarm.sound.AlarmVolumeController
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.domain.alarm.RescheduleReason
 import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.di.ApplicationScope
+import com.antbtv.balarm.core.domain.sound.SoundRepository
 import com.antbtv.balarm.ui.BalarmApp
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Optional
@@ -38,6 +40,10 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var ringing: RingingController
 
+    @Inject lateinit var volume: AlarmVolumeController
+
+    @Inject lateinit var sounds: SoundRepository
+
     @Inject lateinit var uiIntents: AlarmUiIntents
 
     @Inject lateinit var debugTools: Optional<DebugTools>
@@ -52,6 +58,9 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             // ADR-005 §2: страховка после force-stop/восстановления — идемпотентно, переживает закрытие экрана.
             appScope.launch { rescheduler.reschedule(RescheduleReason.APP_LAUNCH) }
+            // Громкость, оставшаяся после падения процесса посреди звонка (ADR-017 §2), и сироты в библиотеке мелодий.
+            volume.restorePendingIfIdle()
+            appScope.launch { runCatching { sounds.cleanUp() } }
         }
         // Разрешения запрашивает онбординг (ADR-013); временный запрос POST_NOTIFICATIONS из M1 удалён.
         val openDebugFlags: (() -> Unit)? =

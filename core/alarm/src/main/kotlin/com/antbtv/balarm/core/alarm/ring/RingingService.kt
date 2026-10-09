@@ -16,6 +16,8 @@ import com.antbtv.balarm.core.alarm.notification.AlarmNotifications
 import com.antbtv.balarm.core.alarm.notification.RingingActions
 import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
+import com.antbtv.balarm.core.alarm.sound.AlarmVolumeController
+import com.antbtv.balarm.core.alarm.sound.VolumeOwner
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
@@ -66,6 +68,8 @@ class RingingService : Service() {
     @Inject lateinit var sound: AlarmSoundPlayer
 
     @Inject lateinit var vibrator: AlarmVibrator
+
+    @Inject lateinit var volume: AlarmVolumeController
 
     @Inject lateinit var notifications: AlarmNotifications
 
@@ -242,6 +246,7 @@ class RingingService : Service() {
         delay(FIRST_SOUND_DEADLINE.toMillis())
         if (current != null) return
         earlySound = true
+        volume.acquire(VolumeOwner.RINGING, SoundSettings.DEFAULT.volumePercent)
         sound.start(SoundSettings.DEFAULT, fadeIn = false, onFallback = vibrator::start)
         vibrator.start()
         log.log(AlarmEvent.RingingStarted(id, degraded = true))
@@ -262,6 +267,7 @@ class RingingService : Service() {
         startedAt = clock.instant()
         cancelMissed(decision.alarm.id)
         val fade = fireKinds.remove(decision.alarm.id) !in NO_FADE_KINDS
+        volume.acquire(VolumeOwner.RINGING, decision.alarm.sound.volumePercent)
         if (earlySound) {
             earlySound = false // звук уже идёт; вибрация — по настройке будильника
             // Сторож играл мелодию по умолчанию: у будильника другая — переключаемся без нарастания (ADR-017 §5).
@@ -393,6 +399,7 @@ class RingingService : Service() {
     private fun silence() {
         sound.stop()
         vibrator.stop()
+        volume.release(VolumeOwner.RINGING) // ещё в foreground: Android 17 не даёт менять громкость из фона
     }
 
     @Suppress("TooGenericExceptionCaught") // без уведомления звук всё равно должен идти

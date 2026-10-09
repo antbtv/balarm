@@ -42,7 +42,7 @@
 | [x] | M4-T03 | Генератор и 10 встроенных мелодий, названия RU/EN, LICENSES 🔔 | FR-SND-1 | M | T01 | |
 | [x] | M4-T04 | `RoomSoundRepository`, хранилище в DE, `RingVolumeStore` 🔔 | FR-SND-2,3 | L | T02 | |
 | [x] | M4-T05 | `AlarmSoundPlayer`: источники, цепочка резервов, нарастание 🔔 | FR-SND-5,6 | M | T01, T03 | |
-| [ ] | M4-T06 | `AlarmVolumeController` + интеграция в `RingingService` 🔔 | FR-SND-7 | M | T04, T05 | |
+| [x] | M4-T06 | `AlarmVolumeController` + интеграция в `RingingService` 🔔 | FR-SND-7 | M | T04, T05 | |
 | [ ] | M4-T07 | Реакция на режим аудио (звонок/вызов): mute+вибрация 🔔 | FR-RING-8 | S | T05 | |
 | [ ] | M4-T08 | `SoundPreview` (владелец PREVIEW, автостоп 10 с) 🔔 | FR-SND-3 | S | T06 | |
 | [ ] | M4-T09 | Секция «Звук» в редакторе 🎨 | FR-EDIT-5 | M | T01, T08 | |
@@ -107,10 +107,10 @@
 **Описание:** `AlarmVolumeController` (acquire/release, владельцы RINGING/PREVIEW, один снимок исходной громкости на всех), установка → чтение обратно → `VOLUME_NOT_APPLIED`; перехват `IllegalStateException`; исходная громкость — в `RingVolumeStore`; восстановление только если текущая == выставленной; `restorePendingIfIdle()` на APP_LAUNCH; интеграция в `RingingService` (RESUME без нарастания, очередь, восстановление до `stopIfIdle`).
 **Модули:** `:core:alarm`.
 **Критерии приёмки:**
-- [ ] Громкость 1 → звонок на выставленном % → после остановки снова 1 (R11)
-- [ ] Если пользователь изменил громкость во время звонка — не перезаписывается
-- [ ] После падения процесса исходная громкость восстанавливается при следующем запуске/звонке (R20)
-- [ ] Очередь будильников (R13) не теряет исходную громкость
+- [x] Громкость 1 → звонок на выставленном % → после остановки снова 1 (R11)
+- [x] Если пользователь изменил громкость во время звонка — не перезаписывается
+- [x] После падения процесса исходная громкость восстанавливается при следующем запуске/звонке (R20)
+- [x] Очередь будильников (R13) не теряет исходную громкость
 **Тесты:** unit/Robolectric с фейковым `AudioManager`. Сценарии: R11, R13, R19, R20.
 
 ### M4-T07 — Режим аудио (FR-RING-8) 🔔 reliability
@@ -185,6 +185,7 @@ ADR-016/017 → Accepted; ссылки на ADR-017 в ADR-008 и ADR-012; пр�
 | Память машины | Одна Gradle-сборка, эмулятор без окна с лимитом |
 
 ## Добавлено по ходу
+* T06: `AlarmVolumeController` пишет снимок громкости синхронно (таймаут 300 мс) до смены потока; `restorePendingIfIdle` и `SoundRepository.cleanUp` вызываются из `MainActivity` при запуске. Новые события: `VOLUME_APPLIED`, `VOLUME_NOT_APPLIED`, `VOLUME_FIXED`, `VOLUME_RESTORED`. `isVolumeFixed` и ignore-by-hardening Robolectric не эмулирует — только эмулятор (R19).
 * T05 захватил часть T06: `RingingService` уже передаёт `alarm.sound` и `fadeIn` (RESUME/CATCH_UP — без нарастания), сторож переключает мелодию без нарастания. В T06 остаётся громкость потока.
 * Источники в `SOUND_STARTED`: `builtin|custom|default|tone` (раньше `raw`); обновлён скилл verify-alarm-reliability (R11).
 * Сигнатуры `RingVolumeStore` (`load/save/clear`) и `SoundPreview` (`play/stop`) в коде отличаются от ADR-017 — привести ADR к коду в T-docs.

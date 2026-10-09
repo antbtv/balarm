@@ -4,6 +4,8 @@ import android.content.Intent
 import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
+import com.antbtv.balarm.core.domain.sound.RingVolumeStore
+import com.antbtv.balarm.core.domain.sound.SavedVolume
 import com.antbtv.balarm.core.model.SoundSettings
 
 class FakeSoundPlayer : AlarmSoundPlayer {
@@ -61,5 +63,19 @@ class FakeUiIntents : AlarmUiIntents {
     companion object {
         const val RINGING_SCREEN = "test.RINGING_SCREEN"
         const val ALARM_LIST = "test.ALARM_LIST"
+    }
+}
+
+class FakeRingVolumeStore : RingVolumeStore {
+    var value: SavedVolume? = null
+
+    override suspend fun load(): SavedVolume? = value
+
+    override suspend fun save(volume: SavedVolume) {
+        value = volume
+    }
+
+    override suspend fun clear() {
+        value = null
     }
 }

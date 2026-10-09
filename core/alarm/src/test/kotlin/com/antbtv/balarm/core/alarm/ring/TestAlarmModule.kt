@@ -11,6 +11,7 @@ import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.di.ApplicationScope
+import com.antbtv.balarm.core.domain.sound.RingVolumeStore
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.MutableClock
@@ -87,6 +88,12 @@ object TestAlarmModule {
 
     @Provides
     fun uiIntents(): AlarmUiIntents = FakeUiIntents()
+
+    @Provides @Singleton
+    fun volumeStore() = FakeRingVolumeStore()
+
+    @Provides
+    fun volumeStoreApi(fake: FakeRingVolumeStore): RingVolumeStore = fake
 
     @Provides @Singleton @ApplicationScope
     fun applicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
