@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sounds_back">Назад</string>
+    <string name="sounds_cancel">Отмена</string>
+    <string name="sounds_add">Добавить мелодию</string>
+    <string name="sounds_importing">Добавляем мелодию…</string>
+    <string name="sounds_playing">Играет</string>
+    <string name="sounds_action_play">Прослушать</string>
+    <string name="sounds_action_stop">Остановить</string>
+    <string name="sounds_action_select">Выбрать</string>
+    <string name="sounds_details">%1$s · %2$s</string>
+    <plurals name="sounds_duration_minutes">
+        <item quantity="one">%d минута</item>
+        <item quantity="few">%d минуты</item>
+        <item quantity="many">%d минут</item>
+        <item quantity="other">%d минуты</item>
+    </plurals>
+    <plurals name="sounds_duration_seconds">
+        <item quantity="one">%d секунда</item>
+        <item quantity="few">%d секунды</item>
+        <item quantity="many">%d секунд</item>
+        <item quantity="other">%d секунды</item>
+    </plurals>
+    <string name="sounds_empty_hint">Добавьте аудиофайл: песню или свою мотивирующую запись. До %1$d МБ.</string>
+
+    <string name="sounds_picker_title">Мелодия</string>
+    <string name="sounds_builtin_header">Встроенные</string>
+    <string name="sounds_custom_header">Мои мелодии</string>
+    <string name="sounds_manage">Управлять</string>
+    <string name="sounds_choose">Выбрать</string>
+    <string name="sounds_selected_missing">Выбранная мелодия удалена. Выберите другую.</string>
+
+    <string name="sounds_import_done">Мелодия «%1$s» добавлена</string>
+    <string name="sounds_import_too_large">Файл больше %1$d МБ</string>
+    <string name="sounds_import_unsupported">Не удалось распознать аудио</string>
+    <string name="sounds_import_no_space">Не хватает места</string>
+    <string name="sounds_import_failed">Не удалось добавить мелодию</string>
+    <string name="sounds_deleted">Мелодия «%1$s» удалена</string>
+    <plurals name="sounds_deleted_switched">
+        <item quantity="one">Мелодия «%1$s» удалена. %2$d будильник переключён на «%3$s»</item>
+        <item quantity="few">Мелодия «%1$s» удалена. %2$d будильника переключены на «%3$s»</item>
+        <item quantity="many">Мелодия «%1$s» удалена. %2$d будильников переключены на «%3$s»</item>
+        <item quantity="other">Мелодия «%1$s» удалена. %2$d будильника переключены на «%3$s»</item>
+    </plurals>
+    <string name="sounds_delete_failed">Не удалось удалить мелодию</string>
+    <string name="sounds_rename_failed">Не удалось переименовать мелодию</string>
+
+    <string name="sounds_library_title">Мои мелодии</string>
+    <string name="sounds_library_empty">Пока нет своих мелодий</string>
+    <string name="sounds_rename">Переименовать</string>
+    <string name="sounds_rename_title">Переименовать мелодию</string>
+    <string name="sounds_rename_label">Название</string>
+    <string name="sounds_rename_save">Сохранить</string>
+    <plurals name="sounds_rename_counter">
+        <item quantity="one">%1$d из %2$d символа</item>
+        <item quantity="few">%1$d из %2$d символов</item>
+        <item quantity="many">%1$d из %2$d символов</item>
+        <item quantity="other">%1$d из %2$d символа</item>
+    </plurals>
+    <string name="sounds_delete">Удалить</string>
+    <string name="sounds_delete_title">Удалить «%1$s»?</string>
+    <string name="sounds_delete_unused">Файл будет удалён из приложения.</string>
+    <plurals name="sounds_delete_used">
+        <item quantity="one">Используется %1$d будильником — он переключится на «%2$s».</item>
+        <item quantity="few">Используется %1$d будильниками — они переключатся на «%2$s».</item>
+        <item quantity="many">Используется %1$d будильниками — они переключатся на «%2$s».</item>
+        <item quantity="other">Используется %1$d будильниками — они переключатся на «%2$s».</item>
+    </plurals>
+    <string name="sounds_rename_description">Переименовать «%1$s»</string>
+    <string name="sounds_delete_description">Удалить «%1$s»</string>
+</resources>

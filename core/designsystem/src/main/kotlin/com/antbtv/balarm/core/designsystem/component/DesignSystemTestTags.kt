@@ -117,3 +117,13 @@ object SliderRowTestTags {
     const val SLIDER = "sliderRowSlider"
     const val VALUE = "sliderRowValue"
 }
+
+object TextInputDialogTestTags {
+    const val DIALOG = "textInputDialog"
+    const val CONFIRM = "textInputDialogConfirm"
+    const val DISMISS = "textInputDialogDismiss"
+}
+
+object SnackbarTestTags {
+    const val SNACKBAR = "balarmSnackbar"
+}

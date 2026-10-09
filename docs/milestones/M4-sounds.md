@@ -46,7 +46,7 @@
 | [x] | M4-T07 | Реакция на режим аудио (звонок/вызов): mute+вибрация 🔔 | FR-RING-8 | S | T05 | |
 | [x] | M4-T08 | `SoundPreview` (владелец PREVIEW, автостоп 10 с) 🔔 | FR-SND-3 | S | T06 | |
 | [x] | M4-T09 | Секция «Звук» в редакторе 🎨 | FR-EDIT-5 | M | T01, T08 | |
-| [ ] | M4-T10 | `:feature:sounds`: пикер и библиотека 🎨 | FR-SND-2,3 | L | T04, T08 | |
+| [x] | M4-T10 | `:feature:sounds`: пикер и библиотека 🎨 | FR-SND-2,3 | L | T04, T08 | |
 | [ ] | M4-T11 | `:app`: навигация, Result API, «Мелодии» в Настройках, DI 🎨 | FR-SND-2,3 | S | T09, T10 | |
 | [ ] | M4-T12 | Здоровье: убрать `ALARM_VOLUME`; обратная связь «Тест через 1 минуту» 🎨 | (M3→M4) | S | — | |
 | [ ] | M4-T-test | Тестирование этапа (tester) | | M | все | |
@@ -142,10 +142,10 @@
 **Описание:** `:feature:sounds`: `SoundPickerRoute`, `SoundLibraryRoute`; прослушивание, «Добавить мелодию» (SAF `ACTION_OPEN_DOCUMENT audio/*`), переименование, удаление с предупреждением «используется N будильниками», ошибки импорта. Импорт/библиотека за `feature.customSounds`.
 **Модули:** `:feature:sounds` (новый), `:core:designsystem`.
 **Критерии приёмки:**
-- [ ] Импорт валидного файла → появляется в списке и играет в превью
-- [ ] Слишком большой/не аудио → понятная ошибка
-- [ ] Удаление используемой → предупреждение, будильники переключены
-- [ ] Модуль зарегистрирован в `settings.gradle.kts`, зависимости по PRD §6.2
+- [x] Импорт валидного файла → появляется в списке и играет в превью
+- [x] Слишком большой/не аудио → понятная ошибка
+- [x] Удаление используемой → предупреждение, будильники переключены
+- [x] Модуль зарегистрирован в `settings.gradle.kts`, зависимости по PRD §6.2
 **Тесты:** Compose UI, unit ViewModel.
 
 ### M4-T11 — Навигация и DI 🎨 ui
@@ -185,6 +185,7 @@ ADR-016/017 → Accepted; ссылки на ADR-017 в ADR-008 и ADR-012; пр�
 | Память машины | Одна Gradle-сборка, эмулятор без окна с лимитом |
 
 ## Добавлено по ходу
+* T10: в `:core:designsystem` добавлены `TextInputDialog`, `BalarmSnackbarHost`, иконки Play/Stop/Edit — внести в alarmy-ui (T-docs). API: `SoundPickerRoute(selected, onPicked, onClose, onOpenLibrary)`, `SoundLibraryRoute(onClose)`; `SoundPickerViewModel.Factory.create(selected: String)`.
 * T09: в `:core:designsystem` добавлены `SliderRow` и `SwitchRow` — внести в таблицу компонентов скилла alarmy-ui (T-docs). Контракт для T11: `AlarmEditRoute(..., onPickSound: (SoundRef) -> Unit, pickedSound: SoundRef?, onSoundPickConsumed: () -> Unit)`. Визуальная проверка на эмуляторе — в T-test.
 * T06: `AlarmVolumeController` пишет снимок громкости синхронно (таймаут 300 мс) до смены потока; `restorePendingIfIdle` и `SoundRepository.cleanUp` вызываются из `MainActivity` при запуске. Новые события: `VOLUME_APPLIED`, `VOLUME_NOT_APPLIED`, `VOLUME_FIXED`, `VOLUME_RESTORED`. `isVolumeFixed` и ignore-by-hardening Robolectric не эмулирует — только эмулятор (R19).
 * T05 захватил часть T06: `RingingService` уже передаёт `alarm.sound` и `fadeIn` (RESUME/CATCH_UP — без нарастания), сторож переключает мелодию без нарастания. В T06 остаётся громкость потока.

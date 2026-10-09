@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Общее -->
+    <string name="sounds_back">Back</string>
+    <string name="sounds_cancel">Cancel</string>
+    <string name="sounds_add">Add ringtone</string>
+    <string name="sounds_importing">Adding ringtone…</string>
+    <!-- TalkBack: состояние строки, которая звучит сейчас. -->
+    <string name="sounds_playing">Playing</string>
+    <string name="sounds_action_play">Play</string>
+    <string name="sounds_action_stop">Stop</string>
+    <string name="sounds_action_select">Select</string>
+    <!-- Длительность и размер своей мелодии: «0:32 · 1.2 MB». -->
+    <string name="sounds_details">%1$s · %2$s</string>
+    <plurals name="sounds_duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="sounds_duration_seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+    <string name="sounds_empty_hint">Add an audio file: a song or your own motivating recording. Up to %1$d MB.</string>
+
+    <!-- Пикер мелодии (FR-SND-2) -->
+    <string name="sounds_picker_title">Ringtone</string>
+    <string name="sounds_builtin_header">Built-in</string>
+    <string name="sounds_custom_header">My ringtones</string>
+    <string name="sounds_manage">Manage</string>
+    <string name="sounds_choose">Choose</string>
+    <string name="sounds_selected_missing">The selected ringtone was deleted. Choose another one.</string>
+
+    <!-- Результат импорта и действий -->
+    <string name="sounds_import_done">“%1$s” added</string>
+    <string name="sounds_import_too_large">File is larger than %1$d MB</string>
+    <string name="sounds_import_unsupported">Couldn\'t recognize the audio</string>
+    <string name="sounds_import_no_space">Not enough storage space</string>
+    <string name="sounds_import_failed">Couldn\'t add the ringtone</string>
+    <string name="sounds_deleted">“%1$s” deleted</string>
+    <plurals name="sounds_deleted_switched">
+        <item quantity="one">“%1$s” deleted. %2$d alarm switched to “%3$s”</item>
+        <item quantity="other">“%1$s” deleted. %2$d alarms switched to “%3$s”</item>
+    </plurals>
+    <string name="sounds_delete_failed">Couldn\'t delete the ringtone</string>
+    <string name="sounds_rename_failed">Couldn\'t rename the ringtone</string>
+
+    <!-- Библиотека «Мои мелодии» (FR-SND-3) -->
+    <string name="sounds_library_title">My ringtones</string>
+    <string name="sounds_library_empty">No ringtones yet</string>
+    <string name="sounds_rename">Rename</string>
+    <string name="sounds_rename_title">Rename ringtone</string>
+    <string name="sounds_rename_label">Name</string>
+    <string name="sounds_rename_save">Save</string>
+    <plurals name="sounds_rename_counter">
+        <item quantity="one">%1$d of %2$d character</item>
+        <item quantity="other">%1$d of %2$d characters</item>
+    </plurals>
+    <string name="sounds_delete">Delete</string>
+    <string name="sounds_delete_title">Delete “%1$s”?</string>
+    <string name="sounds_delete_unused">The file will be removed from the app.</string>
+    <plurals name="sounds_delete_used">
+        <item quantity="one">Used by %1$d alarm. It will switch to “%2$s”.</item>
+        <item quantity="other">Used by %1$d alarms. They will switch to “%2$s”.</item>
+    </plurals>
+    <!-- TalkBack: кнопки строки библиотеки с названием мелодии. -->
+    <string name="sounds_rename_description">Rename “%1$s”</string>
+    <string name="sounds_delete_description">Delete “%1$s”</string>
+</resources>

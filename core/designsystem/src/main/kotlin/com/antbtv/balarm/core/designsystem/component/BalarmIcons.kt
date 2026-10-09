@@ -45,4 +45,16 @@ object BalarmIcons {
     /** Статус «не подтверждено» (не проверяется программно) — вопросительный знак в круге. */
     @DrawableRes
     val StatusUnconfirmed: Int = R.drawable.ic_status_unconfirmed
+
+    /** «Прослушать» мелодию (пикер, библиотека). Не зеркалится в RTL. */
+    @DrawableRes
+    val Play: Int = R.drawable.ic_play
+
+    /** «Остановить» прослушивание. */
+    @DrawableRes
+    val Stop: Int = R.drawable.ic_stop
+
+    /** Карандаш: «Переименовать». */
+    @DrawableRes
+    val Edit: Int = R.drawable.ic_edit
 }
