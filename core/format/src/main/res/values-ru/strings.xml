@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="format_alarm_rings_in">Будильник зазвонит через %1$s</string>
+    <string name="sound_default">Классика</string>
+    <string name="sound_sunrise">Рассвет</string>
+    <string name="sound_marimba">Маримба</string>
+    <string name="sound_bells">Колокольчики</string>
+    <string name="sound_piano">Пианино</string>
+    <string name="sound_chiptune">8-бит</string>
+    <string name="sound_digital">Цифровой</string>
+    <string name="sound_ascend">Восхождение</string>
+    <string name="sound_chimes">Перезвон</string>
+    <string name="sound_siren">Сирена</string>
 </resources>

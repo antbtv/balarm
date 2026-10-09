@@ -39,7 +39,7 @@
 |---|---|---|---|---|---|---|
 | [x] | M4-T01 | Модель звука, интерфейсы домена, флаг `alarmSound` 🔔 | FR-SND-1,2 | S | — | |
 | [x] | M4-T02 | Room v3: колонки + `custom_sound`, AutoMigration 🔔 | FR-SND-2 | M | T01 | |
-| [ ] | M4-T03 | Генератор и 10 встроенных мелодий, названия RU/EN, LICENSES 🔔 | FR-SND-1 | M | T01 | |
+| [x] | M4-T03 | Генератор и 10 встроенных мелодий, названия RU/EN, LICENSES 🔔 | FR-SND-1 | M | T01 | |
 | [ ] | M4-T04 | `RoomSoundRepository`, хранилище в DE, `RingVolumeStore` 🔔 | FR-SND-2,3 | L | T02 | |
 | [ ] | M4-T05 | `AlarmSoundPlayer`: источники, цепочка резервов, нарастание 🔔 | FR-SND-5,6 | M | T01, T03 | |
 | [ ] | M4-T06 | `AlarmVolumeController` + интеграция в `RingingService` 🔔 | FR-SND-7 | M | T04, T05 | |
@@ -78,9 +78,9 @@
 **Описание:** `tools/sound/generate_builtin_sounds.py` (фиксированный seed, моно, бесшовные циклы 15–40 с), 10 OGG в `res/raw` (суммарно ≤ 2 МБ; запасной вариант WAV, бюджет 3 МБ), названия RU/EN в `:core:format`, `LICENSES.md` (CC0, собственный синтез).
 **Модули:** `:core:alarm` (res), `:core:format`, `tools/`.
 **Критерии приёмки:**
-- [ ] Для каждого ключа `BuiltinSound` есть ресурс и строка RU+EN (тест)
-- [ ] Прирост APK ≤ 2 МБ (NFR-3)
-- [ ] Скрипт воспроизводим; лицензия задокументирована
+- [x] Для каждого ключа `BuiltinSound` есть ресурс и строка RU+EN (тест)
+- [x] Прирост APK ≤ 2 МБ (NFR-3)
+- [x] Скрипт воспроизводим; лицензия задокументирована
 **Тесты:** unit/Robolectric на соответствие ключей.
 
 ### M4-T04 — Репозиторий мелодий 🔔 reliability

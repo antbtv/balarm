@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="format_alarm_rings_in">Alarm rings in %1$s</string>
+    <string name="sound_default">Classic</string>
+    <string name="sound_sunrise">Sunrise</string>
+    <string name="sound_marimba">Marimba</string>
+    <string name="sound_bells">Bells</string>
+    <string name="sound_piano">Piano</string>
+    <string name="sound_chiptune">8-bit</string>
+    <string name="sound_digital">Digital</string>
+    <string name="sound_ascend">Ascending</string>
+    <string name="sound_chimes">Chimes</string>
+    <string name="sound_siren">Siren</string>
 </resources>
