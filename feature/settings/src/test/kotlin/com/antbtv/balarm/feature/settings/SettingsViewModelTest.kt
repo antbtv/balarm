@@ -7,6 +7,8 @@ import com.antbtv.balarm.core.domain.testing.FakeSetupStateRepository
 import com.antbtv.balarm.core.domain.testing.HEALTHY_SNAPSHOT
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmRuntimeState
+import com.antbtv.balarm.core.model.feature.Feature
+import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import com.google.common.truth.Truth.assertThat
 import java.time.LocalTime
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +37,11 @@ class SettingsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = SettingsViewModel(checker, FakeSetupStateRepository(), FakeAlarmRepository())
+    private fun viewModel(customSounds: Boolean = false) =
+        SettingsViewModel(checker, FakeSetupStateRepository(), FakeAlarmRepository(), flags(customSounds))
+
+    private fun flags(customSounds: Boolean) =
+        FeatureFlagProvider { if (it == Feature.CUSTOM_SOUNDS) customSounds else it.defaultEnabled }
 
     @Test
     fun `healthy device has no problems, unconfirmed oem is not a problem`() = runTest(dispatcher) {
@@ -54,7 +60,7 @@ class SettingsViewModelTest {
         val id = repository.save(Alarm(time = LocalTime.of(6, 30)))
         repository.updateRuntime(AlarmRuntimeState(id, scheduleFailed = true))
 
-        SettingsViewModel(checker, FakeSetupStateRepository(), repository).uiState.test {
+        SettingsViewModel(checker, FakeSetupStateRepository(), repository, flags(false)).uiState.test {
             skipItems(1)
             assertThat(awaitItem().problems).isEqualTo(1)
             cancelAndIgnoreRemainingEvents()
@@ -72,6 +78,20 @@ class SettingsViewModelTest {
             vm.onResumed()
 
             assertThat(awaitItem().problems).isEqualTo(2)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `ringtones row follows the custom sounds flag from the first state`() = runTest(dispatcher) {
+        viewModel(customSounds = true).uiState.test {
+            assertThat(awaitItem().soundsVisible).isTrue()
+            assertThat(awaitItem().soundsVisible).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+        viewModel(customSounds = false).uiState.test {
+            assertThat(awaitItem().soundsVisible).isFalse()
+            assertThat(awaitItem().soundsVisible).isFalse()
             cancelAndIgnoreRemainingEvents()
         }
     }

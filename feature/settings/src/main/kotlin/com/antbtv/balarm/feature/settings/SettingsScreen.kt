@@ -49,6 +49,7 @@ import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 fun SettingsRoute(
     onOpenHealth: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenSounds: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -57,13 +58,19 @@ fun SettingsRoute(
         viewModel.onResumed()
         onPauseOrDispose {}
     }
-    SettingsScreen(state = state, onOpenHealth = onOpenHealth, onOpenAbout = onOpenAbout, modifier = modifier)
+    SettingsScreen(
+        state = state,
+        onOpenHealth = onOpenHealth,
+        onOpenAbout = onOpenAbout,
+        onOpenSounds = onOpenSounds,
+        modifier = modifier,
+    )
 }
 
 /**
- * Вкладка «Настройки»: заголовок, «Здоровье будильника» со сводкой (✅ «Всё в порядке» / ⚠️ «N проблем»)
- * и «О приложении». Пока сводка считается — строка без значения и иконки: «Всё в порядке» не мигает перед
- * «2 проблемы».
+ * Вкладка «Настройки»: заголовок, «Здоровье будильника» со сводкой (✅ «Всё в порядке» / ⚠️ «N проблем»),
+ * «Мелодии» (если [SettingsUiState.soundsVisible]) и «О приложении». Пока сводка считается — строка без значения
+ * и иконки: «Всё в порядке» не мигает перед «2 проблемы».
  *
  * @param windowInsets системные отступы (в приложении — `safeDrawing`); тесты и превью задают свои.
  */
@@ -72,6 +79,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     onOpenHealth: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenSounds: () -> Unit,
     modifier: Modifier = Modifier,
     windowInsets: WindowInsets = WindowInsets.safeDrawing,
 ) {
@@ -106,24 +114,50 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .semantics { heading() },
                 )
-                Surface(shape = BalarmShapes.Card, color = colors.surface, modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        HealthRow(state = state, onClick = onOpenHealth)
-                        SettingRow(
-                            title = stringResource(R.string.settings_about),
-                            value = null,
-                            onClick = onOpenAbout,
-                            onClickLabel = stringResource(R.string.settings_action_open),
-                            modifier = Modifier.testTag(SettingsTestTags.ABOUT_ROW),
-                        )
-                    }
-                }
+                SettingsCard(
+                    state = state,
+                    onOpenHealth = onOpenHealth,
+                    onOpenSounds = onOpenSounds,
+                    onOpenAbout = onOpenAbout,
+                )
             }
             // При fontScale 2 на низком экране контент прокручивается под прозрачный статус-бар.
             SystemBarScrim(
                 edge = ScrimEdge.Top,
                 inset = vertical.calculateTopPadding(),
                 modifier = Modifier.align(Alignment.TopCenter),
+            )
+        }
+    }
+}
+
+/** Карточка пунктов: «Здоровье будильника», «Мелодии» (по флагу), «О приложении». */
+@Composable
+private fun SettingsCard(
+    state: SettingsUiState,
+    onOpenHealth: () -> Unit,
+    onOpenSounds: () -> Unit,
+    onOpenAbout: () -> Unit,
+) {
+    val openLabel = stringResource(R.string.settings_action_open)
+    Surface(shape = BalarmShapes.Card, color = BalarmTheme.colors.surface, modifier = Modifier.fillMaxWidth()) {
+        Column {
+            HealthRow(state = state, onClick = onOpenHealth)
+            if (state.soundsVisible) {
+                SettingRow(
+                    title = stringResource(R.string.settings_sounds),
+                    value = null,
+                    onClick = onOpenSounds,
+                    onClickLabel = openLabel,
+                    modifier = Modifier.testTag(SettingsTestTags.SOUNDS_ROW),
+                )
+            }
+            SettingRow(
+                title = stringResource(R.string.settings_about),
+                value = null,
+                onClick = onOpenAbout,
+                onClickLabel = openLabel,
+                modifier = Modifier.testTag(SettingsTestTags.ABOUT_ROW),
             )
         }
     }

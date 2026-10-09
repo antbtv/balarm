@@ -27,6 +27,7 @@ dependencies {
     implementation(projects.feature.ringing)
     implementation(projects.feature.settings)
     implementation(projects.feature.onboarding)
+    implementation(projects.feature.sounds)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

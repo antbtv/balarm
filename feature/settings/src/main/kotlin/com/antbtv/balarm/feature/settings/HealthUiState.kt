@@ -51,4 +51,6 @@ data class SettingsUiState(
     val loading: Boolean = true,
     /** Пункты в состоянии проблемы; 0 — «Всё в порядке». */
     val problems: Int = 0,
+    /** Строка «Мелодии» (библиотека своих мелодий) — только при `feature.customSounds` (ADR-016 §7). */
+    val soundsVisible: Boolean = false,
 )

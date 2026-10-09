@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import com.antbtv.balarm.core.model.SoundRef
 
 /** Вкладки нижней панели; порядок — порядок пунктов панели. */
 internal enum class Tab { ALARMS, SETTINGS }
@@ -24,6 +25,9 @@ internal enum class StackId { ONBOARDING, ALARMS, SETTINGS }
  *
  * Всё состояние — снапшот-объекты, которые переживают пересоздание Activity и смерть процесса
  * ([rememberBalarmNavState]); логика — обычные методы, проверяемые без Compose (`NavKeysTest`).
+ *
+ * Результат пикера мелодии (ADR-009 §3) — тоже здесь, а не в `ResultEventBus` Nav3: шина библиотеки держит
+ * результат в `remember` (каналы в памяти) и теряет его при пересоздании Activity и смерти процесса, а стек — нет.
  */
 @Stable
 internal class BalarmNavState(
@@ -31,9 +35,17 @@ internal class BalarmNavState(
     val onboarding: NavBackStack<NavKey>,
     val alarms: NavBackStack<NavKey>,
     val settings: NavBackStack<NavKey>,
+    soundPickResult: MutableState<String?> = mutableStateOf(null),
 ) {
     var currentTab: Tab by currentTab
         private set
+
+    /** `SoundRef.encode()` выбранной в пикере мелодии, пока редактор её не применил; `null` — результата нет. */
+    private var soundPickResult: String? by soundPickResult
+
+    /** Выбор пикера для редактора; битое значение (восстановление старого состояния) — как отсутствие выбора. */
+    val pickedSound: SoundRef?
+        get() = soundPickResult?.let(SoundRef::decode)
 
     val inOnboarding: Boolean get() = onboarding.isNotEmpty()
 
@@ -87,6 +99,27 @@ internal class BalarmNavState(
         onboarding.clear()
     }
 
+    /**
+     * «Мелодия» в редакторе: пикер открывается поверх редактора [stackId], только если тот на вершине (двойной
+     * тап — одна запись). Неприменённый старый результат сбрасывается: он не должен попасть в новый выбор.
+     */
+    fun openSoundPicker(stackId: StackId, selected: SoundRef) {
+        val stack = stack(stackId)
+        if (stack.lastOrNull() !is AlarmEditKey) return
+        soundPickResult = null
+        stack.add(SoundPickerKey(selected.encode()))
+    }
+
+    /** Пикер подтвердил выбор; экран закрывает себя сам (`onClose`), редактор под ним получит [pickedSound]. */
+    fun pickSound(sound: SoundRef) {
+        soundPickResult = sound.encode()
+    }
+
+    /** Редактор применил [pickedSound]: без очистки выбор применился бы снова после пересоздания Activity. */
+    fun consumeSoundPick() {
+        soundPickResult = null
+    }
+
     private companion object {
         val ONBOARDING_ONLY = listOf(StackId.ONBOARDING)
         val ALARMS_ONLY = listOf(StackId.ALARMS)
@@ -107,11 +140,14 @@ internal val Tab.stackId: StackId
 @Composable
 internal fun rememberBalarmNavState(showOnboarding: Boolean): BalarmNavState {
     val tab = rememberSaveable { mutableStateOf(Tab.ALARMS) }
+    val soundPickResult = rememberSaveable { mutableStateOf<String?>(null) }
     // Один call site: ключ сохранения не зависит от флага, восстановленный стек всегда найдётся.
     val onboarding = rememberNavBackStack(NavConfiguration, *if (showOnboarding) ONBOARDING_START else NO_KEYS)
     val alarms = rememberNavBackStack(NavConfiguration, AlarmListKey)
     val settings = rememberNavBackStack(NavConfiguration, SettingsKey)
-    return remember(tab, onboarding, alarms, settings) { BalarmNavState(tab, onboarding, alarms, settings) }
+    return remember(tab, onboarding, alarms, settings, soundPickResult) {
+        BalarmNavState(tab, onboarding, alarms, settings, soundPickResult)
+    }
 }
 
 /**

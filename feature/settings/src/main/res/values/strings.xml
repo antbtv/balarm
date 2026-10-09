@@ -8,6 +8,7 @@
         <item quantity="one">%d problem</item>
         <item quantity="other">%d problems</item>
     </plurals>
+    <string name="settings_sounds">Ringtones</string>
     <string name="settings_about">About</string>
     <!-- TalkBack: действие строки настроек («двойное касание, чтобы открыть»). -->
     <string name="settings_action_open">Open</string>

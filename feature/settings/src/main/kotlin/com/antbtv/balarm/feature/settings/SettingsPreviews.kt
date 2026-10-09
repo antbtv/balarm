@@ -33,7 +33,13 @@ private val PreviewHealthOk = HealthUiState(
 
 @Composable
 private fun Settings(state: SettingsUiState) {
-    SettingsScreen(state = state, onOpenHealth = {}, onOpenAbout = {}, windowInsets = PreviewInsets)
+    SettingsScreen(
+        state = state,
+        onOpenHealth = {},
+        onOpenAbout = {},
+        onOpenSounds = {},
+        windowInsets = PreviewInsets,
+    )
 }
 
 @Composable
@@ -53,7 +59,7 @@ private fun About(debug: Boolean = true) {
 
 // --- Настройки ---
 
-@Preview(name = "Settings — problems, 360dp", widthDp = 360, heightDp = 640)
+@Preview(name = "Settings — problems, no ringtones (flag off), 360dp", widthDp = 360, heightDp = 640)
 @Composable
 private fun SettingsProblemsPreview() {
     BalarmTheme { Settings(SettingsUiState(loading = false, problems = 2)) }
@@ -62,25 +68,25 @@ private fun SettingsProblemsPreview() {
 @Preview(name = "Settings — OK, RU", widthDp = 360, heightDp = 640, locale = "ru")
 @Composable
 private fun SettingsOkRuPreview() {
-    BalarmTheme { Settings(SettingsUiState(loading = false, problems = 0)) }
+    BalarmTheme { Settings(SettingsUiState(loading = false, problems = 0, soundsVisible = true)) }
 }
 
 @Preview(name = "Settings — 5 problems, RU, fontScale 2", widthDp = 360, heightDp = 640, fontScale = 2f, locale = "ru")
 @Composable
 private fun SettingsLargeFontPreview() {
-    BalarmTheme { Settings(SettingsUiState(loading = false, problems = 5)) }
+    BalarmTheme { Settings(SettingsUiState(loading = false, problems = 5, soundsVisible = true)) }
 }
 
 @Preview(name = "Settings — loading", widthDp = 360, heightDp = 640)
 @Composable
 private fun SettingsLoadingPreview() {
-    BalarmTheme { Settings(SettingsUiState()) }
+    BalarmTheme { Settings(SettingsUiState(soundsVisible = true)) }
 }
 
 @Preview(name = "Settings — light", widthDp = 360, heightDp = 640)
 @Composable
 private fun SettingsLightPreview() {
-    BalarmTheme(darkTheme = false) { Settings(SettingsUiState(loading = false, problems = 1)) }
+    BalarmTheme(darkTheme = false) { Settings(SettingsUiState(loading = false, problems = 1, soundsVisible = true)) }
 }
 
 // --- Здоровье ---

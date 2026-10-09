@@ -9,6 +9,7 @@
         <item quantity="many">%d проблем</item>
         <item quantity="other">%d проблемы</item>
     </plurals>
+    <string name="settings_sounds">Мелодии</string>
     <string name="settings_about">О приложении</string>
     <string name="settings_action_open">Открыть</string>
     <string name="settings_back">Назад</string>

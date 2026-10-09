@@ -3,6 +3,8 @@ package com.antbtv.balarm.ui
 import androidx.compose.runtime.mutableStateOf
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import com.antbtv.balarm.core.model.BuiltinSound
+import com.antbtv.balarm.core.model.SoundRef
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -54,7 +56,16 @@ class NavKeysTest {
 
     @Test
     fun `every key kind is a registered subtype`() {
-        val keys = listOf(AlarmListKey, SettingsKey, AlarmEditKey(1), HealthKey, AboutKey, OnboardingKey)
+        val keys = listOf(
+            AlarmListKey,
+            SettingsKey,
+            AlarmEditKey(1),
+            HealthKey,
+            AboutKey,
+            OnboardingKey,
+            SoundPickerKey(SoundRef.DEFAULT.encode()),
+            SoundLibraryKey,
+        )
 
         keys.forEach { key ->
             assertWithMessage(key.toString())
@@ -171,10 +182,69 @@ class NavKeysTest {
         assertThat(nav.atTabRoot).isTrue()
     }
 
+    @Test
+    fun `the sound picker opens only from the editor on top, once, with the current sound`() {
+        val nav = navState()
+        nav.openSoundPicker(StackId.ALARMS, BELLS)
+        assertThat(nav.alarms.toList()).containsExactly(AlarmListKey)
+
+        nav.alarms.openEditor(alarmId = 3)
+        nav.openSoundPicker(StackId.ALARMS, BELLS)
+        nav.openSoundPicker(StackId.ALARMS, SoundRef.DEFAULT)
+
+        assertThat(nav.alarms.toList())
+            .containsExactly(AlarmListKey, AlarmEditKey(3), SoundPickerKey("builtin:snd_bells"))
+            .inOrder()
+    }
+
+    @Test
+    fun `a pick is kept until the editor consumes it`() {
+        val nav = navState()
+        assertThat(nav.pickedSound).isNull()
+
+        nav.pickSound(BELLS)
+        assertThat(nav.pickedSound).isEqualTo(BELLS)
+
+        nav.consumeSoundPick()
+        assertThat(nav.pickedSound).isNull()
+    }
+
+    @Test
+    fun `opening the picker drops an unconsumed old pick`() {
+        val nav = navState()
+        nav.alarms.openEditor(alarmId = null)
+        nav.pickSound(BELLS)
+
+        nav.openSoundPicker(StackId.ALARMS, SoundRef.DEFAULT)
+
+        assertThat(nav.pickedSound).isNull()
+    }
+
+    @Test
+    fun `my ringtones open from the picker and from settings in their own stacks`() {
+        val nav = navState()
+        nav.alarms.openEditor(alarmId = null)
+        nav.openSoundPicker(StackId.ALARMS, SoundRef.DEFAULT)
+        val picker = nav.alarms.last()
+        nav.alarms.openFrom(picker, SoundLibraryKey)
+        nav.alarms.openFrom(picker, SoundLibraryKey)
+        nav.selectTab(Tab.SETTINGS)
+        nav.settings.openFrom(SettingsKey, SoundLibraryKey)
+
+        assertThat(nav.alarms.toList()).containsExactly(AlarmListKey, AlarmEditKey(null), picker, SoundLibraryKey)
+            .inOrder()
+        assertThat(nav.settings.toList()).containsExactly(SettingsKey, SoundLibraryKey).inOrder()
+        assertThat(nav.atTabRoot).isFalse()
+    }
+
     private fun navState(onboarding: Boolean = false) = BalarmNavState(
         currentTab = mutableStateOf(Tab.ALARMS),
         onboarding = if (onboarding) NavBackStack(OnboardingKey) else NavBackStack(),
         alarms = NavBackStack(AlarmListKey),
         settings = NavBackStack(SettingsKey),
     )
+
+    private companion object {
+        val BELLS: SoundRef = SoundRef.Builtin(BuiltinSound.BELLS)
+    }
 }

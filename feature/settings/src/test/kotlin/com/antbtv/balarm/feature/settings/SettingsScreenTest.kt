@@ -24,6 +24,7 @@ class SettingsScreenTest {
 
     private var healthOpened = 0
     private var aboutOpened = 0
+    private var soundsOpened = 0
 
     private fun show(state: SettingsUiState, fontScale: Float? = null) {
         composeRule.setContent {
@@ -32,6 +33,7 @@ class SettingsScreenTest {
                     state = state,
                     onOpenHealth = { healthOpened++ },
                     onOpenAbout = { aboutOpened++ },
+                    onOpenSounds = { soundsOpened++ },
                     windowInsets = WindowInsets(0.dp),
                 )
             }
@@ -86,11 +88,41 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun `ringtones row is shown when the flag is on and opens the library`() {
+        show(SettingsUiState(loading = false, soundsVisible = true))
+
+        composeRule.onNodeWithTag(SettingsTestTags.SOUNDS_ROW)
+            .assertTextContains(text(R.string.settings_sounds))
+            .performClick()
+
+        assertThat(soundsOpened).isEqualTo(1)
+        assertThat(healthOpened).isEqualTo(0)
+        assertThat(aboutOpened).isEqualTo(0)
+    }
+
+    @Test
+    fun `ringtones row is hidden when the flag is off`() {
+        show(SettingsUiState(loading = false, soundsVisible = false))
+
+        composeRule.onNodeWithTag(SettingsTestTags.SOUNDS_ROW).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsTestTags.ABOUT_ROW).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "ru-w360dp-h640dp")
+    fun `russian ringtones row`() {
+        show(SettingsUiState(loading = false, soundsVisible = true))
+
+        composeRule.onNodeWithTag(SettingsTestTags.SOUNDS_ROW).assertTextContains("Мелодии")
+    }
+
+    @Test
     @Config(qualifiers = "ru-w360dp-h640dp")
     fun `font scale 2 on 360dp does not clip text`() {
-        show(SettingsUiState(loading = false, problems = 3), fontScale = 2f)
+        show(SettingsUiState(loading = false, problems = 3, soundsVisible = true), fontScale = 2f)
 
         composeRule.onNodeWithTag(SettingsTestTags.HEALTH_ROW).assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsTestTags.SOUNDS_ROW).assertIsDisplayed()
         composeRule.onNodeWithTag(SettingsTestTags.ABOUT_ROW).assertIsDisplayed()
         composeRule.assertNoTextOverflow()
     }

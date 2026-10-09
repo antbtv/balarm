@@ -6,6 +6,7 @@ import com.antbtv.balarm.core.domain.health.HealthItem
 object SettingsTestTags {
     const val ROOT = "settingsRoot"
     const val HEALTH_ROW = "settingsHealthRow"
+    const val SOUNDS_ROW = "settingsSoundsRow"
     const val ABOUT_ROW = "settingsAboutRow"
 }
 

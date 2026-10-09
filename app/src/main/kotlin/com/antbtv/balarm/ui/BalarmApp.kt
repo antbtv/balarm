@@ -25,12 +25,15 @@ import com.antbtv.balarm.core.designsystem.component.BalarmNavigationBar
 import com.antbtv.balarm.core.designsystem.component.NavBarItem
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.feature.alarmedit.AlarmEditRoute
 import com.antbtv.balarm.feature.alarmlist.AlarmListRoute
 import com.antbtv.balarm.feature.onboarding.OnboardingRoute
 import com.antbtv.balarm.feature.settings.AboutRoute
 import com.antbtv.balarm.feature.settings.HealthRoute
 import com.antbtv.balarm.feature.settings.SettingsRoute
+import com.antbtv.balarm.feature.sounds.SoundLibraryRoute
+import com.antbtv.balarm.feature.sounds.SoundPickerRoute
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
@@ -45,6 +48,8 @@ internal val NavConfiguration = SavedStateConfiguration {
             subclass(HealthKey::class)
             subclass(AboutKey::class)
             subclass(OnboardingKey::class)
+            subclass(SoundPickerKey::class)
+            subclass(SoundLibraryKey::class)
         }
     }
 }
@@ -106,8 +111,9 @@ private fun rememberStackEntries(
 }
 
 /**
- * Колбэки экранов → операции над стеком [id]. Здоровье открывается в том стеке, откуда пришёл пользователь
- * (баннер списка — будильники, настройки — настройки), вкладка не переключается (ADR-014 §3).
+ * Колбэки экранов → операции над стеком [id]. Здоровье и «Мои мелодии» открываются в том стеке, откуда пришёл
+ * пользователь (баннер списка / пикер — будильники, настройки — настройки), вкладка не переключается (ADR-014 §3).
+ * Выбор пикера возвращается в редактор через [BalarmNavState.pickedSound] (ADR-009 §3).
  */
 private fun balarmEntryProvider(
     nav: BalarmNavState,
@@ -134,6 +140,7 @@ private fun balarmEntryProvider(
                 SettingsRoute(
                     onOpenHealth = { stack.openFrom(SettingsKey, HealthKey) },
                     onOpenAbout = { stack.openFrom(SettingsKey, AboutKey) },
+                    onOpenSounds = { stack.openFrom(SettingsKey, SoundLibraryKey) },
                     modifier = rootModifier,
                 )
             }
@@ -143,7 +150,22 @@ private fun balarmEntryProvider(
                 alarmId = key.alarmId?.let(::AlarmId),
                 // Только если редактор ещё на вершине: лишний pop снял бы список.
                 onClose = { if (stack.lastOrNull() is AlarmEditKey) stack.removeAt(stack.lastIndex) },
+                onPickSound = { current -> nav.openSoundPicker(id, current) },
+                pickedSound = nav.pickedSound,
+                onSoundPickConsumed = nav::consumeSoundPick,
             )
+        }
+        entry<SoundPickerKey>(clazzContentKey = contentKey) { key ->
+            SoundPickerRoute(
+                selected = SoundRef.decode(key.selected) ?: SoundRef.DEFAULT,
+                // Запоздалый тап (пикер уже уходит) не должен подменить выбор.
+                onPicked = { sound -> if (stack.lastOrNull() == key) nav.pickSound(sound) },
+                onClose = { stack.closeTop(key) },
+                onOpenLibrary = { stack.openFrom(key, SoundLibraryKey) },
+            )
+        }
+        entry<SoundLibraryKey>(clazzContentKey = contentKey) {
+            SoundLibraryRoute(onClose = { stack.closeTop(SoundLibraryKey) })
         }
         entry<HealthKey>(clazzContentKey = contentKey) {
             HealthRoute(onClose = { stack.closeTop(HealthKey) })

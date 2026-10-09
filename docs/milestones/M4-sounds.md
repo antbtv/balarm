@@ -47,7 +47,7 @@
 | [x] | M4-T08 | `SoundPreview` (владелец PREVIEW, автостоп 10 с) 🔔 | FR-SND-3 | S | T06 | |
 | [x] | M4-T09 | Секция «Звук» в редакторе 🎨 | FR-EDIT-5 | M | T01, T08 | |
 | [x] | M4-T10 | `:feature:sounds`: пикер и библиотека 🎨 | FR-SND-2,3 | L | T04, T08 | |
-| [ ] | M4-T11 | `:app`: навигация, Result API, «Мелодии» в Настройках, DI 🎨 | FR-SND-2,3 | S | T09, T10 | |
+| [x] | M4-T11 | `:app`: навигация, Result API, «Мелодии» в Настройках, DI 🎨 | FR-SND-2,3 | S | T09, T10 | |
 | [ ] | M4-T12 | Здоровье: убрать `ALARM_VOLUME`; обратная связь «Тест через 1 минуту» 🎨 | (M3→M4) | S | — | |
 | [ ] | M4-T-test | Тестирование этапа (tester) | | M | все | |
 | [ ] | M4-T-review | Ревью этапа (reviewer) | | S | T-test | |
@@ -152,8 +152,8 @@
 **Описание:** `SoundPickerKey`, `SoundLibraryKey`; результат пикера в редактор через Result API Nav3 (ADR-009 §3); строка «Мелодии» в Настройках; Hilt-биндинги.
 **Модули:** `:app`, `:feature:settings`.
 **Критерии приёмки:**
-- [ ] E2E: редактор → пикер → выбор → вернулся в редактор с выбранной мелодией
-- [ ] Восстановление после `am kill` на пикере
+- [x] E2E: редактор → пикер → выбор → вернулся в редактор с выбранной мелодией
+- [x] Восстановление после `am kill` на пикере
 **Тесты:** Compose UI/навигация.
 
 ### M4-T12 — Здоровье и обратная связь теста 🎨 ui
@@ -185,6 +185,7 @@ ADR-016/017 → Accepted; ссылки на ADR-017 в ADR-008 и ADR-012; пр�
 | Память машины | Одна Gradle-сборка, эмулятор без окна с лимитом |
 
 ## Добавлено по ходу
+* T11: результат пикера хранится в `BalarmNavState` через `rememberSaveable`, а не в `ResultEventBus` Nav3 (шина in-memory, не переживает смерть процесса) — отразить в ADR-009 §3 / ADR-016 §8 (T-docs). Починен тестовый DI `:app` (`TestSoundStores`). Lint: неиспользуемые строки `sounds_action_select`, `sounds_rename` в `:feature:sounds`. Проверка «am kill на пикере» на эмуляторе — в T-test.
 * T10: в `:core:designsystem` добавлены `TextInputDialog`, `BalarmSnackbarHost`, иконки Play/Stop/Edit — внести в alarmy-ui (T-docs). API: `SoundPickerRoute(selected, onPicked, onClose, onOpenLibrary)`, `SoundLibraryRoute(onClose)`; `SoundPickerViewModel.Factory.create(selected: String)`.
 * T09: в `:core:designsystem` добавлены `SliderRow` и `SwitchRow` — внести в таблицу компонентов скилла alarmy-ui (T-docs). Контракт для T11: `AlarmEditRoute(..., onPickSound: (SoundRef) -> Unit, pickedSound: SoundRef?, onSoundPickConsumed: () -> Unit)`. Визуальная проверка на эмуляторе — в T-test.
 * T06: `AlarmVolumeController` пишет снимок громкости синхронно (таймаут 300 мс) до смены потока; `restorePendingIfIdle` и `SoundRepository.cleanUp` вызываются из `MainActivity` при запуске. Новые события: `VOLUME_APPLIED`, `VOLUME_NOT_APPLIED`, `VOLUME_FIXED`, `VOLUME_RESTORED`. `isVolumeFixed` и ignore-by-hardening Robolectric не эмулирует — только эмулятор (R19).

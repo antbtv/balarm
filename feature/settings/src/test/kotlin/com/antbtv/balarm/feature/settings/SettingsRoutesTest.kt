@@ -51,11 +51,11 @@ class SettingsRoutesTest {
     @Test
     fun `settings route reads health on resume`() {
         checker.current = HEALTHY_SNAPSHOT.copy(notificationsEnabled = false, exactAlarms = false)
-        val viewModel = SettingsViewModel(checker, setup, repository)
+        val viewModel = SettingsViewModel(checker, setup, repository, ConfigFeatureFlagProvider)
         val callsBefore = checker.calls
 
         composeRule.setContent {
-            TestTheme { SettingsRoute(onOpenHealth = {}, onOpenAbout = {}, viewModel = viewModel) }
+            TestTheme { SettingsRoute(onOpenHealth = {}, onOpenAbout = {}, onOpenSounds = {}, viewModel = viewModel) }
         }
 
         composeRule.onNodeWithTag(SettingsTestTags.HEALTH_ROW).assertTextContains("2 problems")
