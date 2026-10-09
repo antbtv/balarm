@@ -2,6 +2,7 @@ package com.antbtv.balarm.feature.alarmedit
 
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.SnoozeSettings
+import com.antbtv.balarm.core.model.SoundSettings
 import com.antbtv.balarm.core.model.takeCodePoints
 import java.time.Duration
 
@@ -32,11 +33,26 @@ internal object AlarmEditReducer {
 
         is AlarmEditEvent.SnoozeLimitSelected -> state.editSnooze { snooze.withMaxCount(event.maxCount) }
 
+        is AlarmEditEvent.SoundSelected -> state.editSound { copy(sound = sound.copy(sound = event.sound)) }
+
+        is AlarmEditEvent.VolumeChanged ->
+            state.editSound { copy(sound = sound.copy(volumePercent = snapVolume(event.percent))) }
+
+        is AlarmEditEvent.FadeInSelected -> if (event.fadeIn in SoundSettings.FADE_IN_OPTIONS) {
+            state.editSound { copy(sound = sound.copy(fadeIn = event.fadeIn)) }
+        } else {
+            state.copy(dialog = null)
+        }
+
+        is AlarmEditEvent.VibrateChanged -> state.editSound { copy(vibrate = event.vibrate) }
+
         else -> null
     }
 
     /** Диалоги; остальное (сохранить, тест, подтвердить удаление, закрыть) — действия ViewModel. */
     private fun reduceDialog(state: AlarmEditUiState, event: AlarmEditEvent): AlarmEditUiState = when (event) {
+        AlarmEditEvent.ShowFadeInDialog -> state.showFadeInDialog()
+
         AlarmEditEvent.ShowSnoozeIntervalDialog ->
             if (state.snoozeVisible) state.copy(dialog = EditDialog.SnoozeInterval) else state
 
@@ -71,6 +87,13 @@ internal object AlarmEditReducer {
     private fun AlarmEditUiState.editSnooze(change: Alarm.() -> SnoozeSettings): AlarmEditUiState =
         if (!snoozeVisible) this else edit { copy(snooze = change()) }
 
+    private fun AlarmEditUiState.showFadeInDialog(): AlarmEditUiState =
+        if (soundVisible) copy(dialog = EditDialog.FadeIn) else this
+
+    /** Секция «Звук» скрыта флагом — звук и вибрацию будильника не трогаем (ADR-016 §7). */
+    private fun AlarmEditUiState.editSound(change: Alarm.() -> Alarm): AlarmEditUiState =
+        if (!soundVisible) this else edit(change)
+
     /** Однострочная метка не длиннее лимита: перевод строки → пробел, лишнее отрезается по code points. */
     private fun String.cleanLabel(): String = replace(LINE_BREAKS, " ").takeCodePoints(Alarm.MAX_LABEL_LENGTH)
 
@@ -90,3 +113,10 @@ internal fun SnoozeSettings.withInterval(interval: Duration?): SnoozeSettings = 
 
 internal fun SnoozeSettings.withMaxCount(maxCount: Int?): SnoozeSettings =
     if (isEnabled) SnoozeSettings(interval = interval, maxCount = maxCount) else this
+
+/** Громкость слайдера → допустимое значение `SoundSettings`: 10..100, ближайшее кратное 10. */
+internal fun snapVolume(percent: Int): Int {
+    val step = SoundSettings.VOLUME_STEP
+    val clamped = percent.coerceIn(SoundSettings.MIN_VOLUME, SoundSettings.MAX_VOLUME)
+    return (clamped + step / 2) / step * step
+}

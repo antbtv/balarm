@@ -105,3 +105,15 @@ object TopBarTestTags {
     const val BACK = "balarmTopBarBack"
     const val TITLE = "balarmTopBarTitle"
 }
+
+/** Теги по умолчанию у [SwitchRow]; на экране с несколькими строками вызывающий задаёт свой через `modifier`. */
+object SwitchRowTestTags {
+    const val ROW = "switchRow"
+}
+
+/** Теги [SliderRow]: строка целиком и сам ползунок (регулируемый узел TalkBack). */
+object SliderRowTestTags {
+    const val ROW = "sliderRow"
+    const val SLIDER = "sliderRowSlider"
+    const val VALUE = "sliderRowValue"
+}

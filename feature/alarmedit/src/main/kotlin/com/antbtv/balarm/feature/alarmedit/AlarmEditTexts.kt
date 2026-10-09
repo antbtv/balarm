@@ -1,6 +1,10 @@
 package com.antbtv.balarm.feature.alarmedit
 
 import android.content.res.Resources
+import android.icu.text.MeasureFormat
+import android.icu.text.NumberFormat
+import android.icu.util.Measure
+import android.icu.util.MeasureUnit
 import com.antbtv.balarm.core.designsystem.component.DayChipUi
 import com.antbtv.balarm.core.designsystem.component.DayPreset
 import com.antbtv.balarm.core.domain.schedule.TimeUntil
@@ -64,3 +68,32 @@ internal fun dayChips(selected: Set<DayOfWeek>, weekdayFormat: WeekdayFormat): L
  */
 internal fun pressedPreset(current: Set<DayOfWeek>, next: Set<DayOfWeek>): DayPreset? =
     DayPreset.entries.firstOrNull { it.toggle(current) == next }
+
+/** «80%» / «80 %» по локали — значение над слайдером громкости. */
+internal fun volumeText(percent: Int, locale: Locale): String =
+    NumberFormat.getPercentInstance(locale).format(percent / PERCENT)
+
+/** «80 процентов» — состояние слайдера для TalkBack (иначе он прочитал бы долю диапазона 10..100). */
+internal fun volumeDescription(percent: Int, locale: Locale): String =
+    MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE).format(Measure(percent, MeasureUnit.PERCENT))
+
+/**
+ * Нарастание: «Выкл» / «15 с» / «1 мин»; [wide] — для TalkBack и диалога: «выключено» / «15 секунд» / «1 минута».
+ * Единицы — ICU, как у snooze.
+ */
+internal fun fadeInText(fadeIn: Duration, resources: Resources, locale: Locale, wide: Boolean): String {
+    if (fadeIn.isZero) {
+        return resources.getString(if (wide) R.string.alarm_edit_fade_in_off_wide else R.string.alarm_edit_fade_in_off)
+    }
+    val seconds = fadeIn.seconds
+    val measure = if (seconds % SECONDS_IN_MINUTE == 0L) {
+        Measure(seconds / SECONDS_IN_MINUTE, MeasureUnit.MINUTE)
+    } else {
+        Measure(seconds, MeasureUnit.SECOND)
+    }
+    val width = if (wide) MeasureFormat.FormatWidth.WIDE else MeasureFormat.FormatWidth.SHORT
+    return MeasureFormat.getInstance(locale, width).format(measure)
+}
+
+private const val PERCENT = 100.0
+private const val SECONDS_IN_MINUTE = 60L

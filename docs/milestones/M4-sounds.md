@@ -45,7 +45,7 @@
 | [x] | M4-T06 | `AlarmVolumeController` + интеграция в `RingingService` 🔔 | FR-SND-7 | M | T04, T05 | |
 | [x] | M4-T07 | Реакция на режим аудио (звонок/вызов): mute+вибрация 🔔 | FR-RING-8 | S | T05 | |
 | [x] | M4-T08 | `SoundPreview` (владелец PREVIEW, автостоп 10 с) 🔔 | FR-SND-3 | S | T06 | |
-| [ ] | M4-T09 | Секция «Звук» в редакторе 🎨 | FR-EDIT-5 | M | T01, T08 | |
+| [x] | M4-T09 | Секция «Звук» в редакторе 🎨 | FR-EDIT-5 | M | T01, T08 | |
 | [ ] | M4-T10 | `:feature:sounds`: пикер и библиотека 🎨 | FR-SND-2,3 | L | T04, T08 | |
 | [ ] | M4-T11 | `:app`: навигация, Result API, «Мелодии» в Настройках, DI 🎨 | FR-SND-2,3 | S | T09, T10 | |
 | [ ] | M4-T12 | Здоровье: убрать `ALARM_VOLUME`; обратная связь «Тест через 1 минуту» 🎨 | (M3→M4) | S | — | |
@@ -133,9 +133,9 @@
 **Описание:** строка мелодии (→ пикер), слайдер 10–100 % шаг 10 с превью, выбор нарастания, переключатель вибрации, состояние «Мелодия удалена». Всё за `feature.alarmSound`. Строки RU+EN, токены из дизайн-системы.
 **Модули:** `:feature:alarmedit`.
 **Критерии приёмки:**
-- [ ] Значения сохраняются и читаются при повторном открытии
-- [ ] При выключенном флаге секции нет, будильник играет по умолчанию
-- [ ] Compose UI-тесты, TalkBack-описания, fontScale 2.0 без обрезки
+- [x] Значения сохраняются и читаются при повторном открытии
+- [x] При выключенном флаге секции нет, будильник играет по умолчанию
+- [x] Compose UI-тесты, TalkBack-описания, fontScale 2.0 без обрезки
 **Тесты:** Compose UI, unit ViewModel.
 
 ### M4-T10 — Пикер и библиотека 🎨 ui
@@ -185,6 +185,7 @@ ADR-016/017 → Accepted; ссылки на ADR-017 в ADR-008 и ADR-012; пр�
 | Память машины | Одна Gradle-сборка, эмулятор без окна с лимитом |
 
 ## Добавлено по ходу
+* T09: в `:core:designsystem` добавлены `SliderRow` и `SwitchRow` — внести в таблицу компонентов скилла alarmy-ui (T-docs). Контракт для T11: `AlarmEditRoute(..., onPickSound: (SoundRef) -> Unit, pickedSound: SoundRef?, onSoundPickConsumed: () -> Unit)`. Визуальная проверка на эмуляторе — в T-test.
 * T06: `AlarmVolumeController` пишет снимок громкости синхронно (таймаут 300 мс) до смены потока; `restorePendingIfIdle` и `SoundRepository.cleanUp` вызываются из `MainActivity` при запуске. Новые события: `VOLUME_APPLIED`, `VOLUME_NOT_APPLIED`, `VOLUME_FIXED`, `VOLUME_RESTORED`. `isVolumeFixed` и ignore-by-hardening Robolectric не эмулирует — только эмулятор (R19).
 * T05 захватил часть T06: `RingingService` уже передаёт `alarm.sound` и `fadeIn` (RESUME/CATCH_UP — без нарастания), сторож переключает мелодию без нарастания. В T06 остаётся громкость потока.
 * Источники в `SOUND_STARTED`: `builtin|custom|default|tone` (раньше `raw`); обновлён скилл verify-alarm-reliability (R11).

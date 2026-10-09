@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -32,6 +33,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.antbtv.balarm.core.designsystem.component.ConfirmDialog
 import com.antbtv.balarm.core.designsystem.component.DayChipsRow
@@ -55,6 +58,7 @@ import com.antbtv.balarm.core.format.rememberWeekdayFormat
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.SnoozeSettings
+import com.antbtv.balarm.core.model.SoundRef
 import java.text.DateFormatSymbols
 import java.time.DayOfWeek
 import java.time.Duration
@@ -71,26 +75,60 @@ import java.util.Locale
  *
  * Insets: экран сам обрабатывает `WindowInsets.safeDrawing` (edge-to-edge, вместе с клавиатурой). `:app` не
  * добавляет отступов и не оборачивает экран в `Scaffold` / `padding(innerPadding)` — иначе отступы удвоятся.
+ *
+ * Мелодия (ADR-016 §8): тап по строке «Мелодия» → [onPickSound] с текущим выбором — `:app` открывает пикер;
+ * выбор возвращается параметром [pickedSound] (Result API в `:app`), редактор применяет его один раз и сообщает
+ * [onSoundPickConsumed] — `:app` очищает результат, чтобы он не применился повторно после поворота.
  */
 @Composable
-fun AlarmEditRoute(alarmId: AlarmId?, onClose: () -> Unit, modifier: Modifier = Modifier) {
+fun AlarmEditRoute(
+    alarmId: AlarmId?,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    onPickSound: (current: SoundRef) -> Unit = {},
+    pickedSound: SoundRef? = null,
+    onSoundPickConsumed: () -> Unit = {},
+) {
     val viewModel = hiltViewModel<AlarmEditViewModel, AlarmEditViewModel.Factory>(
         creationCallback = { factory -> factory.create(alarmId?.value) },
     )
-    AlarmEditRoute(viewModel = viewModel, onClose = onClose, modifier = modifier)
+    AlarmEditRoute(
+        viewModel = viewModel,
+        onClose = onClose,
+        modifier = modifier,
+        onPickSound = onPickSound,
+        pickedSound = pickedSound,
+        onSoundPickConsumed = onSoundPickConsumed,
+    )
 }
 
 /** То же с готовой ViewModel: сквозные тесты собирают её на фейках без Hilt. */
 @Composable
-internal fun AlarmEditRoute(viewModel: AlarmEditViewModel, onClose: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AlarmEditRoute(
+    viewModel: AlarmEditViewModel,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    onPickSound: (current: SoundRef) -> Unit = {},
+    pickedSound: SoundRef? = null,
+    onSoundPickConsumed: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    AlarmEditEffectsHandler(effects = viewModel.effects, onClose = onClose)
+    AlarmEditEffectsHandler(effects = viewModel.effects, onClose = onClose, onPickSound = onPickSound)
+    val currentOnSoundPickConsumed by rememberUpdatedState(onSoundPickConsumed)
+    LaunchedEffect(pickedSound, viewModel) {
+        if (pickedSound != null) {
+            viewModel.onEvent(AlarmEditEvent.SoundSelected(pickedSound))
+            currentOnSoundPickConsumed()
+        }
+    }
+    // Свернули/ушли с экрана — превью громкости замолкает (ADR-017 §6).
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onEvent(AlarmEditEvent.StopSoundPreview) }
     AlarmEditScreen(state = state, onEvent = viewModel::onEvent, modifier = modifier)
 }
 
 /**
- * Редактор (FR-EDIT-1…11, скилл alarmy-ui): заголовок, колесо времени, пресеты и дни, метка, snooze (если
- * включён флаг), «Тест» и «Удалить»; «Сохранить» закреплена снизу и видна при любой прокрутке.
+ * Редактор (FR-EDIT-1…11, скилл alarmy-ui): заголовок, колесо времени, пресеты и дни, метка, snooze и «Звук»
+ * (каждая — если включён её флаг), «Тест» и «Удалить»; «Сохранить» закреплена снизу и видна при любой прокрутке.
  *
  * Пока будильник загружается — только заголовок: форма со значениями по умолчанию не мигает перед настоящими.
  * Во время сохранения/удаления кнопки недоступны. Тексты диалогов и значения — здесь, состояние диалогов —
@@ -212,6 +250,16 @@ private fun EditorContent(
         if (state.snoozeVisible) {
             SnoozeSection(
                 snooze = draft.snooze,
+                locale = clockFormat.locale,
+                enabled = !state.saving,
+                onEvent = onEvent,
+            )
+        }
+        if (state.soundVisible) {
+            SoundSection(
+                sound = draft.sound,
+                soundName = state.soundName,
+                vibrate = draft.vibrate,
                 locale = clockFormat.locale,
                 enabled = !state.saving,
                 onEvent = onEvent,
@@ -421,6 +469,12 @@ private fun EditorDialog(state: AlarmEditUiState, clockFormat: ClockFormat, onEv
         )
 
         EditDialog.SnoozeLimit -> SnoozeLimitDialog(current = state.draft.snooze.maxCount, onEvent = onEvent)
+
+        EditDialog.FadeIn -> FadeInDialog(
+            current = state.draft.sound.fadeIn,
+            locale = clockFormat.locale,
+            onEvent = onEvent,
+        )
 
         EditDialog.ConfirmDelete -> ConfirmDialog(
             title = stringResource(R.string.alarm_edit_delete_title),

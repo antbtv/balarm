@@ -38,6 +38,16 @@
     <string name="alarm_edit_row_description">%1$s, %2$s</string>
     <string name="alarm_edit_action_change">Изменить</string>
 
+    <string name="alarm_edit_sound">Мелодия</string>
+    <string name="alarm_edit_sound_missing">Мелодия удалена</string>
+    <string name="alarm_edit_sound_missing_hint">Выберите другую мелодию. Пока будильник играет стандартную.</string>
+    <string name="alarm_edit_action_choose">Выбрать</string>
+    <string name="alarm_edit_volume">Громкость</string>
+    <string name="alarm_edit_fade_in">Нарастание</string>
+    <string name="alarm_edit_fade_in_title">Плавное нарастание громкости</string>
+    <string name="alarm_edit_fade_in_off">Выкл</string>
+    <string name="alarm_edit_fade_in_off_wide">выключено</string>
+    <string name="alarm_edit_vibrate">Вибрация</string>
     <string name="alarm_edit_save">Сохранить</string>
     <string name="alarm_edit_test">Тест</string>
     <string name="alarm_edit_delete">Удалить</string>

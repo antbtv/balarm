@@ -58,13 +58,22 @@ class AlarmEditRouteTest {
     private val scheduler = FakeAlarmScheduler()
     private val log = RecordingEventLog()
     private var snoozeFlag = true
-    private val flags = FeatureFlagProvider { if (it == Feature.SNOOZE) snoozeFlag else it.defaultEnabled }
+    private var soundFlag = false
+    private val flags = FeatureFlagProvider {
+        when (it) {
+            Feature.SNOOZE -> snoozeFlag
+            Feature.ALARM_SOUND -> soundFlag
+            else -> it.defaultEnabled
+        }
+    }
+    private val sounds = FakeSoundRepository()
+    private val preview = RecordingSoundPreview()
     private val engine = testEngine(repository, scheduler, clock, flags, log)
     private var closed = 0
 
     private fun showRoute(alarmId: Long? = null) {
         val runner = testAlarmRunner(scheduler, clock, log)
-        val viewModel = AlarmEditViewModel(alarmId, repository, engine, runner, clock, flags)
+        val viewModel = AlarmEditViewModel(alarmId, repository, engine, runner, clock, flags, sounds, preview)
         composeRule.setContent {
             BalarmTheme { AlarmEditRoute(viewModel = viewModel, onClose = { closed++ }) }
         }

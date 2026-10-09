@@ -12,6 +12,16 @@ object AlarmEditTestTags {
     const val CONTENT = "alarmEditContent"
     const val SNOOZE_INTERVAL = "alarmEditSnoozeInterval"
     const val SNOOZE_LIMIT = "alarmEditSnoozeLimit"
+
+    /** Секция «Звук» (за `feature.alarmSound`). */
+    const val SOUND_SECTION = "alarmEditSoundSection"
+    const val SOUND = "alarmEditSound"
+    const val SOUND_MISSING_HINT = "alarmEditSoundMissingHint"
+
+    /** Строка громкости; сам ползунок внутри — `SliderRowTestTags.SLIDER`. */
+    const val VOLUME = "alarmEditVolume"
+    const val FADE_IN = "alarmEditFadeIn"
+    const val VIBRATE = "alarmEditVibrate"
     const val SAVE = "alarmEditSave"
     const val TEST = "alarmEditTest"
     const val DELETE = "alarmEditDelete"

@@ -40,6 +40,18 @@
     <string name="alarm_edit_row_description">%1$s, %2$s</string>
     <string name="alarm_edit_action_change">Change</string>
 
+    <!-- Звук (FR-EDIT-5, feature.alarmSound) -->
+    <string name="alarm_edit_sound">Ringtone</string>
+    <string name="alarm_edit_sound_missing">Ringtone deleted</string>
+    <string name="alarm_edit_sound_missing_hint">Choose another ringtone. Until then the alarm plays the default one.</string>
+    <string name="alarm_edit_action_choose">Choose</string>
+    <string name="alarm_edit_volume">Volume</string>
+    <string name="alarm_edit_fade_in">Gradual volume</string>
+    <string name="alarm_edit_fade_in_title">Increase volume gradually</string>
+    <string name="alarm_edit_fade_in_off">Off</string>
+    <string name="alarm_edit_fade_in_off_wide">turned off</string>
+    <string name="alarm_edit_vibrate">Vibration</string>
+
     <!-- Кнопки -->
     <string name="alarm_edit_save">Save</string>
     <string name="alarm_edit_test">Test</string>

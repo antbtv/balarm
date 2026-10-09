@@ -9,8 +9,13 @@ import com.antbtv.balarm.core.format.ClockFormat
 import com.antbtv.balarm.core.format.WeekdayFormat
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.BuiltinSound
+import com.antbtv.balarm.core.model.CustomSoundId
 import com.antbtv.balarm.core.model.SnoozeSettings
+import com.antbtv.balarm.core.model.SoundRef
+import com.antbtv.balarm.core.model.SoundSettings
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalTime
 import java.util.Locale
 
@@ -40,6 +45,31 @@ private val NewState = AlarmEditUiState(
     initial = PreviewNew,
     draft = PreviewNew,
     snoozeVisible = true,
+)
+
+private val PreviewWithMarimba = PreviewExisting.copy(
+    sound = SoundSettings(SoundRef.Builtin(BuiltinSound.MARIMBA), volumePercent = 60, fadeIn = Duration.ofSeconds(30)),
+)
+
+private val SoundState = ExistingState.copy(
+    soundVisible = true,
+    customTitles = emptyMap(),
+    initial = PreviewWithMarimba,
+    draft = PreviewWithMarimba,
+)
+
+private val PreviewCustomId = CustomSoundId(7)
+
+private val CustomSoundState = SoundState.copy(
+    customTitles = mapOf(PreviewCustomId to "Morning birds in the forest near the lake"),
+    draft = PreviewExisting.copy(
+        sound = SoundSettings(SoundRef.Custom(PreviewCustomId), volumePercent = 100, fadeIn = Duration.ofSeconds(60)),
+    ),
+)
+
+private val MissingSoundState = CustomSoundState.copy(
+    customTitles = emptyMap(),
+    draft = PreviewExisting.copy(sound = SoundSettings(SoundRef.Custom(PreviewCustomId)), vibrate = false),
 )
 
 private val SnoozeOffState = ExistingState.copy(draft = PreviewExisting.copy(snooze = SnoozeSettings.DISABLED))
@@ -163,4 +193,58 @@ private fun DiscardDialogPreview() {
     BalarmTheme {
         PreviewScreen(ExistingState.copy(draft = edited, dialog = EditDialog.ConfirmDiscard), locale = Russian)
     }
+}
+
+@Preview(name = "Sound — builtin, dark, 360dp", widthDp = 360, heightDp = 1400)
+@Composable
+private fun SoundPreview() {
+    BalarmTheme { PreviewScreen(SoundState) }
+}
+
+@Preview(name = "Sound — custom, RU", widthDp = 360, heightDp = 1400, locale = "ru")
+@Composable
+private fun SoundCustomRussianPreview() {
+    BalarmTheme { PreviewScreen(CustomSoundState, locale = Russian) }
+}
+
+@Preview(name = "Sound — deleted ringtone, dark", widthDp = 360, heightDp = 1400)
+@Composable
+private fun SoundMissingPreview() {
+    BalarmTheme { PreviewScreen(MissingSoundState) }
+}
+
+@Preview(name = "Sound — library loading", widthDp = 360, heightDp = 1400)
+@Composable
+private fun SoundPendingPreview() {
+    BalarmTheme { PreviewScreen(MissingSoundState.copy(customTitles = null)) }
+}
+
+@Preview(
+    name = "Sound — RU, fontScale 2, full height",
+    widthDp = 360,
+    heightDp = 2600,
+    fontScale = 2f,
+    locale = "ru",
+)
+@Composable
+private fun SoundLargeFontPreview() {
+    BalarmTheme { PreviewScreen(MissingSoundState, locale = Russian) }
+}
+
+@Preview(name = "Sound — light", widthDp = 360, heightDp = 1400)
+@Composable
+private fun SoundLightPreview() {
+    BalarmTheme(darkTheme = false) { PreviewScreen(CustomSoundState) }
+}
+
+@Preview(
+    name = "Dialog — fade in, RU, fontScale 2",
+    widthDp = 360,
+    heightDp = 720,
+    fontScale = 2f,
+    locale = "ru",
+)
+@Composable
+private fun FadeInDialogPreview() {
+    BalarmTheme { PreviewScreen(SoundState.copy(dialog = EditDialog.FadeIn), locale = Russian) }
 }

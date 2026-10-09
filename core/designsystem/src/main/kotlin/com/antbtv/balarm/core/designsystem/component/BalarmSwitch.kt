@@ -42,7 +42,7 @@ fun BalarmSwitch(
 }
 
 @Composable
-private fun balarmSwitchColors(): SwitchColors {
+internal fun balarmSwitchColors(): SwitchColors {
     val colors = BalarmTheme.colors
     return SwitchDefaults.colors(
         checkedThumbColor = colors.onPrimary,
