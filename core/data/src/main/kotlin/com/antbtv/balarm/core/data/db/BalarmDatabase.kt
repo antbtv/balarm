@@ -20,6 +20,8 @@ import androidx.sqlite.driver.AndroidSQLiteDriver
 abstract class BalarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
 
+    abstract fun customSoundDao(): CustomSoundDao
+
     companion object {
         const val NAME = "balarm.db"
 
