@@ -191,6 +191,43 @@ class RingingServiceTest {
     }
 
     @Test
+    fun `phone call mutes the melody and vibrates, then the melody returns`() {
+        save(ALARM.copy(vibrate = false))
+        start(ringIntent(ALARM.id))
+        assertThat(fakeVibrator.vibrating).isFalse()
+
+        service.get().onAudioMode(AudioManager.MODE_RINGTONE)
+        assertThat(fakeSound.muted).isTrue()
+        assertThat(fakeVibrator.vibrating).isTrue()
+
+        service.get().onAudioMode(AudioManager.MODE_IN_CALL) // звонок принят — всё ещё разговор
+        assertThat(fakeSound.muted).isTrue()
+
+        service.get().onAudioMode(AudioManager.MODE_NORMAL)
+        assertThat(fakeSound.muted).isFalse()
+        assertThat(fakeVibrator.vibrating).isFalse() // вибрация выключена в будильнике
+    }
+
+    @Test
+    fun `alarm that fires during a call starts muted`() {
+        app.getSystemService(AudioManager::class.java).mode = AudioManager.MODE_IN_CALL
+
+        start(ringIntent(ALARM.id))
+
+        assertThat(fakeSound.playing).isTrue()
+        assertThat(fakeSound.muted).isTrue()
+        assertThat(fakeVibrator.vibrating).isTrue()
+    }
+
+    @Test
+    fun `audio mode changes without a ring do nothing`() {
+        service.get().onAudioMode(AudioManager.MODE_IN_CALL)
+
+        assertThat(fakeSound.muted).isFalse()
+        assertThat(fakeVibrator.vibrating).isFalse()
+    }
+
+    @Test
     fun `resumed and caught up rings play without fade-in`() {
         save(ALARM.copy(sound = SoundSettings(fadeIn = Duration.ofSeconds(30))))
 

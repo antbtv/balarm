@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioManager
 import android.os.IBinder
 import android.os.PowerManager
 import android.provider.Settings
@@ -107,8 +108,16 @@ class RingingService : Service() {
     /** Будильники сессии для crash re-arm: обработчик падения может читать с любого потока. */
     @Volatile private var rearmIds: List<AlarmId> = emptyList()
 
+    private lateinit var audioManager: AudioManager
+    private val modeListener = AudioManager.OnModeChangedListener(::onAudioMode)
+
+    /** Звук приглушён из-за телефонного звонка (FR-RING-8, ADR-017 §8). */
+    private var callMuted = false
+
     override fun onCreate() {
         super.onCreate()
+        audioManager = getSystemService(AudioManager::class.java)
+        audioManager.addOnModeChangedListener(mainExecutor, modeListener)
         scope.launch {
             for (request in fires) {
                 safely("ring") { fire(request) }
@@ -153,6 +162,7 @@ class RingingService : Service() {
         fireKinds.clear()
         rearmIds = emptyList()
         silence()
+        audioManager.removeOnModeChangedListener(modeListener)
         crashGuard?.uninstall()
         controller.publish(RingingState.Idle)
         sessionLock?.let { if (it.isHeld) it.release() }
@@ -249,6 +259,7 @@ class RingingService : Service() {
         volume.acquire(VolumeOwner.RINGING, SoundSettings.DEFAULT.volumePercent)
         sound.start(SoundSettings.DEFAULT, fadeIn = false, onFallback = vibrator::start)
         vibrator.start()
+        syncCallMode()
         log.log(AlarmEvent.RingingStarted(id, degraded = true))
     }
 
@@ -280,6 +291,7 @@ class RingingService : Service() {
             if (decision.alarm.vibrate) vibrator.start()
             log.log(AlarmEvent.RingingStarted(decision.alarm.id, decision.degraded))
         }
+        syncCallMode()
         val id = decision.alarm.id
         autoStop = scope.launch {
             delay(RingingPolicy.AUTO_STOP_AFTER.toMillis()) // CPU держит сессионный WakeLock
@@ -396,7 +408,28 @@ class RingingService : Service() {
 
     // region Уведомления и состояние
 
+    /** Звонок начался во время телефонного разговора — стартуем приглушённо, с вибрацией. */
+    private fun syncCallMode() {
+        callMuted = false
+        onAudioMode(audioManager.mode)
+    }
+
+    /** FR-RING-8: телефонный звонок или разговор — мелодия молчит, вибрация идёт; после него мелодия возвращается. */
+    internal fun onAudioMode(mode: Int) {
+        val inCall = mode in CALL_MODES
+        if (inCall == callMuted) return
+        callMuted = inCall
+        if (!ringing) return
+        sound.setMuted(inCall)
+        if (inCall) {
+            vibrator.start()
+        } else if (current?.alarm?.vibrate == false) {
+            vibrator.stop()
+        }
+    }
+
     private fun silence() {
+        callMuted = false
         sound.stop()
         vibrator.stop()
         volume.release(VolumeOwner.RINGING) // ещё в foreground: Android 17 не даёт менять громкость из фона
@@ -496,6 +529,15 @@ class RingingService : Service() {
 
         /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
         val CRASH_RESUME_DELAY: Duration = Duration.ofSeconds(3)
+
+        private val CALL_MODES = setOf(
+            AudioManager.MODE_RINGTONE,
+            AudioManager.MODE_IN_CALL,
+            AudioManager.MODE_IN_COMMUNICATION,
+            AudioManager.MODE_CALL_SCREENING,
+            AudioManager.MODE_CALL_REDIRECT,
+            AudioManager.MODE_COMMUNICATION_REDIRECT,
+        )
 
         private val NO_FADE_KINDS = setOf(FireKind.RESUME, FireKind.CATCH_UP)
 
