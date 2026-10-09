@@ -6,6 +6,7 @@ import com.antbtv.balarm.core.alarm.ring.RingingControllerImpl
 import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
 import com.antbtv.balarm.core.alarm.sound.MediaAlarmSoundPlayer
+import com.antbtv.balarm.core.alarm.sound.MediaSoundPreview
 import com.antbtv.balarm.core.alarm.sound.SystemAlarmVibrator
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
@@ -13,6 +14,7 @@ import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
 import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.schedule.SystemZoneClock
+import com.antbtv.balarm.core.domain.sound.SoundPreview
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -37,6 +39,9 @@ interface AlarmModule {
 
     @Binds
     fun bindSoundPlayer(impl: MediaAlarmSoundPlayer): AlarmSoundPlayer
+
+    @Binds
+    fun bindSoundPreview(impl: MediaSoundPreview): SoundPreview
 
     @Binds
     fun bindVibrator(impl: SystemAlarmVibrator): AlarmVibrator

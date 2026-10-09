@@ -116,6 +116,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("to" to to)
     }
 
+    /** Превью мелодии не заиграло (редактор/пикер); на звонок не влияет. */
+    data class PreviewFailed(val reason: String) : AlarmEvent {
+        override val name = "PREVIEW_FAILED"
+        override val fields = mapOf("reason" to reason)
+    }
+
     /** Вибрация не включилась; звук при этом продолжается. */
     data class VibrationFailed(val error: String) : AlarmEvent {
         override val name = "VIBRATION_FAILED"
