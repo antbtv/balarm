@@ -20,6 +20,8 @@ object HealthTestTags {
     const val OEM_GUIDE = "healthOemGuide"
     const val OEM_CONFIRM = "healthOemConfirm"
     const val TEST_ALARM = "healthTestAlarm"
+    const val TEST_COUNTDOWN = "healthTestCountdown"
+    const val TEST_CANCEL = "healthTestCancel"
     const val BOTTOM_SCRIM = "healthBottomScrim"
 
     /** Карточка пункта: `healthItem_NOTIFICATIONS`. */

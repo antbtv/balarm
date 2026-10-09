@@ -76,6 +76,30 @@ class TestAlarmRunnerTest {
     }
 
     @Test
+    fun `pending follows schedule, fire and cancel`() {
+        assertThat(runner.pending.value).isNull()
+
+        val at = runner.schedule(draft, TestAlarmRunner.HEALTH_DELAY)
+        assertThat(runner.pending.value).isEqualTo(at)
+
+        runner.decision()
+        assertThat(runner.pending.value).isNull()
+
+        runner.schedule(draft, TestAlarmRunner.HEALTH_DELAY)
+        runner.cancel()
+        assertThat(runner.pending.value).isNull()
+    }
+
+    @Test
+    fun `a refused schedule does not set pending`() {
+        scheduler.throwFor += AlarmId.TEST
+
+        runner.schedule(draft, TestAlarmRunner.HEALTH_DELAY)
+
+        assertThat(runner.pending.value).isNull()
+    }
+
+    @Test
     fun `health test rings in one minute`() {
         val at = runner.schedule(AlarmDefaults.testAlarm(LocalTime.now(clock)), TestAlarmRunner.HEALTH_DELAY)
 

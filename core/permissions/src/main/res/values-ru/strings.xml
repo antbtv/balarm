@@ -16,8 +16,6 @@
     <string name="health_oem_why">На некоторых телефонах (Xiaomi, Huawei, Oppo, Vivo, Samsung) фоновую работу нужно разрешить отдельно.</string>
     <string name="health_dnd_title">Не беспокоить</string>
     <string name="health_dnd_why">Будильники должны проходить через режим «Не беспокоить».</string>
-    <string name="health_volume_title">Громкость будильника</string>
-    <string name="health_volume_why">Громкость будильника выключена — вы не услышите звонок.</string>
     <string name="health_scheduling_title">Планирование</string>
     <string name="health_scheduling_why">Не все будильники поставлены в системе. Повторите планирование.</string>
 </resources>

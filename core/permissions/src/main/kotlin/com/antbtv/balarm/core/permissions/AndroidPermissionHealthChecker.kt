@@ -4,7 +4,6 @@ import android.app.ActivityManager
 import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
-import android.media.AudioManager
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
@@ -24,7 +23,6 @@ class AndroidPermissionHealthChecker @Inject constructor(@ApplicationContext pri
     override fun snapshot(): PermissionSnapshot {
         val notifications = context.requireService<NotificationManager>()
         val power = context.requireService<PowerManager>()
-        val audio = context.requireService<AudioManager>()
         return PermissionSnapshot(
             notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
             ringingChannelEnabled = ringingChannelEnabled(notifications),
@@ -34,7 +32,6 @@ class AndroidPermissionHealthChecker @Inject constructor(@ApplicationContext pri
             ignoringBatteryOptimizations = power.isIgnoringBatteryOptimizations(context.packageName),
             backgroundRestricted = context.requireService<ActivityManager>().isBackgroundRestricted,
             alarmsAllowedByDnd = alarmsAllowedByDnd(notifications),
-            alarmVolumeMuted = audio.getStreamVolume(AudioManager.STREAM_ALARM) == 0,
         )
     }
 

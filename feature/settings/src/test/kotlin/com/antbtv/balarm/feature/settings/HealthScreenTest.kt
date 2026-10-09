@@ -177,6 +177,21 @@ class HealthScreenTest {
     }
 
     @Test
+    fun `countdown row is shown only while a test is pending and cancel sends CancelTest`() {
+        show()
+        composeRule.onAllNodesWithTag(HealthTestTags.TEST_COUNTDOWN).assertCountEquals(0)
+
+        state = problems.copy(testRingAt = Instant.now().plusSeconds(60))
+        scrollTo(HealthTestTags.TEST_COUNTDOWN).assertIsDisplayed()
+        scrollTo(HealthTestTags.TEST_CANCEL).performClick()
+
+        assertThat(events).containsExactly(HealthEvent.CancelTest)
+
+        state = problems
+        composeRule.onAllNodesWithTag(HealthTestTags.TEST_COUNTDOWN).assertCountEquals(0)
+    }
+
+    @Test
     fun `oem checkbox confirms and unconfirms`() {
         show()
 

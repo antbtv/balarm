@@ -21,7 +21,6 @@
     <string name="health_retry">Retry scheduling</string>
     <string name="health_unscheduled_count">Alarms not scheduled: %1$d</string>
     <string name="health_scheduling_ok">All alarms are scheduled in the system.</string>
-    <string name="health_volume_ok">Alarm volume is on.</string>
     <string name="health_oem_guide">Instructions for your phone: dontkillmyapp.com</string>
     <string name="health_oem_confirm">I\'ve done it</string>
     <string name="health_no_browser">No browser found</string>
@@ -30,6 +29,8 @@
     <string name="health_test_button">Test alarm in 1 minute</string>
     <!-- Тост: %1$s — время звонка («7:31 AM»). -->
     <string name="health_test_scheduled">Rings at %1$s — lock the screen</string>
+    <string name="health_test_countdown">Rings at %1$s · in %2$s</string>
+    <string name="health_test_cancel">Cancel</string>
     <string name="health_test_failed">Couldn\'t schedule the test alarm</string>
     <string name="health_retry_failed">Couldn\'t schedule alarms. Try again</string>
     <string name="health_save_failed">Couldn\'t save. Try again</string>

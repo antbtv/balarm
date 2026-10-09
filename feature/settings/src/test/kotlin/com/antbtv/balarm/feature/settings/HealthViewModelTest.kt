@@ -97,6 +97,22 @@ class HealthViewModelTest {
     }
 
     @Test
+    fun `scheduled test is shown until it is cancelled`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.uiState.test {
+            skipItems(1)
+            assertThat(awaitItem().testRingAt).isNull()
+
+            vm.onEvent(HealthEvent.ScheduleTest)
+            assertThat(awaitItem().testRingAt).isEqualTo(clock.instant().plus(TestAlarmRunner.HEALTH_DELAY))
+
+            vm.onEvent(HealthEvent.CancelTest)
+            assertThat(awaitItem().testRingAt).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `fix of a permission item asks the screen to open the system settings`() = runTest(dispatcher) {
         val vm = viewModel()
         vm.effects.test {

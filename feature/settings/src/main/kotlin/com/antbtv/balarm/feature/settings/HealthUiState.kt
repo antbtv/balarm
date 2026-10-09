@@ -16,6 +16,8 @@ data class HealthUiState(
     val unscheduledAlarms: Int = 0,
     /** Идёт «Повторить планирование»: кнопка заблокирована. */
     val retrying: Boolean = false,
+    /** Момент звонка запланированного теста («Тест через 1 минуту»); `null` — теста нет. */
+    val testRingAt: Instant? = null,
 )
 
 sealed interface HealthEvent {
@@ -29,6 +31,9 @@ sealed interface HealthEvent {
 
     /** «Тестовый будильник через 1 минуту». */
     data object ScheduleTest : HealthEvent
+
+    /** Отмена запланированного теста. */
+    data object CancelTest : HealthEvent
 
     data class SetOemConfirmed(val confirmed: Boolean) : HealthEvent
 }

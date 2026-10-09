@@ -18,7 +18,6 @@ enum class HealthItem(val severity: Severity) {
     BACKGROUND_RESTRICTION(CRITICAL),
     OEM_BACKGROUND(RECOMMENDED),
     DO_NOT_DISTURB(INFO),
-    ALARM_VOLUME(INFO),
     SCHEDULING(CRITICAL),
 }
 
@@ -35,7 +34,6 @@ data class PermissionSnapshot(
     val ignoringBatteryOptimizations: Boolean,
     val backgroundRestricted: Boolean,
     val alarmsAllowedByDnd: Boolean,
-    val alarmVolumeMuted: Boolean,
 ) {
     /** Разрешение выдано И канал `alarm_ringing` не выключен/не понижен (ADR-007 §8). */
     val notificationsReady: Boolean get() = notificationsEnabled && ringingChannelEnabled
@@ -88,7 +86,6 @@ private fun statusOf(
         HealthItem.BACKGROUND_RESTRICTION -> !snapshot.backgroundRestricted
         HealthItem.OEM_BACKGROUND -> setup.oemBackgroundConfirmed
         HealthItem.DO_NOT_DISTURB -> snapshot.alarmsAllowedByDnd
-        HealthItem.ALARM_VOLUME -> !snapshot.alarmVolumeMuted
         HealthItem.SCHEDULING -> unscheduledAlarms == 0
     }
     return when {

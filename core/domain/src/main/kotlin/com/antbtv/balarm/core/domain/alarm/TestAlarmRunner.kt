@@ -10,6 +10,9 @@ import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /** Снимок черновика для тестового звонка; живёт в памяти процесса, в БД не попадает (ADR-010 §3). */
 interface TestAlarmStore {
@@ -41,12 +44,18 @@ class InMemoryTestAlarmStore @Inject constructor() : TestAlarmStore {
  * не затрагиваются; [AlarmEngine] делегирует сюда `onFired` для [AlarmId.TEST]. Снимок после звонка не очищается:
  * он нужен только следующему срабатыванию, а очистка стёрла бы снимок уже запланированного нового теста.
  */
+@Singleton
 class TestAlarmRunner @Inject constructor(
     private val scheduler: AlarmScheduler,
     private val store: TestAlarmStore,
     private val clock: Clock,
     private val log: AlarmEventLog,
 ) {
+    private val _pending = MutableStateFlow<Instant?>(null)
+
+    /** Момент запланированного теста; `null` после срабатывания, отмены или отказа системы. */
+    val pending: StateFlow<Instant?> = _pending.asStateFlow()
+
     /**
      * Момент звонка или `null`, если система отказала или планировщик бросил исключение (одно место для редактора
      * и экрана здоровья). Повтор заменяет предыдущий.
@@ -65,25 +74,43 @@ class TestAlarmRunner @Inject constructor(
         if (!accepted) {
             // Прежний тест (если был) остаётся запланированным — снимок у него не отбираем.
             previous?.let(store::put) ?: store.clear()
+            // _pending не трогаем: прежний тест (если был) остаётся запланированным.
             log.log(AlarmEvent.ScheduleFailed(AlarmId.TEST, at))
             return null
         }
+        _pending.value = at
         log.log(AlarmEvent.TestScheduled(at))
         return at
+    }
+
+    /** Отмена запланированного теста; снимок не трогаем (см. описание класса). */
+    fun cancel() {
+        try {
+            scheduler.cancel(AlarmId.TEST)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Сбой отмены не должен ронять экран; звонок, если он остался, отработает как обычный тест.
+        } finally {
+            _pending.value = null
+        }
     }
 
     /**
      * Звонок без «Отложить». Снимка нет (процесс умер между «Тест» и срабатыванием) — настройки по умолчанию:
      * в сомнении — звони.
      */
-    fun decision(): FireDecision.Ring = FireDecision.Ring(
-        alarm = store.get() ?: Alarm(
-            id = AlarmId.TEST,
-            time = LocalTime.now(clock).truncatedTo(ChronoUnit.MINUTES),
-        ),
-        canSnooze = false,
-        snoozesLeft = 0,
-    )
+    fun decision(): FireDecision.Ring {
+        _pending.value = null
+        return FireDecision.Ring(
+            alarm = store.get() ?: Alarm(
+                id = AlarmId.TEST,
+                time = LocalTime.now(clock).truncatedTo(ChronoUnit.MINUTES),
+            ),
+            canSnooze = false,
+            snoozesLeft = 0,
+        )
+    }
 
     companion object {
         /** FR-EDIT-10. */

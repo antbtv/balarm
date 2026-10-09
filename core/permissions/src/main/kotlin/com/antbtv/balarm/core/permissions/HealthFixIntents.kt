@@ -45,8 +45,6 @@ internal fun healthFixIntents(item: HealthItem, packageName: String, channelOnly
             Intent(Settings.ACTION_SOUND_SETTINGS),
         )
 
-        HealthItem.ALARM_VOLUME -> listOf(Intent(Settings.ACTION_SOUND_SETTINGS))
-
         HealthItem.BACKGROUND_RESTRICTION, HealthItem.OEM_BACKGROUND -> emptyList()
 
         HealthItem.SCHEDULING -> return emptyList()

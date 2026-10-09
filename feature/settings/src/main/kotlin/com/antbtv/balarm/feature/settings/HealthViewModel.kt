@@ -48,12 +48,14 @@ class HealthViewModel @Inject constructor(
     val uiState: StateFlow<HealthUiState> = combine(
         healthReportFlow(snapshot, setup.state, repository.observeAlarmsWithRuntime()),
         retrying,
-    ) { report, retrying ->
+        testAlarms.pending,
+    ) { report, retrying, testRingAt ->
         HealthUiState(
             loading = false,
             items = report.checks.map { HealthItemUi(it.item, it.status) },
             unscheduledAlarms = report.unscheduledAlarms,
             retrying = retrying,
+            testRingAt = testRingAt,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), HealthUiState())
 
@@ -67,6 +69,7 @@ class HealthViewModel @Inject constructor(
             is HealthEvent.Fix -> fix(event.item)
             HealthEvent.RetryScheduling -> retry()
             HealthEvent.ScheduleTest -> scheduleTest()
+            HealthEvent.CancelTest -> testAlarms.cancel()
             is HealthEvent.SetOemConfirmed -> setOemConfirmed(event.confirmed)
         }
     }

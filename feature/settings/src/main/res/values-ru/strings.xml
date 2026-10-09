@@ -20,7 +20,6 @@
     <string name="health_retry">Повторить планирование</string>
     <string name="health_unscheduled_count">Не запланировано будильников: %1$d</string>
     <string name="health_scheduling_ok">Все будильники поставлены в системе.</string>
-    <string name="health_volume_ok">Громкость будильника включена.</string>
     <string name="health_oem_guide">Инструкции для вашего телефона: dontkillmyapp.com</string>
     <string name="health_oem_confirm">Я сделал</string>
     <string name="health_no_browser">Не найден браузер</string>
@@ -28,6 +27,8 @@
     <string name="health_test_hint">Проверьте, что будильник звонит на заблокированном экране.</string>
     <string name="health_test_button">Тестовый будильник через 1 минуту</string>
     <string name="health_test_scheduled">Зазвонит в %1$s — заблокируйте экран</string>
+    <string name="health_test_countdown">Звонок в %1$s · через %2$s</string>
+    <string name="health_test_cancel">Отменить</string>
     <string name="health_test_failed">Не удалось запланировать тестовый будильник</string>
     <string name="health_retry_failed">Не удалось запланировать будильники. Попробуйте ещё раз</string>
     <string name="health_save_failed">Не удалось сохранить. Попробуйте ещё раз</string>

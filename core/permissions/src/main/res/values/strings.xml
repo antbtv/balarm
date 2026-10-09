@@ -16,8 +16,6 @@
     <string name="health_oem_why">Some phones (Xiaomi, Huawei, Oppo, Vivo, Samsung) need background work allowed separately.</string>
     <string name="health_dnd_title">Do Not Disturb</string>
     <string name="health_dnd_why">Alarms must be allowed through Do Not Disturb.</string>
-    <string name="health_volume_title">Alarm volume</string>
-    <string name="health_volume_why">The alarm volume is off, so you will not hear the ring.</string>
     <string name="health_scheduling_title">Scheduling</string>
     <string name="health_scheduling_why">Not every alarm is set in the system. Retry scheduling.</string>
 </resources>

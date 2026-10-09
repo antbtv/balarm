@@ -14,7 +14,6 @@ val HealthItem.titleRes: Int
         HealthItem.BACKGROUND_RESTRICTION -> R.string.health_background_title
         HealthItem.OEM_BACKGROUND -> R.string.health_oem_title
         HealthItem.DO_NOT_DISTURB -> R.string.health_dnd_title
-        HealthItem.ALARM_VOLUME -> R.string.health_volume_title
         HealthItem.SCHEDULING -> R.string.health_scheduling_title
     }
 
@@ -29,6 +28,5 @@ val HealthItem.whyRes: Int
         HealthItem.BACKGROUND_RESTRICTION -> R.string.health_background_why
         HealthItem.OEM_BACKGROUND -> R.string.health_oem_why
         HealthItem.DO_NOT_DISTURB -> R.string.health_dnd_why
-        HealthItem.ALARM_VOLUME -> R.string.health_volume_why
         HealthItem.SCHEDULING -> R.string.health_scheduling_why
     }

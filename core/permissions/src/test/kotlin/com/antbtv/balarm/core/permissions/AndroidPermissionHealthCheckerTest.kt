@@ -72,16 +72,6 @@ class AndroidPermissionHealthCheckerTest {
     }
 
     @Test
-    fun `alarm volume zero is reported as muted`() {
-        val audio = context.getSystemService(AudioManager::class.java)
-        audio.setStreamVolume(AudioManager.STREAM_ALARM, 3, 0)
-        assertThat(checker.snapshot().alarmVolumeMuted).isFalse()
-
-        audio.setStreamVolume(AudioManager.STREAM_ALARM, 0, 0)
-        assertThat(checker.snapshot().alarmVolumeMuted).isTrue()
-    }
-
-    @Test
     fun `total silence blocks alarms and the others let them through`() {
         notifications.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
         assertThat(checker.snapshot().alarmsAllowedByDnd).isFalse()

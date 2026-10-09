@@ -14,7 +14,6 @@ class HealthReportTest {
         ignoringBatteryOptimizations = true,
         backgroundRestricted = false,
         alarmsAllowedByDnd = true,
-        alarmVolumeMuted = false,
     )
     private val confirmed = SetupState(onboardingCompleted = true, oemBackgroundConfirmed = true)
 
@@ -65,14 +64,12 @@ class HealthReportTest {
             overlay = false,
             ignoringBatteryOptimizations = false,
             alarmsAllowedByDnd = false,
-            alarmVolumeMuted = true,
         )
         val report = healthReport(snapshot, SetupState(), 0)
 
         assertThat(report.status(HealthItem.OVERLAY)).isEqualTo(HealthStatus.PROBLEM)
         assertThat(report.status(HealthItem.BATTERY_OPTIMIZATION)).isEqualTo(HealthStatus.PROBLEM)
         assertThat(report.status(HealthItem.DO_NOT_DISTURB)).isEqualTo(HealthStatus.PROBLEM)
-        assertThat(report.status(HealthItem.ALARM_VOLUME)).isEqualTo(HealthStatus.PROBLEM)
         assertThat(report.status(HealthItem.OEM_BACKGROUND)).isEqualTo(HealthStatus.UNCONFIRMED)
         assertThat(report.needsAttention).isFalse()
     }

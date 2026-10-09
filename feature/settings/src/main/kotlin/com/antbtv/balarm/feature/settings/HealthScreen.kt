@@ -27,8 +27,10 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,9 +54,16 @@ import com.antbtv.balarm.core.designsystem.theme.BalarmShapes
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.domain.health.HealthItem
 import com.antbtv.balarm.core.domain.health.HealthStatus
+import com.antbtv.balarm.core.format.ClockFormat
 import com.antbtv.balarm.core.format.rememberClockFormat
 import com.antbtv.balarm.core.permissions.titleRes
 import com.antbtv.balarm.core.permissions.whyRes
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.util.Locale
+import kotlinx.coroutines.delay
 
 /** Сайт с инструкциями по фоновой работе для телефонов разных производителей (ADR-012 §4). */
 internal const val OEM_GUIDE_URL = "https://dontkillmyapp.com"
@@ -92,6 +101,7 @@ fun HealthScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     windowInsets: WindowInsets = WindowInsets.safeDrawing,
+    clockFormat: ClockFormat = rememberClockFormat(),
 ) {
     val colors = BalarmTheme.colors
     Surface(
@@ -114,7 +124,7 @@ fun HealthScreen(
             if (!state.loading) {
                 val bottomInset = windowInsets.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
                 Box(modifier = Modifier.weight(1f)) {
-                    HealthList(state = state, bottomInset = bottomInset, onEvent = onEvent)
+                    HealthList(state = state, clockFormat = clockFormat, bottomInset = bottomInset, onEvent = onEvent)
                     SystemBarScrim(
                         edge = ScrimEdge.Bottom,
                         inset = bottomInset,
@@ -129,7 +139,12 @@ fun HealthScreen(
 }
 
 @Composable
-private fun HealthList(state: HealthUiState, bottomInset: Dp, onEvent: (HealthEvent) -> Unit) {
+private fun HealthList(
+    state: HealthUiState,
+    clockFormat: ClockFormat,
+    bottomInset: Dp,
+    onEvent: (HealthEvent) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -151,7 +166,12 @@ private fun HealthList(state: HealthUiState, bottomInset: Dp, onEvent: (HealthEv
             )
         }
         item(key = TEST_KEY, contentType = TEST_KEY) {
-            TestAlarmSection(onClick = { onEvent(HealthEvent.ScheduleTest) })
+            TestAlarmSection(
+                ringAt = state.testRingAt,
+                clockFormat = clockFormat,
+                onClick = { onEvent(HealthEvent.ScheduleTest) },
+                onCancel = { onEvent(HealthEvent.CancelTest) },
+            )
         }
     }
 }
@@ -202,10 +222,9 @@ private class HealthItemTexts(val title: String, val description: String, val ac
 @Composable
 private fun healthItemTexts(item: HealthItemUi, unscheduledAlarms: Int): HealthItemTexts {
     val ok = item.status == HealthStatus.OK
-    // «Зачем» у планирования и громкости описывает проблему — для ✅ свой текст.
+    // «Зачем» у планирования описывает проблему — для ✅ свой текст.
     val why = when {
         ok && item.item == HealthItem.SCHEDULING -> stringResource(R.string.health_scheduling_ok)
-        ok && item.item == HealthItem.ALARM_VOLUME -> stringResource(R.string.health_volume_ok)
         else -> stringResource(item.item.whyRes)
     }
     val description = if (!ok && item.item == HealthItem.SCHEDULING && unscheduledAlarms > 0) {
@@ -296,7 +315,7 @@ private fun openOemGuide(context: Context) {
 }
 
 @Composable
-private fun TestAlarmSection(onClick: () -> Unit) {
+private fun TestAlarmSection(ringAt: Instant?, clockFormat: ClockFormat, onClick: () -> Unit, onCancel: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -308,6 +327,9 @@ private fun TestAlarmSection(onClick: () -> Unit) {
             style = BalarmTheme.typography.body,
             color = BalarmTheme.colors.textSecondary,
         )
+        if (ringAt != null) {
+            TestCountdown(ringAt = ringAt, clockFormat = clockFormat, onCancel = onCancel)
+        }
         PrimaryButton(
             text = stringResource(R.string.health_test_button),
             onClick = onClick,
@@ -318,5 +340,40 @@ private fun TestAlarmSection(onClick: () -> Unit) {
     }
 }
 
+/** «Звонок в 07:31 · через 0:42»: раз в секунду пересчитывает остаток, по истечении скрывается. */
+@Composable
+private fun TestCountdown(ringAt: Instant, clockFormat: ClockFormat, onCancel: () -> Unit) {
+    val now by produceState(Instant.now(), ringAt) {
+        while (true) {
+            value = Instant.now()
+            delay(COUNTDOWN_TICK_MS)
+        }
+    }
+    val remaining = Duration.between(now, ringAt)
+    if (remaining.isNegative || remaining.isZero) return
+    val seconds = remaining.seconds + if (remaining.nano > 0) 1 else 0
+    val time = clockFormat.time(LocalDateTime.ofInstant(ringAt, ZoneId.systemDefault()))
+    val left = String.format(Locale.ROOT, "%d:%02d", seconds / SECONDS_PER_MINUTE, seconds % SECONDS_PER_MINUTE)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(HealthTestTags.TEST_COUNTDOWN),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.health_test_countdown, time, left),
+            style = BalarmTheme.typography.body,
+            color = BalarmTheme.colors.textPrimary,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onCancel, modifier = Modifier.testTag(HealthTestTags.TEST_CANCEL)) {
+            Text(stringResource(R.string.health_test_cancel))
+        }
+    }
+}
+
+private const val COUNTDOWN_TICK_MS = 1_000L
+private const val SECONDS_PER_MINUTE = 60
 private const val ITEM_CONTENT_TYPE = "health_item"
 private const val TEST_KEY = "test_alarm"

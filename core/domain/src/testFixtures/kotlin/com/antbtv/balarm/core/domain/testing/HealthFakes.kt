@@ -17,7 +17,6 @@ val HEALTHY_SNAPSHOT = PermissionSnapshot(
     ignoringBatteryOptimizations = true,
     backgroundRestricted = false,
     alarmsAllowedByDnd = true,
-    alarmVolumeMuted = false,
 )
 
 class FakePermissionHealthChecker(var current: PermissionSnapshot = HEALTHY_SNAPSHOT) : PermissionHealthChecker {
