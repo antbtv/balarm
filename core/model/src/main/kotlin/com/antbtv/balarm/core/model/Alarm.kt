@@ -15,6 +15,7 @@ data class Alarm(
     val enabled: Boolean = true,
     val vibrate: Boolean = true,
     val snooze: SnoozeSettings = SnoozeSettings.DEFAULT,
+    val sound: SoundSettings = SoundSettings.DEFAULT,
 ) {
     init {
         require(time.second == 0 && time.nano == 0) { "Alarm time must have whole minutes, was $time" }
