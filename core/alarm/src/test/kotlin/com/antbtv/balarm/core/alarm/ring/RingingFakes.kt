@@ -4,6 +4,7 @@ import android.content.Intent
 import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
+import com.antbtv.balarm.core.model.SoundSettings
 
 class FakeSoundPlayer : AlarmSoundPlayer {
     var playing = false
@@ -12,10 +13,24 @@ class FakeSoundPlayer : AlarmSoundPlayer {
         private set
     private var onFallback: () -> Unit = {}
 
-    override fun start(onFallback: () -> Unit) {
+    var lastSettings: SoundSettings? = null
+        private set
+    var lastFadeIn: Boolean? = null
+        private set
+    var muted = false
+        private set
+
+    override fun start(settings: SoundSettings, fadeIn: Boolean, onFallback: () -> Unit) {
         playing = true
         starts++
+        lastSettings = settings
+        lastFadeIn = fadeIn
+        muted = false
         this.onFallback = onFallback
+    }
+
+    override fun setMuted(muted: Boolean) {
+        this.muted = muted
     }
 
     override fun stop() {

@@ -28,6 +28,7 @@ import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.SnoozeResult
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.SoundSettings
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.Clock
 import java.time.Duration
@@ -79,6 +80,9 @@ class RingingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val fires = Channel<ScheduleRequest>(Channel.UNLIMITED)
     private val waiting = ArrayDeque<FireDecision.Ring>()
+
+    /** Источник срабатывания до начала звонка (очередь): RESUME и CATCH_UP звонят без нарастания (ADR-017 §3). */
+    private val fireKinds = HashMap<AlarmId, FireKind>()
     private var current: FireDecision.Ring? = null
     private var startedAt: Instant = Instant.EPOCH
     private var autoStop: Job? = null
@@ -142,6 +146,7 @@ class RingingService : Service() {
         waiting.forEach { log.log(AlarmEvent.RingingStopped(it.alarm.id, "destroyed")) }
         current = null
         waiting.clear()
+        fireKinds.clear()
         rearmIds = emptyList()
         silence()
         crashGuard?.uninstall()
@@ -215,6 +220,7 @@ class RingingService : Service() {
                 }
 
                 is FireDecision.Ring -> {
+                    fireKinds[request.alarmId] = request.kind
                     if (current == null) ring(decision) else queue(decision)
                     // Движок был занят — срабатывание не записано: дописать, когда освободится.
                     if (decision.degraded) {
@@ -236,7 +242,7 @@ class RingingService : Service() {
         delay(FIRST_SOUND_DEADLINE.toMillis())
         if (current != null) return
         earlySound = true
-        sound.start(onFallback = vibrator::start)
+        sound.start(SoundSettings.DEFAULT, fadeIn = false, onFallback = vibrator::start)
         vibrator.start()
         log.log(AlarmEvent.RingingStarted(id, degraded = true))
     }
@@ -255,11 +261,16 @@ class RingingService : Service() {
         updateRearmIds()
         startedAt = clock.instant()
         cancelMissed(decision.alarm.id)
+        val fade = fireKinds.remove(decision.alarm.id) !in NO_FADE_KINDS
         if (earlySound) {
             earlySound = false // звук уже идёт; вибрация — по настройке будильника
+            // Сторож играл мелодию по умолчанию: у будильника другая — переключаемся без нарастания (ADR-017 §5).
+            if (decision.alarm.sound.sound != SoundSettings.DEFAULT.sound) {
+                sound.start(decision.alarm.sound, fadeIn = false, onFallback = vibrator::start)
+            }
             if (!decision.alarm.vibrate) vibrator.stop()
         } else {
-            sound.start(onFallback = vibrator::start) // FR-SND-5: резервный тон всегда с вибрацией
+            sound.start(decision.alarm.sound, fadeIn = fade, onFallback = vibrator::start) // FR-SND-5: тон с вибрацией
             if (decision.alarm.vibrate) vibrator.start()
             log.log(AlarmEvent.RingingStarted(decision.alarm.id, decision.degraded))
         }
@@ -478,6 +489,8 @@ class RingingService : Service() {
 
         /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
         val CRASH_RESUME_DELAY: Duration = Duration.ofSeconds(3)
+
+        private val NO_FADE_KINDS = setOf(FireKind.RESUME, FireKind.CATCH_UP)
 
         /** Уведомление, которое звонит само (ADR-002 §6): без сервиса звук играет system_server. */
         @Suppress("TooGenericExceptionCaught") // показать fallback — последний шанс; падать здесь нельзя

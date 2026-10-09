@@ -26,6 +26,9 @@ import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.BuiltinSound
+import com.antbtv.balarm.core.model.SoundRef
+import com.antbtv.balarm.core.model.SoundSettings
 import com.google.common.truth.Truth.assertThat
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -159,6 +162,27 @@ class RingingServiceTest {
         assertThat(state.startedAt).isEqualTo(NOW)
         assertThat(state.canSnooze).isTrue()
         assertThat(events).contains(AlarmEvent.RingingStarted(ALARM.id, degraded = false))
+    }
+
+    @Test
+    fun `ring plays the alarm's own sound with fade-in`() {
+        val custom =
+            SoundSettings(SoundRef.Builtin(BuiltinSound.BELLS), volumePercent = 40, fadeIn = Duration.ofSeconds(30))
+        save(ALARM.copy(sound = custom))
+
+        start(ringIntent(ALARM.id))
+
+        assertThat(fakeSound.lastSettings).isEqualTo(custom)
+        assertThat(fakeSound.lastFadeIn).isTrue()
+    }
+
+    @Test
+    fun `resumed and caught up rings play without fade-in`() {
+        save(ALARM.copy(sound = SoundSettings(fadeIn = Duration.ofSeconds(30))))
+
+        start(AlarmIntents.ring(app, ScheduleRequest(ALARM.id, NOW, FireKind.RESUME)))
+
+        assertThat(fakeSound.lastFadeIn).isFalse()
     }
 
     @Test

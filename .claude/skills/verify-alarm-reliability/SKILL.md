@@ -84,7 +84,7 @@ adb logcat -s Balarm:I AndroidRuntime:E          # события, см. ниж�
 | R8 | schedule +2; `adb shell am kill $PKG` (НЕ force-stop: он легально снимает alarms) | звонок |
 | R9 | schedule +3; `adb install -r app/build/outputs/apk/debug/app-debug.apk` | `PACKAGE_REPLACED`, alarm в dumpsys на месте |
 | R10 | schedule +2; `adb shell am start -a android.settings.SETTINGS` | `RingingActivity` поверх (или heads-up при разблокированном экране — overlay с M3) |
-| R11 | `adb shell cmd notification set_dnd priority` (будильники разрешены; `on` = Total Silence глушит и будильники — ограничение платформы, предупреждение — M3); беззвучный режим | `SOUND_STARTED source=raw` (громкость потока ALARM ≠ 0) |
+| R11 | `adb shell cmd notification set_dnd priority` (будильники разрешены; `on` = Total Silence глушит и будильники — ограничение платформы, предупреждение — M3); беззвучный режим | `SOUND_STARTED source=default` (или `builtin`/`custom`) (громкость потока ALARM ≠ 0) |
 | R12 | `adb shell appops set $PKG USE_FULL_SCREEN_INTENT deny` | heads-up вместо экрана, звук есть (баннер — M3) |
 | R13 | два `SCHEDULE_IN` на одну минуту | один экран, `RINGING_QUEUED`, второй звонит после «Отключить» |
 | R14 | `adb emu gsm call 5551234` во время звонка | M4 (FR-RING-8) |

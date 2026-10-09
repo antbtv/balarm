@@ -10,7 +10,14 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
+import com.antbtv.balarm.core.domain.sound.SoundFileStore
+import com.antbtv.balarm.core.model.BuiltinSound
+import com.antbtv.balarm.core.model.CustomSoundId
+import com.antbtv.balarm.core.model.SoundRef
+import com.antbtv.balarm.core.model.SoundSettings
 import com.google.common.truth.Truth.assertThat
+import java.io.File
+import java.io.FileInputStream
 import java.io.IOException
 import java.time.Duration
 import org.junit.After
@@ -29,7 +36,10 @@ class MediaAlarmSoundPlayerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private val events = mutableListOf<AlarmEvent>()
-    private val player = MediaAlarmSoundPlayer(context, AlarmEventLog { events += it })
+    private val files = object : SoundFileStore {
+        override fun fileOf(id: CustomSoundId) = File(context.filesDir, "sounds/${id.value}")
+    }
+    private val player = MediaAlarmSoundPlayer(context, AlarmEventLog { events += it }, files)
     private val source = DataSource.toDataSource(context, MediaAlarmSoundPlayer.defaultSoundUri(context))
     private val created = mutableListOf<MediaPlayer>()
     private var fallbacks = 0
@@ -59,7 +69,7 @@ class MediaAlarmSoundPlayerTest {
         assertThat(shadowOf(mediaPlayer).audioAttributes.usage).isEqualTo(AudioAttributes.USAGE_ALARM)
         assertThat(shadowOf(mediaPlayer).audioAttributes.contentType)
             .isEqualTo(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-        assertThat(events).containsExactly(AlarmEvent.SoundStarted("raw", alarmVolume()))
+        assertThat(events).containsExactly(AlarmEvent.SoundStarted("default", alarmVolume()))
         assertThat(fallbacks).isEqualTo(0)
     }
 
@@ -218,15 +228,161 @@ class MediaAlarmSoundPlayerTest {
         assertThat(fallbacks).isEqualTo(2)
     }
 
+    @Test
+    fun `chain goes chosen melody then default then tone`() {
+        val bells = DataSource.toDataSource(context, MediaAlarmSoundPlayer.builtinSoundUri(context, BuiltinSound.BELLS))
+        ShadowMediaPlayer.addException(bells, IOException("broken"))
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(DURATION_MS, 0))
+
+        start(SoundSettings(SoundRef.Builtin(BuiltinSound.BELLS)))
+        idle()
+
+        assertThat(events).containsExactly(
+            AlarmEvent.SoundFallback("IOException"),
+            AlarmEvent.SoundStarted("default", alarmVolume()),
+        ).inOrder()
+        assertThat(fallbacks).isEqualTo(0) // резервный тон не понадобился
+    }
+
+    @Test
+    fun `broken chosen and default melodies end on the tone with vibration callback`() {
+        val bells = DataSource.toDataSource(context, MediaAlarmSoundPlayer.builtinSoundUri(context, BuiltinSound.BELLS))
+        ShadowMediaPlayer.addException(bells, IOException("broken"))
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(DURATION_MS, PREPARE_NEVER_MS))
+
+        start(SoundSettings(SoundRef.Builtin(BuiltinSound.BELLS)))
+        idle(MediaAlarmSoundPlayer.PREPARE_TIMEOUT)
+
+        assertThat(events.last()).isEqualTo(AlarmEvent.SoundStarted("tone", alarmVolume()))
+        assertThat(fallbacks).isEqualTo(1)
+        assertThat(created.all { shadowOf(it).state == ShadowMediaPlayer.State.END }).isTrue()
+    }
+
+    @Test
+    fun `worst case for a broken chosen melody is two prepare timeouts`() {
+        val bells = DataSource.toDataSource(context, MediaAlarmSoundPlayer.builtinSoundUri(context, BuiltinSound.BELLS))
+        ShadowMediaPlayer.addMediaInfo(bells, MediaInfo(DURATION_MS, PREPARE_NEVER_MS))
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(DURATION_MS, PREPARE_NEVER_MS))
+
+        start(SoundSettings(SoundRef.Builtin(BuiltinSound.BELLS)))
+        idle(MediaAlarmSoundPlayer.PREPARE_TIMEOUT.multipliedBy(2).minusMillis(1))
+        assertThat(fallbacks).isEqualTo(0)
+        idle(Duration.ofMillis(1))
+
+        assertThat(fallbacks).isEqualTo(1)
+    }
+
+    @Test
+    fun `missing custom file skips straight to the default melody`() {
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(DURATION_MS, 0))
+
+        start(SoundSettings(SoundRef.Custom(CustomSoundId(9))))
+        idle()
+
+        assertThat(events).containsExactly(
+            AlarmEvent.SoundFallback("missing"),
+            AlarmEvent.SoundStarted("default", alarmVolume()),
+        ).inOrder()
+        assertThat(created).hasSize(2)
+    }
+
+    @Test
+    fun `existing custom file is opened and reported as custom`() {
+        val file = files.fileOf(CustomSoundId(9)).apply {
+            parentFile!!.mkdirs()
+            writeBytes(ByteArray(10))
+        }
+        val customSource = FileInputStream(file).use { DataSource.toDataSource(it.fd) }
+        ShadowMediaPlayer.addMediaInfo(customSource, MediaInfo(DURATION_MS, 0))
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(DURATION_MS, 0))
+
+        start(SoundSettings(SoundRef.Custom(CustomSoundId(9))))
+        idle()
+
+        val custom = events.filterIsInstance<AlarmEvent.SoundStarted>().map { it.source }
+        // Robolectric не сопоставляет fd с источником: допустим и резерв, но не падение и не тишина.
+        assertThat(custom).isNotEmpty()
+        assertThat(shadowOf(created.last()).state).isEqualTo(ShadowMediaPlayer.State.STARTED)
+    }
+
+    @Test
+    fun `fade gain starts at minus 20 dB and reaches full volume`() {
+        assertThat(MediaAlarmSoundPlayer.fadeGain(0, 15_000)).isWithin(1e-4f).of(0.1f)
+        assertThat(MediaAlarmSoundPlayer.fadeGain(7_500, 15_000)).isWithin(1e-4f).of(0.3162f)
+        assertThat(MediaAlarmSoundPlayer.fadeGain(15_000, 15_000)).isEqualTo(1f)
+        assertThat(MediaAlarmSoundPlayer.fadeGain(99_000, 15_000)).isEqualTo(1f)
+        assertThat(MediaAlarmSoundPlayer.fadeGain(0, 0)).isEqualTo(1f)
+    }
+
+    @Test
+    fun `fade-in raises the player volume over the chosen time`() {
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(LONG_DURATION_MS, 0))
+
+        start(SoundSettings(fadeIn = Duration.ofSeconds(15)))
+        idle()
+        val atStart = shadowOf(created.single()).leftVolume
+        idle(Duration.ofSeconds(7))
+        val middle = shadowOf(created.single()).leftVolume
+        idle(Duration.ofSeconds(9))
+        val end = shadowOf(created.single()).leftVolume
+
+        assertThat(atStart).isWithin(0.02f).of(0.1f)
+        assertThat(middle).isGreaterThan(atStart)
+        assertThat(middle).isLessThan(1f)
+        assertThat(end).isEqualTo(1f)
+    }
+
+    @Test
+    fun `no fade when disabled by the caller`() {
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(DURATION_MS, 0))
+
+        start(SoundSettings(fadeIn = Duration.ofSeconds(60)), fadeIn = false)
+        idle()
+
+        assertThat(shadowOf(created.single()).leftVolume).isEqualTo(1f)
+    }
+
+    @Test
+    fun `muting silences the melody and unmuting fades back in`() {
+        ShadowMediaPlayer.addMediaInfo(source, MediaInfo(LONG_DURATION_MS, 0))
+        start()
+        idle()
+
+        player.setMuted(true)
+        idle(Duration.ofSeconds(20))
+        assertThat(shadowOf(created.single()).leftVolume).isEqualTo(0f)
+
+        player.setMuted(false)
+        assertThat(shadowOf(created.single()).leftVolume).isWithin(0.02f).of(0.1f)
+        idle(MediaAlarmSoundPlayer.RESUME_FADE)
+        assertThat(shadowOf(created.single()).leftVolume).isEqualTo(1f)
+    }
+
+    @Test
+    fun `muting stops the fallback tone and unmuting resumes it`() {
+        ShadowMediaPlayer.addException(source, IOException("broken"))
+        start()
+        player.setMuted(true)
+        val whileMuted = ShadowToneGenerator.getPlayedTones().size
+        idle(Duration.ofSeconds(5))
+        assertThat(ShadowToneGenerator.getPlayedTones()).hasSize(whileMuted)
+
+        player.setMuted(false)
+
+        assertThat(ShadowToneGenerator.getPlayedTones().size).isGreaterThan(whileMuted)
+    }
+
     private fun alarmVolume() = "${audioManager.getStreamVolume(AudioManager.STREAM_ALARM)}/" +
         "${audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)}"
 
-    private fun start() = player.start { fallbacks++ }
+    private fun start(settings: SoundSettings = SoundSettings.DEFAULT, fadeIn: Boolean = true) =
+        player.start(settings, fadeIn) { fallbacks++ }
 
     private fun idle(duration: Duration = Duration.ZERO) = shadowOf(Looper.getMainLooper()).idleFor(duration)
 
     private companion object {
         const val DURATION_MS = 1_550
+        const val LONG_DURATION_MS = 120_000 // looping short clips make the shadow player spin during long idles
         const val PREPARE_NEVER_MS = -1
     }
 }

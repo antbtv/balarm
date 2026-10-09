@@ -11,31 +11,47 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
+import com.antbtv.balarm.core.domain.sound.SoundFileStore
+import com.antbtv.balarm.core.model.BuiltinSound
+import com.antbtv.balarm.core.model.SoundRef
+import com.antbtv.balarm.core.model.SoundSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.FileInputStream
 import java.time.Duration
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.pow
 
-/** Звук звонка (ADR-008). Вызывается только с главного потока (`RingingService`). */
+/** Звук звонка (ADR-008, ADR-017). Вызывается только с главного потока (`RingingService`). */
 interface AlarmSoundPlayer {
-    /** Начинает звонок; [onFallback] — основной звук не заиграл, играет резервный тон (FR-SND-5). */
-    fun start(onFallback: () -> Unit = {})
+    /**
+     * Начинает звонок мелодией из [settings]. [fadeIn] `false` — без нарастания (RESUME, CATCH_UP, ранний звук).
+     * [onFallback] — обе мелодии не заиграли, играет резервный тон (FR-SND-5).
+     */
+    fun start(settings: SoundSettings, fadeIn: Boolean = true, onFallback: () -> Unit = {})
+
+    /** FR-RING-8: `true` — заглушить звук (вибрацию включает сервис); `false` — продолжить с нарастания. */
+    fun setMuted(muted: Boolean)
 
     /** Останавливает звук и освобождает ресурсы; повторный вызов безопасен. */
     fun stop()
 }
 
 /**
- * `MediaPlayer` со встроенным звуком из APK (доступен до разблокировки). Не подготовился за
- * [PREPARE_TIMEOUT] или ошибка → `ToneGenerator` на `STREAM_ALARM`. Отказ audio focus звонок не отменяет.
+ * `MediaPlayer` с цепочкой резервов (FR-SND-5): выбранная мелодия → встроенная по умолчанию → `ToneGenerator`;
+ * у каждой ступени подготовки [PREPARE_TIMEOUT]. Встроенные мелодии лежат в APK, свои — в device-protected
+ * хранилище и открываются через `FileDescriptor` (`mediaserver` не читает приватный каталог).
+ * Нарастание — усилением плеера поверх индекса потока (ADR-017 §3). Отказ audio focus звонок не отменяет.
  */
-@Suppress("TooGenericExceptionCaught") // любая ошибка плеера → резервный тон, звонок не должен молчать
+@Suppress("TooGenericExceptionCaught", "TooManyFunctions") // ошибка плеера → резерв; звонок не должен молчать
 @Singleton // один звонок — один плеер: stop() из любого места глушит тот же звук
 class MediaAlarmSoundPlayer @Inject constructor(
     @ApplicationContext private val context: Context,
     private val log: AlarmEventLog,
+    private val files: SoundFileStore,
 ) : AlarmSoundPlayer {
 
     private val handler = Handler(Looper.getMainLooper())
@@ -47,7 +63,12 @@ class MediaAlarmSoundPlayer @Inject constructor(
     private var player: MediaPlayer? = null
     private var tone: ToneGenerator? = null
     private var onFallback: () -> Unit = {}
-    private var fellBack = false
+    private var chain: List<SoundRef?> = emptyList() // null — резервный тон
+    private var stage = 0
+    private var muted = false
+    private var fadeEnabled = false
+    private var fadeTotalMs = 0L
+    private var fadeStartedAt = -1L
     private val prepareTimeout = Runnable { fallBack("timeout") }
     private val toneLoop = object : Runnable {
         override fun run() {
@@ -55,12 +76,67 @@ class MediaAlarmSoundPlayer @Inject constructor(
             handler.postDelayed(this, TONE_PERIOD_MS)
         }
     }
+    private val fadeTick = object : Runnable {
+        override fun run() {
+            val elapsed = SystemClock.elapsedRealtime() - fadeStartedAt
+            player?.takeIf { !muted }?.setVolume(fadeGain(elapsed, fadeTotalMs), fadeGain(elapsed, fadeTotalMs))
+            if (elapsed < fadeTotalMs) handler.postDelayed(this, FADE_STEP_MS)
+        }
+    }
 
-    override fun start(onFallback: () -> Unit) {
+    override fun start(settings: SoundSettings, fadeIn: Boolean, onFallback: () -> Unit) {
         stop()
         this.onFallback = onFallback
-        // Результат не важен: будильник звонит и без фокуса (ADR-008 §4); потеря фокуса — M4 (FR-RING-8).
+        chain = listOfNotNull(settings.sound, SoundRef.DEFAULT.takeIf { settings.sound != it }) + null
+        fadeEnabled = fadeIn && !settings.fadeIn.isZero
+        fadeTotalMs = settings.fadeIn.toMillis()
+        // Результат не важен: будильник звонит и без фокуса (ADR-008 §4).
         audioManager.requestAudioFocus(focusRequest)
+        runStage(0)
+    }
+
+    override fun setMuted(muted: Boolean) {
+        if (this.muted == muted) return
+        this.muted = muted
+        handler.removeCallbacks(fadeTick)
+        if (muted) {
+            player?.setVolume(0f, 0f)
+            handler.removeCallbacks(toneLoop)
+            tone?.stopTone()
+        } else if (tone != null) {
+            toneLoop.run()
+        } else if (player?.isPlaying == true) {
+            fadeEnabled = true
+            beginFade(RESUME_FADE.toMillis())
+        }
+    }
+
+    override fun stop() {
+        handler.removeCallbacks(prepareTimeout)
+        handler.removeCallbacks(toneLoop)
+        handler.removeCallbacks(fadeTick)
+        releasePlayer()
+        tone?.let {
+            it.stopTone()
+            it.release()
+        }
+        tone = null
+        onFallback = {}
+        chain = emptyList()
+        stage = 0
+        muted = false
+        fadeEnabled = false
+        fadeStartedAt = -1
+        audioManager.abandonAudioFocusRequest(focusRequest)
+    }
+
+    private fun runStage(index: Int) {
+        stage = index
+        val ref = chain.getOrNull(index)
+        if (ref == null) {
+            playTone()
+            return
+        }
         try {
             // В поле сразу: если setDataSource/prepareAsync бросит, fallBack() освободит и этот плеер.
             val mediaPlayer = MediaPlayer()
@@ -69,17 +145,12 @@ class MediaAlarmSoundPlayer @Inject constructor(
                 setAudioAttributes(ALARM_ATTRIBUTES)
                 setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
                 isLooping = true
-                setOnPreparedListener { prepared ->
-                    if (prepared !== player) return@setOnPreparedListener
-                    handler.removeCallbacks(prepareTimeout)
-                    prepared.start()
-                    log.log(AlarmEvent.SoundStarted(SOURCE_RAW, alarmVolume()))
-                }
+                setOnPreparedListener { prepared -> onPrepared(prepared, ref, index) }
                 setOnErrorListener { failed, what, _ ->
                     if (failed === player) fallBack("error_$what")
                     true
                 }
-                setDataSource(context, defaultSoundUri(context))
+                if (!setSource(ref)) return
                 prepareAsync()
             }
             handler.postDelayed(prepareTimeout, PREPARE_TIMEOUT.toMillis())
@@ -88,29 +159,65 @@ class MediaAlarmSoundPlayer @Inject constructor(
         }
     }
 
-    override fun stop() {
-        handler.removeCallbacks(prepareTimeout)
-        handler.removeCallbacks(toneLoop)
-        releasePlayer()
-        tone?.let {
-            it.stopTone()
-            it.release()
+    /** `false` — источник недоступен, уже выполнен переход на следующую ступень. */
+    private fun MediaPlayer.setSource(ref: SoundRef): Boolean {
+        when (ref) {
+            is SoundRef.Builtin -> setDataSource(context, builtinSoundUri(context, ref.sound))
+
+            is SoundRef.Custom -> {
+                val file = files.fileOf(ref.id)
+                if (!file.exists()) {
+                    fallBack("missing")
+                    return false
+                }
+                FileInputStream(file).use { setDataSource(it.fd) }
+            }
         }
-        tone = null
-        onFallback = {}
-        fellBack = false
-        audioManager.abandonAudioFocusRequest(focusRequest)
+        return true
+    }
+
+    private fun onPrepared(prepared: MediaPlayer, ref: SoundRef, index: Int) {
+        if (prepared !== player) return
+        handler.removeCallbacks(prepareTimeout)
+        prepared.start()
+        when {
+            muted -> prepared.setVolume(0f, 0f)
+
+            index == 0 && fadeEnabled -> {
+                prepared.setVolume(fadeGain(0, fadeTotalMs), fadeGain(0, fadeTotalMs))
+                beginFade(fadeTotalMs)
+            }
+
+            else -> prepared.setVolume(1f, 1f)
+        }
+        log.log(AlarmEvent.SoundStarted(sourceLabel(ref, index), alarmVolume()))
+    }
+
+    private fun beginFade(totalMs: Long) {
+        fadeTotalMs = totalMs
+        fadeStartedAt = SystemClock.elapsedRealtime()
+        handler.removeCallbacks(fadeTick)
+        fadeTick.run()
+    }
+
+    private fun sourceLabel(ref: SoundRef, index: Int): String = when {
+        ref is SoundRef.Custom -> SOURCE_CUSTOM
+        ref == SoundRef.DEFAULT || index > 0 -> SOURCE_DEFAULT
+        else -> SOURCE_BUILTIN
     }
 
     private fun fallBack(reason: String) {
         handler.removeCallbacks(prepareTimeout)
         releasePlayer()
-        if (fellBack) return
-        fellBack = true
+        if (chain.isEmpty()) return
         log.log(AlarmEvent.SoundFallback(reason))
+        runStage(stage + 1)
+    }
+
+    private fun playTone() {
         try {
             tone = ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME)
-            toneLoop.run()
+            if (!muted) toneLoop.run()
             log.log(AlarmEvent.SoundStarted(SOURCE_TONE, alarmVolume()))
         } catch (e: RuntimeException) {
             // Нет и тона (аудио-сервис недоступен): остаётся вибрация, которую включит onFallback.
@@ -135,11 +242,19 @@ class MediaAlarmSoundPlayer @Inject constructor(
         "${audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)}"
 
     companion object {
-        /** FR-SND-5: не заиграл за 1 с — резерв. */
+        /** FR-SND-5: не заиграл за 1 с — следующая ступень. */
         val PREPARE_TIMEOUT: Duration = Duration.ofSeconds(1)
+
+        /** После телефонного звонка мелодия возвращается с нарастания (ADR-017 §8). */
+        val RESUME_FADE: Duration = Duration.ofSeconds(15)
+        private const val FADE_STEP_MS = 200L
+        private const val FADE_FROM_DB = -20.0
+        private const val DB_PER_DECADE = 20.0
         private const val TONE_MS = 1_000
         private const val TONE_PERIOD_MS = 1_500L
-        private const val SOURCE_RAW = "raw"
+        private const val SOURCE_BUILTIN = "builtin"
+        private const val SOURCE_CUSTOM = "custom"
+        private const val SOURCE_DEFAULT = "default"
         private const val SOURCE_TONE = "tone"
 
         val ALARM_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
@@ -147,15 +262,24 @@ class MediaAlarmSoundPlayer @Inject constructor(
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
 
+        /** Усиление плеера через [elapsedMs] нарастания длиной [totalMs]: от −20 дБ (10 % амплитуды) до 0 дБ. */
+        fun fadeGain(elapsedMs: Long, totalMs: Long): Float {
+            if (totalMs <= 0 || elapsedMs >= totalMs) return 1f
+            val progress = elapsedMs.coerceAtLeast(0).toDouble() / totalMs
+            return 10.0.pow(FADE_FROM_DB * (1 - progress) / DB_PER_DECADE).toFloat()
+        }
+
         /**
-         * URI по имени ресурса, а не по id: id меняются между сборками, а URI хранится в канале
-         * уведомлений (`alarm_fallback`) после обновления приложения.
+         * URI по имени ресурса, а не по id: id меняются между сборками, а URI `alarm_default` хранится
+         * в канале уведомлений (`alarm_fallback`) после обновления приложения.
          */
-        fun defaultSoundUri(context: Context): Uri = Uri.Builder()
+        fun builtinSoundUri(context: Context, sound: BuiltinSound): Uri = Uri.Builder()
             .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
             .authority(context.packageName)
             .appendPath("raw")
-            .appendPath("alarm_default")
+            .appendPath(sound.key)
             .build()
+
+        fun defaultSoundUri(context: Context): Uri = builtinSoundUri(context, BuiltinSound.DEFAULT)
     }
 }

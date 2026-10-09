@@ -41,7 +41,7 @@
 | [x] | M4-T02 | Room v3: колонки + `custom_sound`, AutoMigration 🔔 | FR-SND-2 | M | T01 | |
 | [x] | M4-T03 | Генератор и 10 встроенных мелодий, названия RU/EN, LICENSES 🔔 | FR-SND-1 | M | T01 | |
 | [x] | M4-T04 | `RoomSoundRepository`, хранилище в DE, `RingVolumeStore` 🔔 | FR-SND-2,3 | L | T02 | |
-| [ ] | M4-T05 | `AlarmSoundPlayer`: источники, цепочка резервов, нарастание 🔔 | FR-SND-5,6 | M | T01, T03 | |
+| [x] | M4-T05 | `AlarmSoundPlayer`: источники, цепочка резервов, нарастание 🔔 | FR-SND-5,6 | M | T01, T03 | |
 | [ ] | M4-T06 | `AlarmVolumeController` + интеграция в `RingingService` 🔔 | FR-SND-7 | M | T04, T05 | |
 | [ ] | M4-T07 | Реакция на режим аудио (звонок/вызов): mute+вибрация 🔔 | FR-RING-8 | S | T05 | |
 | [ ] | M4-T08 | `SoundPreview` (владелец PREVIEW, автостоп 10 с) 🔔 | FR-SND-3 | S | T06 | |
@@ -97,10 +97,10 @@
 **Описание:** `AlarmSoundPlayer.start(settings, fadeIn, onFallback)`, `setMuted`, `stop`. Источник по `SoundRef` (raw или FD файла). Цепочка с таймаутом 1 с на ступень: выбранная → DEFAULT → `ToneGenerator`+вибрация. Нарастание −20 дБ → 0, не применяется для RESUME/CATCH_UP/раннего звука сторожа. События `SOUND_STARTED source=…`, `SOUND_FALLBACK`.
 **Модули:** `:core:alarm`.
 **Критерии приёмки:**
-- [ ] Удалённый/битый файл → играет DEFAULT; если и он недоступен — тон+вибрация
-- [ ] Худший случай до звука ≤ 4 с (R15)
-- [ ] Нарастание начинается с 10 % амплитуды и достигает целевого за выбранное время
-- [ ] `USAGE_ALARM`, `AudioFocus` как в ADR-008
+- [x] Удалённый/битый файл → играет DEFAULT; если и он недоступен — тон+вибрация
+- [x] Худший случай до звука ≤ 4 с (R15)
+- [x] Нарастание начинается с 10 % амплитуды и достигает целевого за выбранное время
+- [x] `USAGE_ALARM`, `AudioFocus` как в ADR-008
 **Тесты:** unit цепочки (фейки), нарастания (кривая); Robolectric. Сценарии: R15.
 
 ### M4-T06 — Громкость STREAM_ALARM 🔔 reliability
@@ -185,6 +185,10 @@ ADR-016/017 → Accepted; ссылки на ADR-017 в ADR-008 и ADR-012; пр�
 | Память машины | Одна Gradle-сборка, эмулятор без окна с лимитом |
 
 ## Добавлено по ходу
+* T05 захватил часть T06: `RingingService` уже передаёт `alarm.sound` и `fadeIn` (RESUME/CATCH_UP — без нарастания), сторож переключает мелодию без нарастания. В T06 остаётся громкость потока.
+* Источники в `SOUND_STARTED`: `builtin|custom|default|tone` (раньше `raw`); обновлён скилл verify-alarm-reliability (R11).
+* Сигнатуры `RingVolumeStore` (`load/save/clear`) и `SoundPreview` (`play/stop`) в коде отличаются от ADR-017 — привести ADR к коду в T-docs.
+* Тесты на `ShadowMediaPlayer`: долгий `idleFor` с зацикленным коротким клипом (1,5 с) вешает Robolectric — для таких тестов `MediaInfo` с длиной ≥ 2 мин.
 
 ## Уроки
 
