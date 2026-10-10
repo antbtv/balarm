@@ -116,6 +116,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("to" to to)
     }
 
+    /** FR-RING-8: мелодия приглушена ([muted]) или возвращена из-за режима аудио [mode]; [timeout] — по таймауту. */
+    data class CallMuted(val muted: Boolean, val mode: Int, val timeout: Boolean = false) : AlarmEvent {
+        override val name = "CALL_MUTED"
+        override val fields = mapOf("muted" to muted, "mode" to mode, "timeout" to timeout)
+    }
+
     /** Превью мелодии не заиграло (редактор/пикер); на звонок не влияет. */
     data class PreviewFailed(val reason: String) : AlarmEvent {
         override val name = "PREVIEW_FAILED"

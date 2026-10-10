@@ -8,6 +8,7 @@ import com.antbtv.balarm.core.alarm.ring.FakeRingVolumeStore
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.sound.SavedVolume
+import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +21,8 @@ class AlarmVolumeControllerTest {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val store = FakeRingVolumeStore()
     private val events = mutableListOf<AlarmEvent>()
-    private val controller = AlarmVolumeController(context, store, AlarmEventLog { events += it })
+    private val controller =
+        AlarmVolumeController(context, store, AlarmEventLog { events += it }, FeatureFlagProvider { true })
 
     init {
         shadowOf(audio).setStreamMaxVolume(MAX)
@@ -53,6 +55,17 @@ class AlarmVolumeControllerTest {
         assertThat(volume).isEqualTo(1)
         assertThat(store.value).isNull()
         assertThat(events).contains(AlarmEvent.VolumeRestored(1))
+    }
+
+    @Test
+    fun `ring leaves the stream alone while the sound flag is off`() {
+        volume = 2
+        val off = AlarmVolumeController(context, store, AlarmEventLog { events += it }, FeatureFlagProvider { false })
+
+        off.acquire(VolumeOwner.RINGING, 80)
+
+        assertThat(volume).isEqualTo(2)
+        assertThat(store.value).isNull()
     }
 
     @Test
@@ -113,7 +126,14 @@ class AlarmVolumeControllerTest {
                 store.save(volume)
             }
         }
-        AlarmVolumeController(context, recording, AlarmEventLog { events += it }).acquire(VolumeOwner.RINGING, 80)
+        AlarmVolumeController(
+            context,
+            recording,
+            AlarmEventLog {
+                events += it
+            },
+            FeatureFlagProvider { true },
+        ).acquire(VolumeOwner.RINGING, 80)
 
         assertThat(order.first()).isEqualTo("save original=1 stream=1")
     }
@@ -150,7 +170,8 @@ class AlarmVolumeControllerTest {
 
             override suspend fun clear() = error("disk")
         }
-        val broken = AlarmVolumeController(context, failing, AlarmEventLog { events += it })
+        val broken =
+            AlarmVolumeController(context, failing, AlarmEventLog { events += it }, FeatureFlagProvider { true })
 
         broken.acquire(VolumeOwner.RINGING, 80)
         broken.release(VolumeOwner.RINGING)

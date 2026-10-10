@@ -17,6 +17,7 @@ import com.antbtv.balarm.core.model.BuiltinSound
 import com.antbtv.balarm.core.model.CustomSoundId
 import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.core.model.SoundSettings
+import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import java.io.IOException
@@ -56,7 +57,7 @@ class MediaSoundPreviewTest {
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val store = FakeRingVolumeStore()
-    private val volume = AlarmVolumeController(context, store, log)
+    private val volume = AlarmVolumeController(context, store, log, FeatureFlagProvider { true })
     private val preview = MediaSoundPreview(context, files, volume, log, ringing, scope)
     private val bells = DataSource.toDataSource(
         context,
@@ -140,6 +141,21 @@ class MediaSoundPreviewTest {
 
         assertThat(preview.playing.value).isNull()
         assertThat(shadowOf(created.single()).state).isEqualTo(ShadowMediaPlayer.State.END)
+    }
+
+    @Test
+    fun `play during a ring does nothing`() {
+        ringingState.value = RingingState.Ringing(
+            alarm = Alarm(time = LocalTime.of(7, 0)),
+            startedAt = Instant.EPOCH,
+            canSnooze = true,
+            snoozesLeft = null,
+        )
+
+        preview.play(settings())
+
+        assertThat(preview.playing.value).isNull()
+        assertThat(created).isEmpty()
     }
 
     @Test

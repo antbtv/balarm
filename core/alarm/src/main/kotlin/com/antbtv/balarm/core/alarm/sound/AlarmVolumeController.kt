@@ -6,6 +6,8 @@ import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.sound.RingVolumeStore
 import com.antbtv.balarm.core.domain.sound.SavedVolume
+import com.antbtv.balarm.core.model.feature.Feature
+import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,6 +31,7 @@ class AlarmVolumeController @Inject constructor(
     @ApplicationContext context: Context,
     private val store: RingVolumeStore,
     private val log: AlarmEventLog,
+    private val flags: FeatureFlagProvider,
 ) {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val owners = mutableSetOf<VolumeOwner>()
@@ -37,6 +40,8 @@ class AlarmVolumeController @Inject constructor(
 
     fun acquire(owner: VolumeOwner, percent: Int) {
         owners += owner
+        // Флаг выключен — громкость потока остаётся пользовательской (FR-FLAG-3); звонок играет на ней.
+        if (owner == VolumeOwner.RINGING && !flags.isEnabled(Feature.ALARM_SOUND)) return
         if (audio.isVolumeFixed) {
             log.log(AlarmEvent.VolumeFixed)
             return
@@ -83,16 +88,24 @@ class AlarmVolumeController @Inject constructor(
 
     private fun restore(snapshot: SavedVolume) {
         val unchangedByUser = audio.getStreamVolume(STREAM) == snapshot.applied
+        var done = true
         if (unchangedByUser && snapshot.original != snapshot.applied) {
             try {
                 audio.setStreamVolume(STREAM, snapshot.original, 0)
-                log.log(AlarmEvent.VolumeRestored(snapshot.original))
             } catch (_: RuntimeException) {
-                log.log(AlarmEvent.VolumeNotApplied(snapshot.original, audio.getStreamVolume(STREAM)))
+                // проверим чтением ниже
+            }
+            val actual = audio.getStreamVolume(STREAM)
+            if (actual == snapshot.original) {
+                log.log(AlarmEvent.VolumeRestored(snapshot.original))
+            } else {
+                // Android 17 мог молча проигнорировать запись из фона: снимок остаётся для следующего запуска UI.
+                done = false
+                log.log(AlarmEvent.VolumeNotApplied(snapshot.original, actual))
             }
         }
-        blockingStore { store.clear() }
-        storeChecked = false
+        if (done) blockingStore { store.clear() }
+        storeChecked = false // снимок мог остаться: следующий звонок прочитает его, а не повышенную громкость
     }
 
     private fun <T> blockingStore(block: suspend () -> T): T? = try {

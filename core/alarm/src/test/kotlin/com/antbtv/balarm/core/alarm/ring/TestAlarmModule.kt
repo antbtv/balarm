@@ -16,6 +16,7 @@ import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
+import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.components.SingletonComponent
@@ -73,6 +74,9 @@ object TestAlarmModule {
         log: RecordingEventLog,
         store: InMemoryTestAlarmStore,
     ) = AlarmEngine(repository, scheduler, clock, { true }, log, TestAlarmRunner(scheduler, store, clock, log))
+
+    @Provides
+    fun flags(): FeatureFlagProvider = FeatureFlagProvider { true }
 
     @Provides @Singleton
     fun fakeSound() = FakeSoundPlayer()

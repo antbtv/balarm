@@ -36,7 +36,7 @@ class MediaSoundPreview @Inject constructor(
     private val files: SoundFileStore,
     private val volume: AlarmVolumeController,
     private val log: AlarmEventLog,
-    ringing: RingingController,
+    private val ringing: RingingController,
     @ApplicationScope scope: CoroutineScope,
 ) : SoundPreview {
 
@@ -54,7 +54,9 @@ class MediaSoundPreview @Inject constructor(
     }
 
     override fun play(settings: SoundSettings) {
-        stop()
+        // Звонок важнее превью и владеет громкостью потока.
+        if (ringing.state.value is RingingState.Ringing) return
+        stopPlayer() // громкость не отпускаем: смена слайдера не должна дёргать поток и хранилище
         try {
             volume.acquire(VolumeOwner.PREVIEW, settings.volumePercent)
             val mediaPlayer = MediaPlayer()
@@ -65,7 +67,6 @@ class MediaSoundPreview @Inject constructor(
                 setOnPreparedListener { prepared ->
                     if (prepared !== player) return@setOnPreparedListener
                     prepared.start()
-                    handler.postDelayed(autoStop, AUTO_STOP.toMillis())
                 }
                 setOnErrorListener { failed, what, _ ->
                     if (failed === player) {
@@ -77,6 +78,7 @@ class MediaSoundPreview @Inject constructor(
                 open(settings.sound)
                 prepareAsync()
             }
+            handler.postDelayed(autoStop, AUTO_STOP.toMillis()) // и при зависшем prepareAsync
             _playing.value = settings.sound
         } catch (e: Exception) {
             log.log(AlarmEvent.PreviewFailed(e.javaClass.simpleName))
@@ -85,6 +87,11 @@ class MediaSoundPreview @Inject constructor(
     }
 
     override fun stop() {
+        stopPlayer()
+        volume.release(VolumeOwner.PREVIEW)
+    }
+
+    private fun stopPlayer() {
         handler.removeCallbacks(autoStop)
         val current = player
         player = null
@@ -97,7 +104,6 @@ class MediaSoundPreview @Inject constructor(
             current.release()
         }
         _playing.value = null
-        volume.release(VolumeOwner.PREVIEW)
     }
 
     private fun MediaPlayer.open(ref: SoundRef) {

@@ -113,6 +113,7 @@ class RingingService : Service() {
 
     /** Звук приглушён из-за телефонного звонка (FR-RING-8, ADR-017 §8). */
     private var callMuted = false
+    private var muteTimeout: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -419,10 +420,22 @@ class RingingService : Service() {
         val inCall = mode in CALL_MODES
         if (inCall == callMuted) return
         callMuted = inCall
+        muteTimeout?.cancel()
+        muteTimeout = null
         if (!ringing) return
         sound.setMuted(inCall)
+        log.log(AlarmEvent.CallMuted(inCall, mode))
         if (inCall) {
             vibrator.start()
+            // Чужой режим связи может «залипнуть» (VoIP): будильник не молчит дольше MUTE_TIMEOUT.
+            muteTimeout = scope.launch {
+                delay(MUTE_TIMEOUT.toMillis())
+                if (callMuted && ringing) {
+                    callMuted = false
+                    sound.setMuted(false)
+                    log.log(AlarmEvent.CallMuted(false, audioManager.mode, timeout = true))
+                }
+            }
         } else if (current?.alarm?.vibrate == false) {
             vibrator.stop()
         }
@@ -430,6 +443,8 @@ class RingingService : Service() {
 
     private fun silence() {
         callMuted = false
+        muteTimeout?.cancel()
+        muteTimeout = null
         sound.stop()
         vibrator.stop()
         volume.release(VolumeOwner.RINGING) // ещё в foreground: Android 17 не даёт менять громкость из фона
@@ -526,6 +541,9 @@ class RingingService : Service() {
     internal companion object {
         /** FR-RING-1: звук не позже чем через 2 с после срабатывания, даже если БД ещё открывается. */
         val FIRST_SOUND_DEADLINE: Duration = Duration.ofSeconds(2)
+
+        /** FR-RING-8: дольше этого мелодия не молчит из-за режима аудио, даже если режим не сменился. */
+        val MUTE_TIMEOUT: Duration = Duration.ofSeconds(90)
 
         /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
         val CRASH_RESUME_DELAY: Duration = Duration.ofSeconds(3)

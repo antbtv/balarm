@@ -58,8 +58,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             // ADR-005 §2: страховка после force-stop/восстановления — идемпотентно, переживает закрытие экрана.
             appScope.launch { rescheduler.reschedule(RescheduleReason.APP_LAUNCH) }
-            // Громкость, оставшаяся после падения процесса посреди звонка (ADR-017 §2), и сироты в библиотеке мелодий.
-            volume.restorePendingIfIdle()
+            // Сироты в библиотеке мелодий.
             appScope.launch { runCatching { sounds.cleanUp() } }
         }
         // Разрешения запрашивает онбординг (ADR-013); временный запрос POST_NOTIFICATIONS из M1 удалён.
@@ -93,6 +92,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // Громкость, оставшаяся после падения процесса посреди звонка (ADR-017 §2): и при восстановлении
+        // Activity после SIGKILL (savedInstanceState != null). Метод идемпотентен; видимая Activity — не фон.
+        volume.restorePendingIfIdle()
         ringingRedirect(ringing.state.value, uiIntents)?.let(::startActivity)
     }
 }

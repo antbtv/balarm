@@ -209,6 +209,17 @@ class RingingServiceTest {
     }
 
     @Test
+    fun `stuck call mode does not keep the melody muted forever`() {
+        start(ringIntent(ALARM.id))
+
+        service.get().onAudioMode(AudioManager.MODE_IN_COMMUNICATION)
+        assertThat(fakeSound.muted).isTrue()
+
+        idle(RingingService.MUTE_TIMEOUT.plusSeconds(1))
+        assertThat(fakeSound.muted).isFalse()
+    }
+
+    @Test
     fun `alarm that fires during a call starts muted`() {
         app.getSystemService(AudioManager::class.java).mode = AudioManager.MODE_IN_CALL
 
