@@ -14,6 +14,7 @@ import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.core.model.feature.Feature
 import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
+import com.antbtv.balarm.feature.missions.api.MissionRegistry
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -44,6 +45,9 @@ import kotlinx.coroutines.withContext
  * Звук (FR-EDIT-5, ADR-016/017, за `feature.alarmSound`): названия своих мелодий — из [sounds], смена громкости
  * сразу играет превью через [preview] (видимый экран — громкость можно менять, ADR-017 §6); превью замолкает
  * на `ON_STOP` экрана ([AlarmEditEvent.StopSoundPreview]), перед пикером и в [onCleared].
+ *
+ * Миссия (FR-EDIT-6, FR-MIS-5, ADR-018 §6): список — `MissionRegistry.available` (флаг каждой миссии); пусто —
+ * строки нет и `draft.mission` не меняется. Настройка — подэкран редактора, превью — эффект для навигации `:app`.
  */
 @HiltViewModel(assistedFactory = AlarmEditViewModel.Factory::class)
 class AlarmEditViewModel @AssistedInject constructor(
@@ -55,6 +59,7 @@ class AlarmEditViewModel @AssistedInject constructor(
     flags: FeatureFlagProvider,
     private val sounds: SoundRepository,
     private val preview: SoundPreview,
+    missions: MissionRegistry,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -64,6 +69,9 @@ class AlarmEditViewModel @AssistedInject constructor(
 
     private val snoozeVisible = flags.isEnabled(Feature.SNOOZE)
     private val soundVisible = flags.isEnabled(Feature.ALARM_SOUND)
+
+    /** Доступные миссии читаются один раз, как и остальные флаги экрана. */
+    private val availableMissions = missions.available
 
     /** Выбор из пикера, пришедший до загрузки будильника (восстановление после смерти процесса). */
     private var pendingSound: SoundRef? = null
@@ -107,6 +115,7 @@ class AlarmEditViewModel @AssistedInject constructor(
             draft = placeholder,
             snoozeVisible = snoozeVisible,
             soundVisible = soundVisible,
+            missions = availableMissions,
         )
     }
 
@@ -149,6 +158,8 @@ class AlarmEditViewModel @AssistedInject constructor(
 
             AlarmEditEvent.Back -> if (!state.saving) back(state)
 
+            AlarmEditEvent.PreviewMission -> previewMission(state)
+
             is AlarmEditEvent.SoundSelected, is AlarmEditEvent.VolumeChanged, AlarmEditEvent.PickSound ->
                 onSoundEvent(state, event)
 
@@ -180,12 +191,20 @@ class AlarmEditViewModel @AssistedInject constructor(
         viewModelScope.launch { effectChannel.send(AlarmEditEffect.OpenSoundPicker(state.draft.sound.sound)) }
     }
 
+    /** Превью — только настроенной доступной миссии; звук редактора перед ним замолкает. */
+    private fun previewMission(state: AlarmEditUiState) {
+        val spec = state.draft.mission?.takeIf { state.selectedMission != null } ?: return
+        if (state.loading || state.saving) return
+        preview.stop()
+        viewModelScope.launch { effectChannel.send(AlarmEditEffect.OpenMissionPreview(spec)) }
+    }
+
     override fun onCleared() {
         preview.stop()
     }
 
     private fun back(state: AlarmEditUiState) {
-        if (state.isDirty && !state.loading) reduce(AlarmEditEvent.Back) else close()
+        if (state.missionSettingsOpen || (state.isDirty && !state.loading)) reduce(AlarmEditEvent.Back) else close()
     }
 
     private fun reduce(event: AlarmEditEvent) {

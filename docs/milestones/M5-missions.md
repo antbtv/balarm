@@ -27,7 +27,7 @@
 | [x] | M5-T02 | Math: генератор, конфиг, unit-тесты 🔔 | NFR-6 | S | T01 | |
 | [x] | M5-T03 | `RingingService`: сессия миссии, приглушение, таймер, отклонение dismiss 🔔 | FR-MIS-2,3, FR-RING-4 | L | T01 | |
 | [x] | M5-T04 | Экран Math + хост в `RingingActivity` + возврат после Home 🎨🔔 | FR-MIS-1,3, FR-RING-3,5 | L | T02, T03 | |
-| [ ] | M5-T05 | Редактор: секция «Миссия» (уровень, количество) + превью, навигация 🎨 | FR-MIS-5 | M | T02 | |
+| [x] | M5-T05 | Редактор: секция «Миссия» (уровень, количество) + превью, навигация 🎨 | FR-MIS-5 | M | T02 | |
 | [ ] | M5-T-test | Тестирование: R16, R17, R3 (smoke), R1 | | M | все | |
 | [ ] | M5-T-review | Ревью этапа | | S | T-test | |
 | [ ] | M5-T-docs | ADR-018…020 → Accepted (коротко), PRD, `add-mission`, `feature.mission.math=true` | | S | T-review | |
@@ -69,6 +69,7 @@
 
 ## Добавлено по ходу
 * T04: при Home/Recents во время миссии сессия завершается (сервис на `MISSION_HIDDEN`), прогресс теряется — расходится с ADR-019 §6 (решённые задачи сохраняются); безопаснее для отключения — поправить ADR в T-docs. Отличия от ADR-019: нет `idleDeadline` (полоска бездействия считается на UI), вместо `screenVisible` — `missionScreenHidden()`, команды идут интентами. Клавиша «−» не нужна (ответы положительные). Возврат экрана после Home: `RingingService.scheduleScreenReturn` (1 с, при overlay). Визуальная проверка (fontScale 2, 360dp) — в T-test.
+* T05: настройка миссии — подэкран внутри редактора (черновик в VM), отдельной записи навигации нет; без `MissionSettingsRoute` и результата через `BalarmNavState`; у превью — `MissionPreviewKey`. Править ADR-018 §6–7 и ADR-009 в T-docs; `RadioRow` (designsystem) → alarmy-ui. Визуальная проверка подэкрана/превью (fontScale 2, 360dp) — в T-test.
 
 ## Уроки
 

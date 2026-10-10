@@ -2,9 +2,11 @@ package com.antbtv.balarm.core.designsystem.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -69,11 +71,11 @@ fun SingleChoiceDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 options.forEachIndexed { index, option ->
-                    ChoiceRow(
-                        index = index,
+                    RadioRow(
                         text = option,
                         selected = index == selectedIndex,
                         onClick = { onSelect(index) },
+                        modifier = Modifier.testTag(SingleChoiceDialogTestTags.option(index)),
                     )
                 }
             }
@@ -85,15 +87,26 @@ fun SingleChoiceDialog(
     )
 }
 
+/**
+ * Строка-радиокнопка (≥ 56dp): вся строка — одна радиокнопка для тапа и TalkBack. Родитель группы помечается
+ * `Modifier.selectableGroup()`. [contentPadding] — внутри зоны тапа (строка в карточке). Используется в
+ * [SingleChoiceDialog] и на экранах выбора (миссия в редакторе, M5).
+ */
 @Composable
-private fun ChoiceRow(index: Int, text: String, selected: Boolean, onClick: () -> Unit) {
+fun RadioRow(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
+) {
     val colors = BalarmTheme.colors
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = BalarmDimens.ListRowMinHeight)
-            .testTag(SingleChoiceDialogTestTags.option(index))
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(BalarmDimens.SpacingSmall),
     ) {

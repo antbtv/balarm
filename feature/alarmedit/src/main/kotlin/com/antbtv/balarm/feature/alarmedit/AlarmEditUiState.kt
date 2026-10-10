@@ -7,7 +7,10 @@ import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.BuiltinSound
 import com.antbtv.balarm.core.model.CustomSoundId
+import com.antbtv.balarm.core.model.MissionSpec
+import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.SoundRef
+import com.antbtv.balarm.feature.missions.api.MissionDefinition
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
@@ -21,6 +24,9 @@ import java.time.LocalTime
  * @property snoozeVisible флаг `feature.snooze`: при `false` секция скрыта и `draft.snooze` не меняется.
  * @property soundVisible флаг `feature.alarmSound`: при `false` секции «Звук» нет, `draft.sound` и `draft.vibrate`
  * не меняются (сохранённые значения звонят как есть, ADR-016 §7).
+ * @property missions доступные миссии (`MissionRegistry.available`, флаг каждой — FR-FLAG-3). Пусто — строки
+ * «Миссия» нет, `draft.mission` не меняется (сохранённая миссия выключенного типа сохраняется как есть).
+ * @property missionSettingsOpen открыт экран настройки миссии (подэкран редактора поверх формы).
  * @property customTitles названия своих мелодий из библиотеки; `null` — ещё не загружены (или флаг выключен).
  * @property saving «Сохранить» нажато: повторные нажатия игнорируются, пока операция движка не закончилась.
  */
@@ -33,6 +39,8 @@ data class AlarmEditUiState(
     val snoozeVisible: Boolean,
     val soundVisible: Boolean = false,
     val customTitles: Map<CustomSoundId, String>? = null,
+    val missions: List<MissionDefinition> = emptyList(),
+    val missionSettingsOpen: Boolean = false,
     val saving: Boolean = false,
     val dialog: EditDialog? = null,
 ) {
@@ -49,6 +57,12 @@ data class AlarmEditUiState(
                 else -> titles[ref.id]?.let(SoundName::Custom) ?: SoundName.Missing
             }
         }
+
+    val missionVisible: Boolean get() = missions.isNotEmpty()
+
+    /** Определение миссии черновика среди доступных; `null` — без миссии (или её тип сейчас недоступен). */
+    val selectedMission: MissionDefinition?
+        get() = draft.mission?.let { spec -> missions.firstOrNull { it.type == spec.type } }
 
     /** «Удалить» — только для существующего будильника. */
     val canDelete: Boolean get() = !isNew && !loading
@@ -114,6 +128,21 @@ sealed interface AlarmEditEvent {
 
     data object ShowFadeInDialog : AlarmEditEvent
 
+    /** Тап по строке «Миссия»: открыть подэкран настройки. */
+    data object OpenMissionSettings : AlarmEditEvent
+
+    /** «Готово» / «Назад» подэкрана миссии (системный Back — через [Back]). */
+    data object CloseMissionSettings : AlarmEditEvent
+
+    /** Выбор в списке: `null` — «Нет»; иначе тип из [AlarmEditUiState.missions], конфиг нормализуется. */
+    data class MissionSelected(val type: MissionTypeId?) : AlarmEditEvent
+
+    /** Новый конфиг из `MissionDefinition.ConfigEditor`; редуктор всё равно прогоняет его через `normalize`. */
+    data class MissionConfigChanged(val config: String) : AlarmEditEvent
+
+    /** «Превью» миссии (FR-MIS-5): ViewModel глушит превью звука и просит открыть превью миссии. */
+    data object PreviewMission : AlarmEditEvent
+
     /** Экран ушёл с переднего плана (`ON_STOP`): превью замолкает. */
     data object StopSoundPreview : AlarmEditEvent
 
@@ -161,4 +190,7 @@ sealed interface AlarmEditEffect {
 
     /** Открыть пикер мелодий с текущим выбором [current]; результат вернётся параметром Route. */
     data class OpenSoundPicker(val current: SoundRef) : AlarmEditEffect
+
+    /** Открыть превью миссии [spec] (без звука, FR-MIS-5); навигация — в `:app`. */
+    data class OpenMissionPreview(val spec: MissionSpec) : AlarmEditEffect
 }

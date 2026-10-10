@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,8 @@ import java.time.Duration
  * (касание). Источник истины по таймеру — сервис звонка; полоска с ним не синхронизируется.
  *
  * @param done решено задач; [total] — всего (`MissionSession.onProgress`).
+ * @param topEndAction необязательное действие справа от прогресса (кнопка «Закрыть» превью, FR-MIS-5); на
+ * звонке его нет.
  */
 @Composable
 fun MissionFrame(
@@ -45,6 +48,7 @@ fun MissionFrame(
     idleKey: Int,
     modifier: Modifier = Modifier,
     idleTimeout: Duration = MissionPolicy.IDLE_TIMEOUT,
+    topEndAction: (@Composable () -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = BalarmTheme.colors
@@ -68,13 +72,21 @@ fun MissionFrame(
                 .padding(BalarmDimens.ScreenPadding),
             verticalArrangement = Arrangement.spacedBy(BalarmDimens.ScreenPadding),
         ) {
-            MissionProgressBar(
-                done = done,
-                total = total,
-                label = stringResource(R.string.mission_progress, done, total),
-                description = stringResource(R.string.mission_progress_description, done, total),
-                idleFraction = { idle.value },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(BalarmDimens.CardGap),
+            ) {
+                MissionProgressBar(
+                    done = done,
+                    total = total,
+                    label = stringResource(R.string.mission_progress, done, total),
+                    description = stringResource(R.string.mission_progress_description, done, total),
+                    idleFraction = { idle.value },
+                    modifier = Modifier.weight(1f),
+                )
+                topEndAction?.invoke()
+            }
             Box(
                 modifier = Modifier
                     .weight(1f)

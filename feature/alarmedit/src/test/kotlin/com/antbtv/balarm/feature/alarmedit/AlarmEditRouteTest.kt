@@ -68,12 +68,13 @@ class AlarmEditRouteTest {
     }
     private val sounds = FakeSoundRepository()
     private val preview = RecordingSoundPreview()
+    private val missions = missionRegistry(enabled = false)
     private val engine = testEngine(repository, scheduler, clock, flags, log)
     private var closed = 0
 
     private fun showRoute(alarmId: Long? = null) {
         val runner = testAlarmRunner(scheduler, clock, log)
-        val viewModel = AlarmEditViewModel(alarmId, repository, engine, runner, clock, flags, sounds, preview)
+        val viewModel = AlarmEditViewModel(alarmId, repository, engine, runner, clock, flags, sounds, preview, missions)
         composeRule.setContent {
             BalarmTheme { AlarmEditRoute(viewModel = viewModel, onClose = { closed++ }) }
         }

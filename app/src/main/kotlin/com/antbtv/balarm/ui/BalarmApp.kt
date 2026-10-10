@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -28,6 +31,7 @@ import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.feature.alarmedit.AlarmEditRoute
 import com.antbtv.balarm.feature.alarmlist.AlarmListRoute
+import com.antbtv.balarm.feature.missions.api.MissionPreviewRoute
 import com.antbtv.balarm.feature.onboarding.OnboardingRoute
 import com.antbtv.balarm.feature.settings.AboutRoute
 import com.antbtv.balarm.feature.settings.HealthRoute
@@ -50,6 +54,7 @@ internal val NavConfiguration = SavedStateConfiguration {
             subclass(OnboardingKey::class)
             subclass(SoundPickerKey::class)
             subclass(SoundLibraryKey::class)
+            subclass(MissionPreviewKey::class)
         }
     }
 }
@@ -113,7 +118,8 @@ private fun rememberStackEntries(
 /**
  * Колбэки экранов → операции над стеком [id]. Здоровье и «Мои мелодии» открываются в том стеке, откуда пришёл
  * пользователь (баннер списка / пикер — будильники, настройки — настройки), вкладка не переключается (ADR-014 §3).
- * Выбор пикера возвращается в редактор через [BalarmNavState.pickedSound] (ADR-009 §3).
+ * Выбор пикера возвращается в редактор через [BalarmNavState.pickedSound] (ADR-009 §3). Настройка миссии —
+ * подэкран редактора (результата нет), превью миссии — отдельная запись поверх редактора.
  */
 private fun balarmEntryProvider(
     nav: BalarmNavState,
@@ -153,7 +159,11 @@ private fun balarmEntryProvider(
                 onPickSound = { current -> nav.openSoundPicker(id, current) },
                 pickedSound = nav.pickedSound,
                 onSoundPickConsumed = nav::consumeSoundPick,
+                onPreviewMission = { spec -> nav.openMissionPreview(id, spec) },
             )
+        }
+        entry<MissionPreviewKey>(clazzContentKey = contentKey) { key ->
+            MissionPreviewEntry(key = key, onClose = { stack.closeTop(key) })
         }
         entry<SoundPickerKey>(clazzContentKey = contentKey) { key ->
             SoundPickerRoute(
@@ -176,6 +186,18 @@ private fun balarmEntryProvider(
         entry<OnboardingKey>(clazzContentKey = contentKey) {
             OnboardingRoute(onFinished = nav::finishOnboarding)
         }
+    }
+}
+
+/** Превью миссии; битый ключ (восстановление старого состояния) закрывает экран, а не роняет приложение. */
+@Composable
+private fun MissionPreviewEntry(key: MissionPreviewKey, onClose: () -> Unit) {
+    val spec = remember(key) { key.toSpec() }
+    if (spec == null) {
+        val currentOnClose by rememberUpdatedState(onClose)
+        LaunchedEffect(key) { currentOnClose() }
+    } else {
+        MissionPreviewRoute(spec = spec, onClose = onClose)
     }
 }
 

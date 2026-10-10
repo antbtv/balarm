@@ -48,6 +48,15 @@
     <string name="alarm_edit_fade_in_off">Выкл</string>
     <string name="alarm_edit_fade_in_off_wide">выключено</string>
     <string name="alarm_edit_vibrate">Вибрация</string>
+
+    <!-- Миссия (FR-EDIT-6, FR-MIS-5, feature.mission.*) -->
+    <string name="alarm_edit_mission">Миссия</string>
+    <string name="alarm_edit_mission_none">Нет</string>
+    <string name="alarm_edit_mission_hint">Будильник выключится только после выполнения миссии. Пока вы её решаете, звук тише.</string>
+    <string name="alarm_edit_mission_preview">Превью</string>
+    <string name="alarm_edit_mission_done">Готово</string>
+    <string name="alarm_edit_mission_back">Назад</string>
+
     <string name="alarm_edit_save">Сохранить</string>
     <string name="alarm_edit_test">Тест</string>
     <string name="alarm_edit_delete">Удалить</string>

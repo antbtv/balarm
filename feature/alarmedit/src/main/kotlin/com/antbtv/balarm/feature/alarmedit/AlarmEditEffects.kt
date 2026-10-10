@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.format.alarmRingsInText
+import com.antbtv.balarm.core.model.MissionSpec
 import com.antbtv.balarm.core.model.SoundRef
 import kotlinx.coroutines.flow.Flow
 
@@ -18,18 +19,20 @@ import kotlinx.coroutines.flow.Flow
  * и не держит Activity. Новый тост сменяет предыдущий сразу, а не встаёт в очередь.
  *
  * [onClose] вызывается не больше одного раза (ViewModel и так шлёт один `Close`/`Saved`, здесь — страховка):
- * второй `removeLastOrNull()` снял бы со стека ещё и список. [onPickSound] — открыть пикер мелодий
- * (навигация `:app`).
+ * второй `removeLastOrNull()` снял бы со стека ещё и список. [onPickSound] — открыть пикер мелодий,
+ * [onPreviewMission] — превью миссии (навигация `:app`).
  */
 @Composable
 internal fun AlarmEditEffectsHandler(
     effects: Flow<AlarmEditEffect>,
     onClose: () -> Unit,
     onPickSound: (SoundRef) -> Unit = {},
+    onPreviewMission: (MissionSpec) -> Unit = {},
 ) {
     val appContext = LocalContext.current.applicationContext
     val currentOnClose by rememberUpdatedState(onClose)
     val currentOnPickSound by rememberUpdatedState(onPickSound)
+    val currentOnPreviewMission by rememberUpdatedState(onPreviewMission)
     LaunchedEffect(effects, appContext) {
         var last: Toast? = null
         var closed = false
@@ -39,6 +42,7 @@ internal fun AlarmEditEffectsHandler(
                 last = Toast.makeText(appContext, text, Toast.LENGTH_SHORT).also(Toast::show)
             }
             if (effect is AlarmEditEffect.OpenSoundPicker && !closed) currentOnPickSound(effect.current)
+            if (effect is AlarmEditEffect.OpenMissionPreview && !closed) currentOnPreviewMission(effect.spec)
             if (effect.closesScreen && !closed) {
                 closed = true
                 currentOnClose()
@@ -71,5 +75,5 @@ internal fun alarmEditEffectText(context: Context, effect: AlarmEditEffect): Str
 
     AlarmEditEffect.LoadFailed -> context.getString(R.string.alarm_edit_load_failed)
 
-    AlarmEditEffect.Close, is AlarmEditEffect.OpenSoundPicker -> null
+    AlarmEditEffect.Close, is AlarmEditEffect.OpenSoundPicker, is AlarmEditEffect.OpenMissionPreview -> null
 }

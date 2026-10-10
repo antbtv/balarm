@@ -52,6 +52,7 @@ class AlarmEditSoundViewModelTest {
     private val engine: AlarmEngine = testEngine(repository, scheduler, clock, flags, log)
     private val sounds = FakeSoundRepository(listOf(customSound(7, "Birds")))
     private val preview = RecordingSoundPreview()
+    private val missions = missionRegistry(enabled = false)
     private val store = ViewModelStore()
 
     @Before
@@ -76,6 +77,7 @@ class AlarmEditSoundViewModelTest {
             flags,
             sounds,
             preview,
+            missions,
         )
         val factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -160,6 +162,7 @@ class AlarmEditSoundViewModelTest {
             flags,
             sounds,
             preview,
+            missions,
         )
         assertThat(viewModel.uiState.value.loading).isTrue()
 

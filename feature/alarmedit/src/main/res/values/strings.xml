@@ -52,6 +52,14 @@
     <string name="alarm_edit_fade_in_off_wide">turned off</string>
     <string name="alarm_edit_vibrate">Vibration</string>
 
+    <!-- Миссия (FR-EDIT-6, FR-MIS-5, feature.mission.*) -->
+    <string name="alarm_edit_mission">Mission</string>
+    <string name="alarm_edit_mission_none">None</string>
+    <string name="alarm_edit_mission_hint">The alarm turns off only after you complete the mission. The sound stays quiet while you solve it.</string>
+    <string name="alarm_edit_mission_preview">Preview</string>
+    <string name="alarm_edit_mission_done">Done</string>
+    <string name="alarm_edit_mission_back">Back</string>
+
     <!-- Кнопки -->
     <string name="alarm_edit_save">Save</string>
     <string name="alarm_edit_test">Test</string>

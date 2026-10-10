@@ -44,3 +44,10 @@ internal data class SoundPickerKey(val selected: String) : BalarmKey
 /** «Мои мелодии»: из пикера — в стеке будильников, из настроек — в стеке настроек. */
 @Serializable
 internal data object SoundLibraryKey : BalarmKey
+
+/**
+ * Превью миссии из подэкрана «Миссия» редактора (FR-MIS-5, ADR-018 §7): без звука, Back и «Закрыть» снимают
+ * экран. [type] и [config] — поля `MissionSpec` строками: ключу не нужен сериализатор модели.
+ */
+@Serializable
+internal data class MissionPreviewKey(val type: String, val config: String) : BalarmKey

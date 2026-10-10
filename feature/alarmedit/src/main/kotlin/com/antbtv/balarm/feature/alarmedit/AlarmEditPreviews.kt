@@ -1,9 +1,14 @@
 package com.antbtv.balarm.feature.alarmedit
 
+import android.content.Context
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.antbtv.balarm.core.designsystem.theme.BalarmDimens
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.format.ClockFormat
 import com.antbtv.balarm.core.format.WeekdayFormat
@@ -11,9 +16,14 @@ import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.BuiltinSound
 import com.antbtv.balarm.core.model.CustomSoundId
+import com.antbtv.balarm.core.model.MissionSpec
+import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.SnoozeSettings
 import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.core.model.SoundSettings
+import com.antbtv.balarm.core.model.feature.Feature
+import com.antbtv.balarm.feature.missions.api.MissionDefinition
+import com.antbtv.balarm.feature.missions.api.MissionSession
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalTime
@@ -73,6 +83,41 @@ private val MissingSoundState = CustomSoundState.copy(
 )
 
 private val SnoozeOffState = ExistingState.copy(draft = PreviewExisting.copy(snooze = SnoozeSettings.DISABLED))
+
+/** Превью-only миссия: в `:feature:alarmedit` нет конкретных миссий (их подключает `:app`). */
+private object PreviewMission : MissionDefinition {
+    override val type = MissionTypeId.MATH
+    override val feature = Feature.MISSION_MATH
+    override val titleRes = R.string.alarm_edit_mission
+
+    override fun defaultConfig() = "{}"
+
+    override fun normalize(config: String) = config
+
+    override fun summary(context: Context, config: String) = "Level 2, 3 problems"
+
+    @Composable
+    override fun ConfigEditor(config: String, onChange: (String) -> Unit, modifier: Modifier) {
+        Text(
+            text = "Level 2 · 3 problems",
+            style = BalarmTheme.typography.body,
+            modifier = modifier.padding(BalarmDimens.CardPadding),
+        )
+    }
+
+    @Composable
+    override fun Content(config: String, session: MissionSession, modifier: Modifier) = Unit
+}
+
+private val PreviewWithMission = PreviewExisting.copy(mission = MissionSpec(MissionTypeId.MATH, "{}"))
+
+private val MissionState = ExistingState.copy(
+    missions = listOf(PreviewMission),
+    initial = PreviewWithMission,
+    draft = PreviewWithMission,
+)
+
+private val MissionNoneState = MissionState.copy(draft = PreviewExisting)
 
 /** Отступы «как у телефона» — статус-бар и панель жестов (в превью их нет). */
 private val PreviewBarsInsets = WindowInsets(top = 24.dp, bottom = 24.dp)
@@ -247,4 +292,40 @@ private fun SoundLightPreview() {
 @Composable
 private fun FadeInDialogPreview() {
     BalarmTheme { PreviewScreen(SoundState.copy(dialog = EditDialog.FadeIn), locale = Russian) }
+}
+
+@Preview(name = "Mission — row, dark, 360dp", widthDp = 360, heightDp = 1100)
+@Composable
+private fun MissionRowPreview() {
+    BalarmTheme { PreviewScreen(MissionState) }
+}
+
+@Preview(name = "Mission settings — Math selected, dark", widthDp = 360, heightDp = 720)
+@Composable
+private fun MissionSettingsPreview() {
+    BalarmTheme { PreviewScreen(MissionState.copy(missionSettingsOpen = true)) }
+}
+
+@Preview(name = "Mission settings — none, RU", widthDp = 360, heightDp = 720, locale = "ru")
+@Composable
+private fun MissionSettingsNonePreview() {
+    BalarmTheme { PreviewScreen(MissionNoneState.copy(missionSettingsOpen = true), locale = Russian) }
+}
+
+@Preview(
+    name = "Mission settings — RU, fontScale 2, 360dp",
+    widthDp = 360,
+    heightDp = 640,
+    fontScale = 2f,
+    locale = "ru",
+)
+@Composable
+private fun MissionSettingsLargeFontPreview() {
+    BalarmTheme { PreviewScreen(MissionState.copy(missionSettingsOpen = true), locale = Russian) }
+}
+
+@Preview(name = "Mission settings — light", widthDp = 360, heightDp = 720)
+@Composable
+private fun MissionSettingsLightPreview() {
+    BalarmTheme(darkTheme = false) { PreviewScreen(MissionState.copy(missionSettingsOpen = true)) }
 }

@@ -261,6 +261,7 @@ class AlarmEditSoundSectionTest {
             flags,
             FakeSoundRepository(),
             preview,
+            missionRegistry(enabled = false),
         )
         var picked by mutableStateOf<SoundRef?>(MARIMBA)
         var consumed = 0

@@ -1,6 +1,7 @@
 package com.antbtv.balarm.feature.alarmedit
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +58,7 @@ import com.antbtv.balarm.core.format.rememberClockFormat
 import com.antbtv.balarm.core.format.rememberWeekdayFormat
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.MissionSpec
 import com.antbtv.balarm.core.model.SnoozeSettings
 import com.antbtv.balarm.core.model.SoundRef
 import java.text.DateFormatSymbols
@@ -79,6 +81,10 @@ import java.util.Locale
  * Мелодия (ADR-016 §8): тап по строке «Мелодия» → [onPickSound] с текущим выбором — `:app` открывает пикер;
  * выбор возвращается параметром [pickedSound] (Result API в `:app`), редактор применяет его один раз и сообщает
  * [onSoundPickConsumed] — `:app` очищает результат, чтобы он не применился повторно после поворота.
+ *
+ * Миссия (FR-MIS-5, ADR-018 §6–7): настройка — подэкран самого редактора (черновик в ViewModel, результата
+ * возвращать не нужно); «Превью» → [onPreviewMission] с нормализованной миссией черновика — `:app` открывает
+ * `MissionPreviewRoute` поверх редактора.
  */
 @Composable
 fun AlarmEditRoute(
@@ -88,6 +94,7 @@ fun AlarmEditRoute(
     onPickSound: (current: SoundRef) -> Unit = {},
     pickedSound: SoundRef? = null,
     onSoundPickConsumed: () -> Unit = {},
+    onPreviewMission: (MissionSpec) -> Unit = {},
 ) {
     val viewModel = hiltViewModel<AlarmEditViewModel, AlarmEditViewModel.Factory>(
         creationCallback = { factory -> factory.create(alarmId?.value) },
@@ -99,6 +106,7 @@ fun AlarmEditRoute(
         onPickSound = onPickSound,
         pickedSound = pickedSound,
         onSoundPickConsumed = onSoundPickConsumed,
+        onPreviewMission = onPreviewMission,
     )
 }
 
@@ -111,9 +119,15 @@ internal fun AlarmEditRoute(
     onPickSound: (current: SoundRef) -> Unit = {},
     pickedSound: SoundRef? = null,
     onSoundPickConsumed: () -> Unit = {},
+    onPreviewMission: (MissionSpec) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    AlarmEditEffectsHandler(effects = viewModel.effects, onClose = onClose, onPickSound = onPickSound)
+    AlarmEditEffectsHandler(
+        effects = viewModel.effects,
+        onClose = onClose,
+        onPickSound = onPickSound,
+        onPreviewMission = onPreviewMission,
+    )
     val currentOnSoundPickConsumed by rememberUpdatedState(onSoundPickConsumed)
     LaunchedEffect(pickedSound, viewModel) {
         if (pickedSound != null) {
@@ -127,8 +141,9 @@ internal fun AlarmEditRoute(
 }
 
 /**
- * Редактор (FR-EDIT-1…11, скилл alarmy-ui): заголовок, колесо времени, пресеты и дни, метка, snooze и «Звук»
- * (каждая — если включён её флаг), «Тест» и «Удалить»; «Сохранить» закреплена снизу и видна при любой прокрутке.
+ * Редактор (FR-EDIT-1…11, скилл alarmy-ui): заголовок, колесо времени, пресеты и дни, метка, snooze, «Звук» и
+ * «Миссия» (каждая — если включён её флаг), «Тест» и «Удалить»; «Сохранить» закреплена снизу и видна при любой
+ * прокрутке.
  *
  * Пока будильник загружается — только заголовок: форма со значениями по умолчанию не мигает перед настоящими.
  * Во время сохранения/удаления кнопки недоступны. Тексты диалогов и значения — здесь, состояние диалогов —
@@ -162,8 +177,39 @@ internal fun AlarmEditScreen(
     // С правками — Back к ViewModel («Отменить изменения?»); во время сохранения — тоже (ViewModel его
     // игнорирует: экран закроется сам после тоста, а не потеряет его). Без правок обработчик выключен —
     // Back достаётся навигации с системной анимацией predictive back.
-    BackHandler(enabled = state.isDirty || state.saving) { onEvent(AlarmEditEvent.Back) }
+    // Подэкран миссии — тоже: Back возвращает к форме.
+    BackHandler(enabled = state.isDirty || state.saving || state.missionSettingsOpen) {
+        onEvent(AlarmEditEvent.Back)
+    }
 
+    // Прокрутка формы — снаружи подэкрана миссии: после «Готово» форма там же, где была.
+    val scrollState = rememberScrollState()
+    if (state.missionSettingsOpen) {
+        MissionSettingsScreen(state = state, onEvent = onEvent, modifier = modifier, windowInsets = windowInsets)
+    } else {
+        EditorForm(
+            state = state,
+            clockFormat = clockFormat,
+            weekdayFormat = weekdayFormat,
+            scrollState = scrollState,
+            onEvent = onEvent,
+            windowInsets = windowInsets,
+            modifier = modifier,
+        )
+    }
+}
+
+/** Форма редактора: прокручиваемое содержимое, подложки под барами, закреплённая «Сохранить» и диалоги. */
+@Composable
+private fun EditorForm(
+    state: AlarmEditUiState,
+    clockFormat: ClockFormat,
+    weekdayFormat: WeekdayFormat,
+    scrollState: ScrollState,
+    onEvent: (AlarmEditEvent) -> Unit,
+    windowInsets: WindowInsets,
+    modifier: Modifier = Modifier,
+) {
     val colors = BalarmTheme.colors
     Surface(
         modifier = modifier
@@ -188,6 +234,7 @@ internal fun AlarmEditScreen(
                     clockFormat = clockFormat,
                     weekdayFormat = weekdayFormat,
                     topInset = topInset,
+                    scrollState = scrollState,
                     onEvent = onEvent,
                 )
                 // Контент прокручивается под прозрачный статус-бар; снизу — мягкий переход к «Сохранить».
@@ -225,13 +272,14 @@ private fun EditorContent(
     clockFormat: ClockFormat,
     weekdayFormat: WeekdayFormat,
     topInset: Dp,
+    scrollState: ScrollState,
     onEvent: (AlarmEditEvent) -> Unit,
 ) {
     val draft = state.draft
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .testTag(AlarmEditTestTags.CONTENT)
             // Снизу — ещё и высота градиента над «Сохранить»: последний элемент в конце прокрутки им не перекрыт.
             .padding(
@@ -264,6 +312,9 @@ private fun EditorContent(
                 enabled = !state.saving,
                 onEvent = onEvent,
             )
+        }
+        if (state.missionVisible) {
+            MissionSection(state = state, enabled = !state.saving, onEvent = onEvent)
         }
         ActionButtons(canDelete = state.canDelete, enabled = !state.saving, onEvent = onEvent)
     }

@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import com.antbtv.balarm.core.model.MissionSpec
+import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.SoundRef
 
 /** Вкладки нижней панели; порядок — порядок пунктов панели. */
@@ -120,6 +122,16 @@ internal class BalarmNavState(
         soundPickResult = null
     }
 
+    /**
+     * «Превью» миссии в редакторе [stackId]: только если редактор на вершине (двойной тап — одна запись).
+     * Черновик миссии остаётся в ViewModel редактора — результата у превью нет.
+     */
+    fun openMissionPreview(stackId: StackId, spec: MissionSpec) {
+        val stack = stack(stackId)
+        if (stack.lastOrNull() !is AlarmEditKey) return
+        stack.add(MissionPreviewKey(type = spec.type.value, config = spec.config))
+    }
+
     private companion object {
         val ONBOARDING_ONLY = listOf(StackId.ONBOARDING)
         val ALARMS_ONLY = listOf(StackId.ALARMS)
@@ -172,3 +184,7 @@ private val NO_KEYS = emptyArray<NavKey>()
 private fun NavBackStack<NavKey>.popToRoot() {
     while (size > 1) removeAt(lastIndex)
 }
+
+/** Ключ → `MissionSpec`; пустой тип (битое сохранённое состояние) — `null`. */
+internal fun MissionPreviewKey.toSpec(): MissionSpec? =
+    type.takeIf { it.isNotBlank() }?.let { MissionSpec(MissionTypeId(it), config) }

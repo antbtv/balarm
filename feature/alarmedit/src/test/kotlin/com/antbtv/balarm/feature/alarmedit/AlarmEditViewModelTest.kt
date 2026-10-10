@@ -64,6 +64,7 @@ class AlarmEditViewModelTest {
     }
     private val sounds = FakeSoundRepository()
     private val preview = RecordingSoundPreview()
+    private val missions = missionRegistry(enabled = false)
     private val engine: AlarmEngine = testEngine(repository, scheduler, clock, flags, log)
     private val testAlarms = testAlarmRunner(scheduler, clock, log)
 
@@ -84,7 +85,7 @@ class AlarmEditViewModelTest {
         repo: AlarmRepository = repository,
         runner: TestAlarmRunner = testAlarms,
     ): AlarmEditViewModel =
-        AlarmEditViewModel(alarmId, repo, engine, runner, clock, flags, sounds, preview).also { runCurrent() }
+        AlarmEditViewModel(alarmId, repo, engine, runner, clock, flags, sounds, preview, missions).also { runCurrent() }
 
     private suspend fun stored(alarm: Alarm = Alarm(time = LocalTime.of(7, 30), label = "Gym")): Long =
         engine.save(alarm).id.value
@@ -116,7 +117,7 @@ class AlarmEditViewModelTest {
     fun `an existing alarm loads into the draft`() = runTest(dispatcher) {
         val id = stored()
 
-        val viewModel = AlarmEditViewModel(id, repository, engine, testAlarms, clock, flags, sounds, preview)
+        val viewModel = AlarmEditViewModel(id, repository, engine, testAlarms, clock, flags, sounds, preview, missions)
         assertThat(viewModel.uiState.value.loading).isTrue()
         runCurrent()
 
@@ -130,7 +131,8 @@ class AlarmEditViewModelTest {
 
     @Test
     fun `an alarm that is gone closes the editor`() = runTest(dispatcher) {
-        val viewModel = AlarmEditViewModel(999L, repository, engine, testAlarms, clock, flags, sounds, preview)
+        val viewModel =
+            AlarmEditViewModel(999L, repository, engine, testAlarms, clock, flags, sounds, preview, missions)
 
         viewModel.effects.test {
             runCurrent()
@@ -235,7 +237,7 @@ class AlarmEditViewModelTest {
         launch { busyEngine.rescheduleAll(RescheduleReason.APP_LAUNCH) }
         runCurrent()
         val store = ViewModelStore()
-        val created = AlarmEditViewModel(null, busy, busyEngine, testAlarms, clock, flags, sounds, preview)
+        val created = AlarmEditViewModel(null, busy, busyEngine, testAlarms, clock, flags, sounds, preview, missions)
         val provided = ViewModelProvider(
             store,
             object : ViewModelProvider.Factory {
