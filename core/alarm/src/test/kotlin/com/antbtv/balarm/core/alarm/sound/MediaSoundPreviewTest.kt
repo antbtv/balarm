@@ -54,6 +54,16 @@ class MediaSoundPreviewTest {
         override fun dismiss() = Unit
 
         override fun snooze() = Unit
+
+        override fun startMission() = Unit
+
+        override fun missionInteraction() = Unit
+
+        override fun leaveMission() = Unit
+
+        override fun completeMission() = Unit
+
+        override fun missionScreenHidden() = Unit
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val store = FakeRingVolumeStore()

@@ -26,10 +26,14 @@ import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
 import com.antbtv.balarm.core.domain.alarm.DismissReason
 import com.antbtv.balarm.core.domain.alarm.FireDecision
 import com.antbtv.balarm.core.domain.alarm.FireKind
+import com.antbtv.balarm.core.domain.alarm.MissionCatalog
+import com.antbtv.balarm.core.domain.alarm.MissionPolicy
+import com.antbtv.balarm.core.domain.alarm.MissionRun
 import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.SnoozeResult
+import com.antbtv.balarm.core.domain.alarm.effectiveMission
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.SoundSettings
 import dagger.hilt.android.AndroidEntryPoint
@@ -74,6 +78,8 @@ class RingingService : Service() {
 
     @Inject lateinit var notifications: AlarmNotifications
 
+    @Inject lateinit var missions: MissionCatalog
+
     @Inject lateinit var uiIntents: AlarmUiIntents
 
     @Inject lateinit var controller: RingingControllerImpl
@@ -113,6 +119,11 @@ class RingingService : Service() {
 
     /** Звук приглушён из-за телефонного звонка (FR-RING-8, ADR-017 §8). */
     private var callMuted = false
+
+    /** Сессия миссии текущего звонка (FR-MIS); `null` — экран звонка. */
+    private var missionRun: MissionRun? = null
+    private var missionIdle: Job? = null
+    private var missionSeed = 0L
     private var muteTimeout: Job? = null
 
     override fun onCreate() {
@@ -147,6 +158,20 @@ class RingingService : Service() {
 
             AlarmIntents.ACTION_SNOOZE -> AlarmIntents.alarmId(intent)?.let { id ->
                 scope.launch { command("snooze") { snooze(id) } }
+            }
+
+            AlarmIntents.ACTION_MISSION_START -> missionCommand(intent, "mission_start", ::startMission)
+
+            AlarmIntents.ACTION_MISSION_TOUCH -> missionCommand(intent, "mission_touch", ::touchMission)
+
+            AlarmIntents.ACTION_MISSION_LEAVE -> missionCommand(intent, "mission_leave") { leaveMission(it, "left") }
+
+            AlarmIntents.ACTION_MISSION_HIDDEN -> missionCommand(intent, "mission_hidden") {
+                leaveMission(it, "hidden")
+            }
+
+            AlarmIntents.ACTION_MISSION_DONE -> AlarmIntents.alarmId(intent)?.let { id ->
+                scope.launch { command("mission_done") { completeMission(id) } }
             }
         }
         stopIfIdle()
@@ -273,6 +298,7 @@ class RingingService : Service() {
 
     private fun ring(decision: FireDecision.Ring) {
         current = decision
+        endMissionSession()
         // Каждый звонок очереди — свои 30 мин до автостопа: WakeLock продлевается, а не тянется от первого.
         sessionLock?.acquire(RingingWakeLocks.SESSION_TIMEOUT.toMillis())
         updateRearmIds()
@@ -325,6 +351,7 @@ class RingingService : Service() {
         val ring = current ?: return
         autoStop?.cancel()
         autoStop = null
+        endMissionSession()
         silence()
         log.log(AlarmEvent.RingingStopped(ring.alarm.id, reason))
         next()
@@ -343,6 +370,11 @@ class RingingService : Service() {
 
     private suspend fun dismiss(id: AlarmId) {
         if (!isCurrent(id)) return
+        // FR-RING-3/4: со звонка с миссией отключиться можно только решением миссии (уведомление, чужой интент).
+        if (hasMission()) {
+            log.log(AlarmEvent.Mission(id, "dismiss_rejected"))
+            return
+        }
         finishCurrent("dismiss") // звук стихает сразу, запись в БД — следом
         record("dismiss") { engine.dismiss(id, DismissReason.USER) }
     }
@@ -362,6 +394,74 @@ class RingingService : Service() {
             }
         }
     }
+
+    // region Миссия (FR-MIS)
+
+    private fun hasMission() = current?.alarm?.effectiveMission(missions) != null
+
+    private inline fun missionCommand(intent: Intent, name: String, crossinline block: (AlarmId) -> Unit) {
+        AlarmIntents.alarmId(intent)?.let { id -> scope.launch { command(name) { block(id) } } }
+    }
+
+    private fun startMission(id: AlarmId) {
+        if (!isCurrent(id) || !hasMission() || missionRun != null) return
+        missionRun = MissionRun(seed = clock.millis() xor id.value)
+        sound.setDuck(MissionPolicy.DUCK_GAIN)
+        vibrator.stop() // пока миссия приглушена, вибрация на паузе
+        armMissionIdle(id)
+        log.log(AlarmEvent.Mission(id, "started"))
+        publish()
+    }
+
+    private fun touchMission(id: AlarmId) {
+        if (missionRun == null || !isCurrent(id)) return
+        // После бездействия звук был громкий — первое же касание снова приглушает.
+        sound.setDuck(MissionPolicy.DUCK_GAIN)
+        vibrator.stop()
+        armMissionIdle(id)
+    }
+
+    private fun armMissionIdle(id: AlarmId) {
+        missionIdle?.cancel()
+        missionIdle = scope.launch {
+            delay(MissionPolicy.IDLE_TIMEOUT.toMillis())
+            val run = missionRun ?: return@launch
+            missionRun = run.copy(idleResets = run.idleResets + 1)
+            restoreLoud()
+            log.log(AlarmEvent.Mission(id, "idle"))
+            publish()
+        }
+    }
+
+    private fun leaveMission(id: AlarmId, phase: String) {
+        if (!isCurrent(id) || missionRun == null) return
+        endMissionSession()
+        restoreLoud()
+        log.log(AlarmEvent.Mission(id, phase))
+        publish()
+    }
+
+    private suspend fun completeMission(id: AlarmId) {
+        // Принимается только внутри начатой сессии: экран не может «завершить» миссию, которую не начинал.
+        if (!isCurrent(id) || missionRun == null) return
+        log.log(AlarmEvent.Mission(id, "completed"))
+        finishCurrent("dismiss")
+        record("dismiss") { engine.dismiss(id, DismissReason.USER) }
+    }
+
+    /** Громкий звук и вибрация по настройке будильника (после бездействия или выхода из миссии). */
+    private fun restoreLoud() {
+        sound.setDuck(1f)
+        if (current?.alarm?.vibrate != false || callMuted) vibrator.start()
+    }
+
+    private fun endMissionSession() {
+        missionIdle?.cancel()
+        missionIdle = null
+        missionRun = null
+    }
+
+    // endregion
 
     /** FR-RING-6: никто не отреагировал — замолкаем, уведомляем о пропуске, расписание — как после «Отключить». */
     private suspend fun autoStop(id: AlarmId) {
@@ -460,6 +560,8 @@ class RingingService : Service() {
                 canSnooze = ring.canSnooze,
                 snoozesLeft = ring.snoozesLeft,
                 queued = waiting.size,
+                mission = ring.alarm.effectiveMission(missions),
+                missionRun = missionRun,
             ),
         )
         try {
@@ -489,7 +591,12 @@ class RingingService : Service() {
     }
 
     private fun actionsFor(ring: FireDecision.Ring) = RingingActions(
-        dismiss = commandIntent(AlarmIntents.ACTION_DISMISS, ring.alarm.id),
+        // Миссию из шторки не пройти: кнопки «Отключить» нет, тап по уведомлению ведёт на экран звонка.
+        dismiss = if (ring.alarm.effectiveMission(missions) != null) {
+            null
+        } else {
+            commandIntent(AlarmIntents.ACTION_DISMISS, ring.alarm.id)
+        },
         snooze = if (ring.canSnooze) commandIntent(AlarmIntents.ACTION_SNOOZE, ring.alarm.id) else null,
     )
 

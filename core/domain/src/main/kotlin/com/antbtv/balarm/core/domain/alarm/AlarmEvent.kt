@@ -122,6 +122,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("muted" to muted, "mode" to mode, "timeout" to timeout)
     }
 
+    /** Сессия миссии (FR-MIS): [phase] = `started|idle|left|hidden|completed|dismiss_rejected`. */
+    data class Mission(val id: AlarmId, val phase: String) : AlarmEvent {
+        override val name = "MISSION"
+        override val fields = mapOf("id" to id.value, "phase" to phase)
+    }
+
     /** Превью мелодии не заиграло (редактор/пикер); на звонок не влияет. */
     data class PreviewFailed(val reason: String) : AlarmEvent {
         override val name = "PREVIEW_FAILED"

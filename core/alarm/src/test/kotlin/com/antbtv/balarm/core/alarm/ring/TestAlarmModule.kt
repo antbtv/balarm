@@ -8,6 +8,7 @@ import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
 import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
+import com.antbtv.balarm.core.domain.alarm.MissionCatalog
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.di.ApplicationScope
@@ -74,6 +75,12 @@ object TestAlarmModule {
         log: RecordingEventLog,
         store: InMemoryTestAlarmStore,
     ) = AlarmEngine(repository, scheduler, clock, { true }, log, TestAlarmRunner(scheduler, store, clock, log))
+
+    @Provides @Singleton
+    fun fakeMissions() = FakeMissionCatalog()
+
+    @Provides
+    fun missions(fake: FakeMissionCatalog): MissionCatalog = fake
 
     @Provides
     fun flags(): FeatureFlagProvider = FeatureFlagProvider { true }

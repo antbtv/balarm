@@ -18,6 +18,11 @@ internal object AlarmIntents {
     const val ACTION_RING = "com.antbtv.balarm.action.RING"
     const val ACTION_DISMISS = "com.antbtv.balarm.action.DISMISS"
     const val ACTION_SNOOZE = "com.antbtv.balarm.action.SNOOZE"
+    const val ACTION_MISSION_START = "com.antbtv.balarm.action.MISSION_START"
+    const val ACTION_MISSION_TOUCH = "com.antbtv.balarm.action.MISSION_TOUCH"
+    const val ACTION_MISSION_LEAVE = "com.antbtv.balarm.action.MISSION_LEAVE"
+    const val ACTION_MISSION_DONE = "com.antbtv.balarm.action.MISSION_DONE"
+    const val ACTION_MISSION_HIDDEN = "com.antbtv.balarm.action.MISSION_HIDDEN"
     const val EXTRA_SCHEDULED_FOR = "scheduled_for"
     const val EXTRA_KIND = "kind"
 

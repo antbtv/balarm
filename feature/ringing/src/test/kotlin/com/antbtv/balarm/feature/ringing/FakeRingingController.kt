@@ -23,6 +23,37 @@ class FakeRingingController(initial: RingingState = RingingState.Idle) : Ringing
     override fun snooze() {
         snoozeCalls++
     }
+
+    var missionStarts = 0
+        private set
+    var missionCompletions = 0
+        private set
+    var missionLeaves = 0
+        private set
+    var missionTouches = 0
+        private set
+    var screenHidden = 0
+        private set
+
+    override fun startMission() {
+        missionStarts++
+    }
+
+    override fun missionInteraction() {
+        missionTouches++
+    }
+
+    override fun leaveMission() {
+        missionLeaves++
+    }
+
+    override fun completeMission() {
+        missionCompletions++
+    }
+
+    override fun missionScreenHidden() {
+        screenHidden++
+    }
 }
 
 fun ringing(label: String = "Morning run", canSnooze: Boolean = true, snoozesLeft: Int? = 2): RingingState.Ringing =

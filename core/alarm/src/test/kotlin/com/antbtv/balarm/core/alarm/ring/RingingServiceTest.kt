@@ -15,6 +15,7 @@ import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmEvent
 import com.antbtv.balarm.core.domain.alarm.DismissReason
 import com.antbtv.balarm.core.domain.alarm.FireKind
+import com.antbtv.balarm.core.domain.alarm.MissionPolicy
 import com.antbtv.balarm.core.domain.alarm.RescheduleReason
 import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
@@ -28,6 +29,8 @@ import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.BuiltinSound
+import com.antbtv.balarm.core.model.MissionSpec
+import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.core.model.SoundSettings
 import com.google.common.truth.Truth.assertThat
@@ -59,6 +62,7 @@ import org.robolectric.shadows.ShadowSettings
 @HiltAndroidTest
 @Config(application = HiltTestApplication::class)
 @RunWith(AndroidJUnit4::class)
+@Suppress("LargeClass") // сценарии одного сервиса делят общий Hilt-граф и хелперы
 class RingingServiceTest {
 
     @get:Rule
@@ -77,6 +81,8 @@ class RingingServiceTest {
     @Inject lateinit var recording: RecordingEventLog
 
     @Inject lateinit var controller: RingingControllerImpl
+
+    @Inject lateinit var missions: FakeMissionCatalog
 
     @Inject lateinit var testAlarmRunner: TestAlarmRunner
 
@@ -268,6 +274,124 @@ class RingingServiceTest {
 
         fakeSound.failOver()
         assertThat(fakeVibrator.vibrating).isTrue()
+    }
+
+    private val withMission = ALARM.copy(mission = MissionSpec(MissionTypeId.MATH, "{}"))
+
+    private fun mission(action: String) = start(AlarmIntents.command(app, action, ALARM.id))
+
+    private fun ringState() = controller.state.value as RingingState.Ringing
+
+    @Test
+    fun `alarm with a mission publishes it and rejects dismiss from the shade`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+
+        assertThat(ringState().mission).isEqualTo(withMission.mission)
+        mission(AlarmIntents.ACTION_DISMISS)
+
+        assertThat(fakeSound.playing).isTrue()
+        assertThat(events).contains(AlarmEvent.Mission(ALARM.id, "dismiss_rejected"))
+        assertThat(events).doesNotContain(AlarmEvent.Dismissed(ALARM.id, DismissReason.USER))
+    }
+
+    @Test
+    fun `unavailable mission dismisses like a plain alarm`() {
+        save(withMission)
+        missions.available = false
+        start(ringIntent(ALARM.id))
+
+        assertThat(ringState().mission).isNull()
+        mission(AlarmIntents.ACTION_DISMISS)
+
+        assertThat(events).contains(AlarmEvent.Dismissed(ALARM.id, DismissReason.USER))
+    }
+
+    @Test
+    fun `starting a mission ducks the sound and pauses vibration, leaving restores them`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        assertThat(fakeVibrator.vibrating).isTrue()
+
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        assertThat(fakeSound.duck).isEqualTo(MissionPolicy.DUCK_GAIN)
+        assertThat(fakeVibrator.vibrating).isFalse()
+        assertThat(ringState().missionRun).isNotNull()
+
+        mission(AlarmIntents.ACTION_MISSION_LEAVE)
+
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(fakeVibrator.vibrating).isTrue()
+        assertThat(ringState().missionRun).isNull()
+        assertThat(fakeSound.playing).isTrue()
+    }
+
+    @Test
+    fun `idle timeout makes the sound loud again and signals a reset, a touch ducks it again`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        idle(MissionPolicy.IDLE_TIMEOUT.plusSeconds(1))
+
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(ringState().missionRun?.idleResets).isEqualTo(1)
+        assertThat(events).contains(AlarmEvent.Mission(ALARM.id, "idle"))
+
+        mission(AlarmIntents.ACTION_MISSION_TOUCH)
+        assertThat(fakeSound.duck).isEqualTo(MissionPolicy.DUCK_GAIN)
+
+        idle(MissionPolicy.IDLE_TIMEOUT.minusSeconds(1))
+        assertThat(fakeSound.duck).isEqualTo(MissionPolicy.DUCK_GAIN) // касание продлило таймер
+        idle(Duration.ofSeconds(2))
+        assertThat(ringState().missionRun?.idleResets).isEqualTo(2)
+    }
+
+    @Test
+    fun `hidden mission screen makes the sound loud immediately`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        mission(AlarmIntents.ACTION_MISSION_HIDDEN)
+
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(ringState().missionRun).isNull()
+    }
+
+    @Test
+    fun `completing a started mission dismisses the alarm`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        mission(AlarmIntents.ACTION_MISSION_DONE)
+
+        assertThat(fakeSound.playing).isFalse()
+        assertThat(events).contains(AlarmEvent.Dismissed(ALARM.id, DismissReason.USER))
+        assertThat(controller.state.value).isEqualTo(RingingState.Idle)
+    }
+
+    @Test
+    fun `completion without a started mission is ignored`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+
+        mission(AlarmIntents.ACTION_MISSION_DONE)
+
+        assertThat(fakeSound.playing).isTrue()
+        assertThat(events).doesNotContain(AlarmEvent.Dismissed(ALARM.id, DismissReason.USER))
+    }
+
+    @Test
+    fun `mission commands on an alarm without a mission change nothing`() {
+        start(ringIntent(ALARM.id))
+
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(ringState().missionRun).isNull()
     }
 
     @Test

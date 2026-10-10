@@ -36,6 +36,9 @@ interface AlarmSoundPlayer {
     /** FR-RING-8: `true` — заглушить звук (вибрацию включает сервис); `false` — продолжить с нарастания. */
     fun setMuted(muted: Boolean)
 
+    /** FR-MIS-2: приглушение на время миссии — множитель усиления плеера (0..1) поверх нарастания; `1f` — снять. */
+    fun setDuck(gain: Float)
+
     /** Останавливает звук и освобождает ресурсы; повторный вызов безопасен. */
     fun stop()
 }
@@ -66,6 +69,8 @@ class MediaAlarmSoundPlayer @Inject constructor(
     private var chain: List<SoundRef?> = emptyList() // null — резервный тон
     private var stage = 0
     private var muted = false
+    private var duck = 1f
+    private var baseGain = 1f
     private var fadeEnabled = false
     private var fadeTotalMs = 0L
     private var fadeStartedAt = -1L
@@ -79,7 +84,8 @@ class MediaAlarmSoundPlayer @Inject constructor(
     private val fadeTick = object : Runnable {
         override fun run() {
             val elapsed = SystemClock.elapsedRealtime() - fadeStartedAt
-            player?.takeIf { !muted }?.setVolume(fadeGain(elapsed, fadeTotalMs), fadeGain(elapsed, fadeTotalMs))
+            baseGain = fadeGain(elapsed, fadeTotalMs)
+            applyGain()
             if (elapsed < fadeTotalMs) handler.postDelayed(this, FADE_STEP_MS)
         }
     }
@@ -111,6 +117,16 @@ class MediaAlarmSoundPlayer @Inject constructor(
         }
     }
 
+    override fun setDuck(gain: Float) {
+        duck = gain.coerceIn(0f, 1f)
+        if (!muted) applyGain()
+    }
+
+    private fun applyGain() {
+        val gain = baseGain * duck
+        player?.setVolume(gain, gain)
+    }
+
     override fun stop() {
         handler.removeCallbacks(prepareTimeout)
         handler.removeCallbacks(toneLoop)
@@ -125,6 +141,8 @@ class MediaAlarmSoundPlayer @Inject constructor(
         chain = emptyList()
         stage = 0
         muted = false
+        duck = 1f
+        baseGain = 1f
         fadeEnabled = false
         fadeStartedAt = -1
         audioManager.abandonAudioFocusRequest(focusRequest)
@@ -184,11 +202,15 @@ class MediaAlarmSoundPlayer @Inject constructor(
             muted -> prepared.setVolume(0f, 0f)
 
             index == 0 && fadeEnabled -> {
-                prepared.setVolume(fadeGain(0, fadeTotalMs), fadeGain(0, fadeTotalMs))
+                baseGain = fadeGain(0, fadeTotalMs)
+                applyGain()
                 beginFade(fadeTotalMs)
             }
 
-            else -> prepared.setVolume(1f, 1f)
+            else -> {
+                baseGain = 1f
+                applyGain()
+            }
         }
         log.log(AlarmEvent.SoundStarted(sourceLabel(ref, index), alarmVolume()))
     }

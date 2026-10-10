@@ -4,8 +4,10 @@ import android.content.Intent
 import com.antbtv.balarm.core.alarm.AlarmUiIntents
 import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
+import com.antbtv.balarm.core.domain.alarm.MissionCatalog
 import com.antbtv.balarm.core.domain.sound.RingVolumeStore
 import com.antbtv.balarm.core.domain.sound.SavedVolume
+import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.SoundSettings
 
 class FakeSoundPlayer : AlarmSoundPlayer {
@@ -35,8 +37,16 @@ class FakeSoundPlayer : AlarmSoundPlayer {
         this.muted = muted
     }
 
+    var duck = 1f
+        private set
+
+    override fun setDuck(gain: Float) {
+        duck = gain
+    }
+
     override fun stop() {
         playing = false
+        duck = 1f
     }
 
     fun failOver() = onFallback()
@@ -78,4 +88,11 @@ class FakeRingVolumeStore : RingVolumeStore {
     override suspend fun clear() {
         value = null
     }
+}
+
+/** Каталог миссий для тестов: по умолчанию миссия `math` доступна. */
+class FakeMissionCatalog : MissionCatalog {
+    var available = true
+
+    override fun isAvailable(type: MissionTypeId) = available
 }
