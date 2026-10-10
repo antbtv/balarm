@@ -62,7 +62,9 @@ adb logcat -s Balarm:I AndroidRuntime:E          # события, см. ниж�
 | `FIRE_SKIPPED id reason` | STALE / DELETED / DUPLICATE / MISSED |
 | `FIRE_DEGRADED id error` | движок недоступен — звонок с настройками по умолчанию |
 | `RINGING_STARTED id degraded` | звук пошёл (критерий: ≤ 2 с после `ALARM_FIRED`; `degraded=true` — сработал сторож 2 с) |
-| `SOUND_STARTED source volume` / `SOUND_FALLBACK reason` | `raw`/`tone`; `volume=0/…` — будильник беззвучен (риск M1) |
+| `SOUND_STARTED source volume` / `SOUND_FALLBACK reason` | `builtin`/`custom`/`default`/`tone`; `volume=0/…` — будильник беззвучен (риск M1) |
+| `CALL_MUTED muted mode timeout` | (R14) мелодия приглушена/возвращена из-за режима аудио; `timeout=true` — вернули через 90 с, режим не сменился |
+| `VOLUME_APPLIED/NOT_APPLIED/FIXED/RESTORED` | громкость `STREAM_ALARM` на время звонка (R11, R19, R20) |
 | `RINGING_QUEUED id` | второй будильник ждёт (FR-RING-7) |
 | `RINGING_STOPPED id reason` | dismiss / snooze / auto_stop / destroyed |
 | `SNOOZED id until count`, `DISMISSED id reason` | USER / AUTO_STOP |
@@ -87,7 +89,7 @@ adb logcat -s Balarm:I AndroidRuntime:E          # события, см. ниж�
 | R11 | `adb shell cmd notification set_dnd priority` (будильники разрешены; `on` = Total Silence глушит и будильники — ограничение платформы, предупреждение — M3); беззвучный режим | `SOUND_STARTED source=default` (или `builtin`/`custom`) (громкость потока ALARM ≠ 0) |
 | R12 | `adb shell appops set $PKG USE_FULL_SCREEN_INTENT deny` | heads-up вместо экрана, звук есть (баннер — M3) |
 | R13 | два `SCHEDULE_IN` на одну минуту | один экран, `RINGING_QUEUED`, второй звонит после «Отключить» |
-| R14 | `adb emu gsm call 5551234` во время звонка | M4 (FR-RING-8) |
+| R14 | `adb emu gsm call 5551234` во время звонка | `CALL_MUTED muted=true`, вибрация идёт; после `adb emu gsm cancel 5551234` — `CALL_MUTED muted=false`. `dumpsys` приглушение не показывает |
 | R15 | битый файл мелодии | M4 |
 | R16–R17 | миссии | M5 |
 | R18 | OEM — ручной, реальное устройство | |

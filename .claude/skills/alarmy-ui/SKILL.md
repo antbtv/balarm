@@ -53,6 +53,9 @@ object BalarmDimens {
 | `SettingRow` | Заголовок, значение справа `textSecondary` (≤ ½ ширины), chevron; иконка слева необязательна; вся строка кликабельна, высота ≥ 56dp; при fontScale 2 переносится по словам |
 | `SingleChoiceDialog` | AlertDialog с radio-строками (≥ 56dp, `selectableGroup`); тап по варианту сразу `onSelect(index)`, закрывает вызывающий; `selectedIndex` вне диапазона — ничего не выбрано; переиспользуется (snooze M2, fade-in M4, уровень Math M5) |
 | `LabelField` | Однострочное поле метки со счётчиком «12/40» в **code points** (`labelLength`); переводы строк → пробел; при превышении лимита обрезается вставленный фрагмент, суррогатные пары не рвутся |
+| `SliderRow` / `SwitchRow` | (M4) Строки секции «Звук»: подпись + значение + слайдер с шагами / подпись + переключатель; зона тапа ≥ 56dp |
+| `TextInputDialog` | (M4) Диалог с однострочным полем (переименование мелодии), подтверждение/отмена |
+| `BalarmSnackbarHost` | (M4) Snackbar в токенах темы (ошибки импорта и т. п.) |
 | `ConfirmDialog` | Подтверждение (удаление, «Отменить изменения?») |
 | `PrimaryButton` | Высота 56 (`ButtonHeightLarge` 64 на звонке/миссии), radius 16, Primary, текст `buttonLarge`; вариант `pulsing = true` для «Отключить» (scale 1.0↔1.05, 1.2 с) |
 | `SecondaryButton` | SurfaceVariant фон («Отложить», «Тест», «Удалить») |

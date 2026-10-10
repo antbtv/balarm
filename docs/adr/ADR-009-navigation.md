@@ -72,3 +72,6 @@ ADR-003 §2–§4, ADR-007 §9–§10, ADR-010, ADR-011; PRD §4.1, §6.1, §6.2
 
 ## Уточнения по итогам M3
 * (M3, ADR-014) Стек теперь два плюс онбординг; `NavConfiguration` содержит шесть ключей; `openEditor` срабатывает только когда на вершине список (`openFrom(AlarmListKey, …)`) — строже прежнего; `closeTop(key)` закрывает экран только с вершины.
+
+## Уточнение по итогам M4 (2026-10-10)
+Результат экрана-пикера (мелодия) хранится в `BalarmNavState` через `rememberSaveable`, а не в `ResultEventBus` Nav3: шина in-memory и не переживает смерть процесса. Контракты: `SoundPickerRoute(selected, onPicked, onClose, onOpenLibrary)`, `SoundLibraryRoute(onClose)`; `AlarmEditRoute(..., onPickSound, pickedSound, onSoundPickConsumed)`.

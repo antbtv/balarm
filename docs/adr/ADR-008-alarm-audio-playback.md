@@ -28,7 +28,7 @@ Accepted (2026-10-03, реализовано и проверено в M1). Пр�
 * Проверка: Robolectric (`ShadowMediaPlayer`) — атрибуты, фолбэк по таймауту/ошибке; эмулятор — R1, R11 (DND/беззвучный), R19 (`dumpsys audio | grep AudioHardening` пусто); M4 — R15.
 
 ## Related
-ADR-002, ADR-007; FR-REL-8, FR-REL-9, FR-SND-5…7, FR-RING-1, FR-RING-8, NFR-3; R1, R11, R15, R19.
+ADR-002, ADR-007, ADR-017 (громкость, нарастание, цепочка резервов, FR-RING-8); FR-REL-8, FR-REL-9, FR-SND-5…7, FR-RING-1, FR-RING-8, NFR-3; R1, R11, R15, R19.
 
 ## Уточнения по итогам M1 (2026-10-03)
 * Встроенный звук — **`res/raw/alarm_default.wav`** (50 КБ, собственный синтез `tools/sound/generate_alarm_default.py`, CC0), а не OGG: на машине сборки не было кодировщика. URI — по имени ресурса (`android.resource://<pkg>/raw/alarm_default`): он хранится в канале `alarm_fallback`, а id ресурсов меняются между сборками.
