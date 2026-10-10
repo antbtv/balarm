@@ -24,7 +24,7 @@
 | ✓ | ID | Задача | FR | Оценка | Зависит от | Commit |
 |---|---|---|---|---|---|---|
 | [x] | M5-T01 | Модель, домен и Room v4: `MissionSpec`, `effectiveMission`, `MissionPolicy`, контракт в `:feature:missions:api` 🔔 | FR-MIS-4 | M | — | |
-| [ ] | M5-T02 | Math: генератор, конфиг, unit-тесты 🔔 | NFR-6 | S | T01 | |
+| [x] | M5-T02 | Math: генератор, конфиг, unit-тесты 🔔 | NFR-6 | S | T01 | |
 | [ ] | M5-T03 | `RingingService`: сессия миссии, приглушение, таймер, отклонение dismiss 🔔 | FR-MIS-2,3, FR-RING-4 | L | T01 | |
 | [ ] | M5-T04 | Экран Math + хост в `RingingActivity` + возврат после Home 🎨🔔 | FR-MIS-1,3, FR-RING-3,5 | L | T02, T03 | |
 | [ ] | M5-T05 | Редактор: секция «Миссия» (уровень, количество) + превью, навигация 🎨 | FR-MIS-5 | M | T02 | |
