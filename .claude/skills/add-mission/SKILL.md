@@ -8,41 +8,38 @@ argument-hint: "<название миссии, например shake>"
 
 Миссия — изолированный плагин. Ядро (`:feature:ringing`, `:core:alarm`) не меняется.
 
-## Контракт (`:feature:missions:api`)
-Если контракт ещё не создан (до M5) — сначала создай его по этой схеме и согласуй с architect.
+## Контракт (`:feature:missions:api`, ADR-018)
+Ядро хранит только `MissionSpec(type: MissionTypeId, config: String /* JSON */)` (`:core:model`) — новый тип миссии не требует правок ядра, enum и sealed не нужны.
 ```kotlin
-enum class MissionType { MATH, MEMORY, TYPING, SHAKE /* … */ }
-
-@Serializable sealed interface MissionConfig { val type: MissionType }
-
-interface MissionDefinition<C : MissionConfig> {
-    val type: MissionType
+interface MissionDefinition {
+    val type: MissionTypeId
+    val feature: Feature                       // флаг миссии (выключен → миссии нет, будильник отключается сразу)
     @get:StringRes val titleRes: Int
-    val icon: ImageVector
-    val defaultConfig: C
-    val configSerializer: KSerializer<C>
-    @Composable fun ConfigEditor(config: C, onChange: (C) -> Unit)
-    @Composable fun MissionScreen(config: C, mode: MissionMode, callbacks: MissionCallbacks)
+    fun defaultConfig(): String
+    fun normalize(config: String): String      // чинит любой конфиг, не бросает
+    fun summary(context: Context, config: String): String
+    @Composable fun ConfigEditor(config: String, onChange: (String) -> Unit, modifier: Modifier)
+    @Composable fun Content(config: String, session: MissionSession, modifier: Modifier)
 }
 
-enum class MissionMode { RINGING, PREVIEW }
-
-interface MissionCallbacks {
-    fun onProgress(done: Int, total: Int)   // обновляет прогресс-бар хоста
-    fun onUserInteraction()                 // сбрасывает таймер бездействия
-    fun onCompleted()                       // миссия пройдена
-}
+class MissionSession(
+    val seed: Long, val isPreview: Boolean,
+    val resetSignal: Int,                      // растёт при бездействии — сбросить ввод текущей задачи
+    val onInteraction: () -> Unit,             // каждое касание: сбрасывает таймер бездействия
+    val onProgress: (done: Int, total: Int) -> Unit,
+    val onCompleted: () -> Unit,
+)
 ```
-Хост (`MissionHost` в `:feature:ringing`) отвечает за: прогресс-бар, таймер бездействия, громкость, блокировку Back, переход к следующей миссии. Миссия **не** трогает звук, сервис и навигацию.
+Хост (`MissionHost` в `:feature:ringing` и `MissionPreviewRoute` в `:feature:missions:api`) рисует `MissionFrame` (прогресс, системные панели), блокирует Back, передаёт сессию. Приглушение звука, таймер бездействия и отклонение «Отключить» — в `RingingService` (ADR-019). Миссия **не** трогает звук, сервис и навигацию.
 
 ## Шаги
-1. **Модуль** `:feature:missions:<name>` (convention plugin `balarm.android.feature`), зависимость только на `:feature:missions:api`, `:core:designsystem`, `:core:model` (и `:core:domain`, если нужны цитаты).
-2. **Config:** `@Serializable data class <Name>Config(...) : MissionConfig` с валидацией диапазонов в `init { require(...) }`. Добавь значение в `MissionType`. Изменение сериализованного формата = миграция.
+1. **Модуль** `:feature:missions:<name>` (convention plugin `balarm.android.feature`), зависимость только на `:feature:missions:api`, `:core:designsystem`, `:core:model` .
+2. **Config:** `data class <Name>Config(...)` с `init { require(...) }`, `encode()` в JSON и толерантный `parse(raw)` (мусор → значения по умолчанию, выход за границы → `coerceIn`; пример — `MathConfig`). Новое поле — только с значением по умолчанию.
 3. **Логика** — чистый Kotlin-класс без Android (`<Name>Engine`/`<Name>Generator`): генерация задач с инжектируемым `Random(seed)`, проверка ответа, состояние. Всё тестируется на JVM.
-4. **ViewModel/State** — `UiState` immutable; каждое действие пользователя → `callbacks.onUserInteraction()`.
+4. **ViewModel/State** — `UiState` immutable; каждое действие пользователя → `session.onInteraction()`.
 5. **UI** по скиллу `alarmy-ui`: полноэкранно, крупно (использовать утром сонному человеку!), клавиатура своя где нужно, тряска + haptic при ошибке, testTag на интерактивных элементах.
-6. **ConfigEditor** — для экрана настройки миссии в редакторе будильника + кнопка «Попробовать» (PREVIEW).
-7. **Регистрация:** Hilt `@IntoMap @MissionTypeKey(MissionType.X)` binding `MissionDefinition` в модуле миссии; подключить модуль в `:app`.
+6. **ConfigEditor** — для экрана настройки миссии в редакторе будильника + кнопка «Превью» (`MissionPreviewRoute`, `isPreview = true`).
+7. **Регистрация:** добавь `object <Name>Mission : MissionDefinition` в список `MissionRegistry` в `:app` (`di/MissionModule.kt`) и новый флаг `feature.mission.<name>` в `config/features.properties` (`false` до T-docs этапа). Настройка в редакторе и превью подхватываются реестром автоматически.
 8. **Строки** RU + EN.
 9. **Тесты:**
    * unit: генератор (детерминизм по seed, диапазоны, все уровни), проверка ответа (граничные: пусто, пробелы, регистр, отрицательные), завершение после N задач;

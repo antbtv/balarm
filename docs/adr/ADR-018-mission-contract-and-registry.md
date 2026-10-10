@@ -83,3 +83,8 @@ Proposed (2026-10-10, план M5). Уточняет PRD §6.4 (`MissionConfig =
 ADR-007, ADR-009, ADR-011, ADR-019, ADR-020; FR-MIS-1…5, FR-EDIT-6, FR-FLAG-2…4, FR-LIST-1, NFR-6; PRD §3.5, §6.2, §6.4.
 
 **Правки (T-docs M5):** PRD §6.4 — `MissionConfig = sealed` → `MissionSpec(type, config JSON)`; скилл `add-mission` — контракт по п. 3–4 (без enum и sealed), регистрация `@StringKey`, флаг в `MissionDefinition.feature`.
+
+## Уточнения по итогам M5 (2026-10-10)
+* Реестр в MVP — явный список в `:app` (`MissionModule`: `MissionRegistry(listOf(MathMission), flags)`), а не Hilt-мультибиндинг; мультибиндинг — когда появится вторая миссия.
+* Отдельного `MissionSettingsRoute` нет: настройка миссии — подэкран внутри редактора (черновик `Alarm.mission` в ViewModel), результат через `BalarmNavState` не нужен. Отдельная запись навигации — только у превью (`MissionPreviewKey`). Правки §6–7 считать заменёнными этим абзацем.
+* Клавиша «−» не нужна: ответы `MathGenerator` всегда положительные (§8).

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Статус | In progress |
+| Статус | Done |
 | Утверждён | 2026-10-10 |
-| Завершён | — |
+| Завершён | 2026-10-10 |
 | Требования | FR-MIS-1…5, FR-RING-3, FR-RING-4, FR-RING-5, секция «Миссия» в редакторе |
 | Definition of Done | Будильник с Math нельзя отключить, не решив примеры (Back/Home/громкость не помогают); бездействие 15 с → громкость 100 % и сброс ввода (R16, R17) |
 
@@ -28,9 +28,9 @@
 | [x] | M5-T03 | `RingingService`: сессия миссии, приглушение, таймер, отклонение dismiss 🔔 | FR-MIS-2,3, FR-RING-4 | L | T01 | |
 | [x] | M5-T04 | Экран Math + хост в `RingingActivity` + возврат после Home 🎨🔔 | FR-MIS-1,3, FR-RING-3,5 | L | T02, T03 | |
 | [x] | M5-T05 | Редактор: секция «Миссия» (уровень, количество) + превью, навигация 🎨 | FR-MIS-5 | M | T02 | |
-| [ ] | M5-T-test | Тестирование: R16, R17, R3 (smoke), R1 | | M | все | |
-| [ ] | M5-T-review | Ревью этапа | | S | T-test | |
-| [ ] | M5-T-docs | ADR-018…020 → Accepted (коротко), PRD, `add-mission`, `feature.mission.math=true` | | S | T-review | |
+| [x] | M5-T-test | Тестирование: R16, R17, R3 (smoke), R1 | | M | все | |
+| [x] | M5-T-review | Ревью этапа | | S | T-test | |
+| [x] | M5-T-docs | ADR-018…020 → Accepted (коротко), PRD, `add-mission`, `feature.mission.math=true` | | S | T-review | |
 
 ### M5-T01 — Модель, домен, Room v4 🔔
 Модели в `:core:model`, `MissionCatalog`/`effectiveMission`/`MissionPolicy` (15 с, 0,3) и команды `RingingController` в `:core:domain`, колонки миссии и AutoMigration 3→4 в `:core:data`, интерфейс `MissionDefinition` в новом `:feature:missions:api`.
@@ -72,8 +72,14 @@
 * T05: настройка миссии — подэкран внутри редактора (черновик в VM), отдельной записи навигации нет; без `MissionSettingsRoute` и результата через `BalarmNavState`; у превью — `MissionPreviewKey`. Править ADR-018 §6–7 и ADR-009 в T-docs; `RadioRow` (designsystem) → alarmy-ui. Визуальная проверка подэкрана/превью (fontScale 2, 360dp) — в T-test.
 
 ## Уроки
+* T-test (эмулятор API 37, флаг `feature.mission.math` включался только на время прогона): R16, R17 (Back, Home), E2E, превью, R3 (custom, до разблокировки, миссия проходится в locked), R1, CRASH посреди миссии — пройдены. Приглушение проверяется не по логу, а по `dumpsys media.audio_flinger`: у трека приложения `L dB` -10 (30 %) в миссии и 0 при бездействии/после выхода.
+* Recents (KEYCODE_APP_SWITCH) не ведёт к `MISSION hidden`: `RingingActivity` остаётся только paused, экран не возвращается, пока пользователь сам не выйдет из обзора; звук 30 % до 15 с бездействия, затем 100 %. Событие `hidden` приходит только после Home из Recents. Отклонение от «Home/Recents → возврат ≤ 3 с» (minor).
+* Выключение экрана посреди миссии не даёт `hidden`: звук остаётся 30 % до таймера бездействия (≤ 15 с), потом `idle` → 100 %.
+* Для сценариев с миссией через `dbg SCHEDULE_IN` миссию и мелодию удобно выставлять через `run-as … sqlite3 /data/user_de/0/com.antbtv.balarm/databases/balarm.db` (`mission_type='math'`, `mission_config='{"level":1,"count":2}'`, `sound='custom:1'` + файл `files/sounds/1` и строка в `custom_sound`).
 
 ## Перенесено в следующий этап
-* `ringing_since` и R20-RESUME, `VolumeGuard` (обход через громкость при выключенном экране), `skipMission`.
-* Реестр миссий через Hilt-мультибиндинг (когда появится вторая миссия), `MissionSettingsRoute`, иконка миссии в карточке списка.
-* Сохранение черновика редактора при смерти процесса; экран настроек таймера/приглушения (M7).
+* Recents во время миссии не возвращает экран звонка; выключение экрана посреди миссии оставляет звук 30 % до idle — `VolumeGuard`/`ACTION_SCREEN_OFF` (M8 вместе с OEM-матрицей).
+* Маркер `ringing_since` (схема v5) и RESUME для R20; `skipMission` после падения.
+* Реестр миссий через Hilt-мультибиндинг (со второй миссией); иконка миссии в карточке списка; сохранение черновика редактора при смерти процесса; экран настроек таймера/приглушения (M7).
+* R14 во время миссии и миграция v3→v4 на устройстве поверх старой сборки — на реальном устройстве.
+* Риск «нет кнопки Отключить в шторке + нет overlay/FSI» — проверить в M8, что запуск приложения при звонке ведёт на `RingingActivity`.

@@ -108,8 +108,8 @@
 Общие правила:
 * **FR-MIS-1** Миссия — полноэкранный экран с прогресс-баром «2/5» и таймером бездействия.
 * **FR-MIS-2** На время миссии звук приглушается до 30 % (настраиваемо); при бездействии > 15 с (настр. 10–60) — звук снова на 100 %, прогресс текущей задачи сбрасывается.
-* **FR-MIS-3** Выйти из миссии без выполнения нельзя (Back → возврат на экран звонка, звук снова громкий).
-* **FR-MIS-4** Каждая миссия реализует общий контракт (`MissionType`, `MissionConfig`, `MissionState`, `MissionScreen`) — добавление новой миссии не требует правок ядра (см. скилл `add-mission`).
+* **FR-MIS-3** Выйти из миссии без выполнения нельзя (Back → возврат на экран звонка, звук снова громкий). Home/Recents/выключение экрана завершают сессию миссии: прогресс не сохраняется, после «Отключить» миссия начинается заново (ADR-019).
+* **FR-MIS-4** Каждая миссия реализует общий контракт (`MissionDefinition`, `MissionSpec` с JSON-конфигом, `MissionSession` — ADR-018) — добавление новой миссии не требует правок ядра (см. скилл `add-mission`).
 * **FR-MIS-5** Режим превью: та же миссия без звука, с кнопкой «Закрыть».
 
 | Миссия | Правила | Настройки | Приёмка |
@@ -200,7 +200,7 @@
 
   | Ключ | Фича | По умолчанию |
   |---|---|---|
-  | `feature.mission.math` | Миссия Math | false (до M5) |
+  | `feature.mission.math` | Миссия Math | true (с M5) |
   | `feature.snooze` | Отложить | true |
   | `feature.alarmSound` | Секция «Звук» в редакторе: мелодия, громкость, нарастание, вибрация | true (с M4) |
   | `feature.customSounds` | Свои мелодии (SAF-импорт, в т.ч. аудио-«цитаты») | true (с M4) |
@@ -320,16 +320,16 @@ Kotlin 2.x · Jetpack Compose + Material 3 · Navigation3 (ADR-009; Navigation C
 ```
 Alarm(id, hour, minute, daysOfWeek: Set<DayOfWeek>, date: LocalDate?, label,
       enabled, soundId, volume, fadeInSec, vibrate,
-      snoozeIntervalMin, snoozeLimit, missions: List<MissionConfig>,
+      snoozeIntervalMin, snoozeLimit, mission: MissionSpec?,
       [бэклог: wakeUpCheckMin, skipNextUntil: Instant?],
       [v1.1: morningBriefing: Boolean])
 [v1.1] WeatherSnapshot(fetchedAt: Instant, tempNow, weatherCode, windSpeed, tempMax, tempMin, precipProbability)
 AlarmRuntimeState(alarmId, nextTriggerAt: Instant?, nextTriggerKind: REGULAR|SNOOZE|CATCH_UP,
                   snoozeCount, lastFiredAt: Instant?,
-                  scheduleFailed: Boolean)   // M1; scheduleFailed — M3 (схема v2, ADR-015); M4 — схема v3 (звук будильника, `custom_sound`, ADR-016); флаг «звонит» (R20) — схема v4
+                  scheduleFailed: Boolean)   // M1; scheduleFailed — M3 (схема v2, ADR-015); M4 — схема v3 (звук будильника, `custom_sound`, ADR-016); M5 — схема v4 (`mission_type`, `mission_config`, ADR-020); флаг «звонит» (R20) — отдельная миграция (v5)
 SoundSettings(sound: SoundRef, volumePercent 10..100, fadeIn: 0|15|30|60 с)   // SoundRef = builtin:<key> | custom:<id>; ADR-016
 CustomSound(id, title, durationMs, sizeBytes, addedAt)   // файл в DE files/sounds/<id>
-MissionConfig = sealed: Math(level,count)   // Memory | Typing | Shake — бэклог
+MissionSpec(type: MissionTypeId, config: JSON-строка)   // Math(level 1..5, count 1..10); Memory | Typing | Shake — бэклог; ADR-018
 ```
 
 ### 6.5 Поток срабатывания
@@ -367,7 +367,7 @@ Google Play: `USE_EXACT_ALARM` и `USE_FULL_SCREEN_INTENT` — restricted-раз
 | M2 | UI списка и редактора | Главный экран, карточки, редактор, колесо времени, дни, snooze-настройки, «через X ч Y мин» | E2E: создать → включить → звонит |
 | M3 | Онбординг и здоровье | Онбординг 7 шагов (шаг 6 — упрощённый, без OEM-интентов), `PermissionHealthChecker`, баннер, экран здоровья, тестовый будильник | Все статусы корректны на API 34/37 (проверено на 37; API 34 — перенос). R20 → M5, возврат экрана звонка после Home (FR-RING-5) → M5 |
 | M4 ✅ | Звуки | Встроенные мелодии, SAF-импорт с копированием, библиотека, громкость, fade-in, вибрация, резервный звук, режим аудио при звонке (FR-RING-8, R14) | Кастомная мелодия играет после перезагрузки до разблокировки |
-| M5 | Миссии | Контракт миссий, хост, таймер бездействия, **Math**, превью | Нельзя отключить без миссии; бездействие → громко |
+| M5 ✅ | Миссии | Контракт миссий, хост, таймер бездействия, **Math**, превью (MVP-срез: без маркера R20, `VolumeGuard`, Recents-возврата — бэклог) | Нельзя отключить без миссии; бездействие → громко |
 | M6 | ~~Цитаты и утренняя озвучка~~ — **снят** | Цитаты исключены из продукта; озвучка (FR-TTS) → v1.1, отдельный этап после релиза | — |
 | M7 | Пропущенный будильник (урезан) | Уведомление «Пропущен будильник HH:MM» (FR-RING-6 автостоп, FR-REL-6 пропуск > 10 мин). Остальные S-пункты — в бэклоге | Уведомление при автостопе и при пропущенном срабатывании |
 | M8 | Качество и релиз | Тестовая матрица §9 на реальных устройствах, a11y, производительность, иконка, Play-декларации, подпись, R8 | Release candidate |

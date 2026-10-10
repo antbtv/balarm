@@ -67,7 +67,9 @@ object BalarmDimens {
 | `OnboardingStepLayout` / `OnboardingIllustration` | (M3) Шаг онбординга: индикатор, иллюстрация, «зачем», основная и «Позже»; `primaryEnabled`, `warning`, слот `extraContent` |
 | `BalarmNavigationBar` / `NavBarItem` | (M3) Нижняя панель на 2 вкладки; список `NavBarItem` — через `remember` |
 | `BalarmTopBar` | (M3) «Назад» + заголовок для полноэкранных экранов без панели |
-| `MissionProgressBar` | (M5) Сегментированный прогресс «2/5» наверху экрана миссии + полоска таймера бездействия |
+| `MissionProgressBar` | (M5) Сегментированный прогресс «2/5» наверху экрана миссии + тонкая полоска таймера бездействия; один узел TalkBack |
+| `MissionFrame` | (M5, `:feature:missions:api`) Каркас экрана миссии: прогресс, слот содержимого, необязательный `topEndAction` («Закрыть» в превью), системные панели видимы, `keepScreenOn` |
+| `RadioRow` | (M5) Radio-строка ≥ 56dp, общая для `SingleChoiceDialog` и выбора миссии |
 | `ShakeOnError` | (M5) Modifier: горизонтальная тряска 300 мс + haptic `Reject` |
 
 ## Экраны — ориентиры компоновки

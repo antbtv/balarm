@@ -455,6 +455,59 @@ class RingingServiceTest {
     }
 
     @Test
+    fun `auto stop in the middle of a mission silences everything and clears the session`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        idle(RingingPolicy.AUTO_STOP_AFTER.plusSeconds(1))
+
+        assertThat(fakeSound.playing).isFalse()
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(controller.state.value).isEqualTo(RingingState.Idle)
+    }
+
+    @Test
+    fun `snooze in the middle of a mission clears the session`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        mission(AlarmIntents.ACTION_SNOOZE)
+
+        assertThat(fakeSound.playing).isFalse()
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(controller.state.value).isEqualTo(RingingState.Idle)
+    }
+
+    @Test
+    fun `next alarm of the queue starts without the previous mission session`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        start(ringIntent(OTHER.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        mission(AlarmIntents.ACTION_MISSION_DONE)
+
+        val next = ringState()
+        assertThat(next.alarm.id).isEqualTo(OTHER.id)
+        assertThat(next.missionRun).isNull()
+        assertThat(fakeSound.duck).isEqualTo(1f)
+    }
+
+    @Test
+    fun `touch during a phone call keeps vibrating`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+        service.get().onAudioMode(AudioManager.MODE_IN_CALL)
+
+        mission(AlarmIntents.ACTION_MISSION_TOUCH)
+
+        assertThat(fakeVibrator.vibrating).isTrue()
+    }
+
+    @Test
     fun `mission commands on an alarm without a mission change nothing`() {
         start(ringIntent(ALARM.id))
 

@@ -423,7 +423,7 @@ class RingingService : Service() {
         if (missionRun == null || !isCurrent(id)) return
         // После бездействия звук был громкий — первое же касание снова приглушает.
         sound.setDuck(MissionPolicy.DUCK_GAIN)
-        vibrator.stop()
+        if (!callMuted) vibrator.stop() // в разговоре вибрация — единственный сигнал
         armMissionIdle(id)
     }
 
@@ -431,11 +431,14 @@ class RingingService : Service() {
         missionIdle?.cancel()
         missionIdle = scope.launch {
             delay(MissionPolicy.IDLE_TIMEOUT.toMillis())
-            val run = missionRun ?: return@launch
-            missionRun = run.copy(idleResets = run.idleResets + 1)
-            restoreLoud()
-            log.log(AlarmEvent.Mission(id, "idle"))
-            publish()
+            // Своя корутина вне command(): необработанное исключение уронило бы процесс посреди звонка.
+            safely("mission_idle") {
+                val run = missionRun ?: return@safely
+                missionRun = run.copy(idleResets = run.idleResets + 1)
+                restoreLoud()
+                log.log(AlarmEvent.Mission(id, "idle"))
+                publish()
+            }
         }
     }
 
@@ -468,10 +471,12 @@ class RingingService : Service() {
         screenReturn = scope.launch {
             delay(SCREEN_RETURN_DELAY.toMillis())
             screenReturn = null
-            val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
-            if (!isCurrent(id) || callMuted || !interactive) return@launch
-            log.log(AlarmEvent.Mission(id, "screen_returned"))
-            startRingingScreen()
+            safely("screen_return") {
+                val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
+                if (!isCurrent(id) || callMuted || !interactive) return@safely
+                log.log(AlarmEvent.Mission(id, "screen_returned"))
+                startRingingScreen()
+            }
         }
     }
 
