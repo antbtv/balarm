@@ -126,6 +126,9 @@ class RingingService : Service() {
     private var missionSeed = 0L
     private var muteTimeout: Job? = null
 
+    /** Отложенный возврат экрана звонка после Home/Recents (FR-RING-5); не больше одного в ожидании. */
+    private var screenReturn: Job? = null
+
     override fun onCreate() {
         super.onCreate()
         audioManager = getSystemService(AudioManager::class.java)
@@ -168,6 +171,7 @@ class RingingService : Service() {
 
             AlarmIntents.ACTION_MISSION_HIDDEN -> missionCommand(intent, "mission_hidden") {
                 leaveMission(it, "hidden")
+                scheduleScreenReturn(it)
             }
 
             AlarmIntents.ACTION_MISSION_DONE -> AlarmIntents.alarmId(intent)?.let { id ->
@@ -351,6 +355,8 @@ class RingingService : Service() {
         val ring = current ?: return
         autoStop?.cancel()
         autoStop = null
+        screenReturn?.cancel()
+        screenReturn = null
         endMissionSession()
         silence()
         log.log(AlarmEvent.RingingStopped(ring.alarm.id, reason))
@@ -447,6 +453,26 @@ class RingingService : Service() {
         log.log(AlarmEvent.Mission(id, "completed"))
         finishCurrent("dismiss")
         record("dismiss") { engine.dismiss(id, DismissReason.USER) }
+    }
+
+    /**
+     * FR-RING-5, R17: экран будильника с миссией ушёл в фон при включённом дисплее (Home, Recents) — через
+     * [SCREEN_RETURN_DELAY] открыть его снова (только с overlay-разрешением, см. [startRingingScreen]; без него
+     * на экран ведёт уведомление). Один возврат на одно скрытие: повторное скрытие перезапускает ожидание, а не
+     * копит запуски. Не возвращаем, если звонок уже другой/закончился, во время телефонного разговора (экран звонка
+     * не перекрывает его, FR-RING-8) и при выключенном дисплее. Звук здесь не трогается.
+     */
+    private fun scheduleScreenReturn(id: AlarmId) {
+        if (!isCurrent(id) || !hasMission()) return
+        screenReturn?.cancel()
+        screenReturn = scope.launch {
+            delay(SCREEN_RETURN_DELAY.toMillis())
+            screenReturn = null
+            val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
+            if (!isCurrent(id) || callMuted || !interactive) return@launch
+            log.log(AlarmEvent.Mission(id, "screen_returned"))
+            startRingingScreen()
+        }
     }
 
     /** Громкий звук и вибрация по настройке будильника (после бездействия или выхода из миссии). */
@@ -651,6 +677,9 @@ class RingingService : Service() {
 
         /** FR-RING-8: дольше этого мелодия не молчит из-за режима аудио, даже если режим не сменился. */
         val MUTE_TIMEOUT: Duration = Duration.ofSeconds(90)
+
+        /** FR-RING-5: экран будильника с миссией возвращается после Home/Recents не позже 3 с. */
+        val SCREEN_RETURN_DELAY: Duration = Duration.ofSeconds(1)
 
         /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
         val CRASH_RESUME_DELAY: Duration = Duration.ofSeconds(3)

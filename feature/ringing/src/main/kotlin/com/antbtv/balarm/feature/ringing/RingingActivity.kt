@@ -2,6 +2,7 @@ package com.antbtv.balarm.feature.ringing
 
 import android.graphics.Color
 import android.os.Bundle
+import android.os.PowerManager
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -30,6 +31,10 @@ private val DarkBars = SystemBarStyle.dark(Color.TRANSPARENT)
  * FR-RING-4: Back и кнопки громкости поглощаются — уйти с экрана можно только командой
  * «Отключить»/«Отложить» (или Home, тогда звонок продолжается). Как только контроллер сообщает о конце
  * звонка ([RingingPhase.FINISHED]), Activity закрывается вместе со своей задачей.
+ *
+ * Миссия (ADR-019): экран миссии — внутри этой же Activity; его Back ведёт на звонок (`BackHandler` в
+ * `MissionHost`, приоритетнее [absorbBack]). Экран скрыт при включённом дисплее (Home, Recents) — у будильника
+ * с миссией сервис сразу возвращает громкость и сам открывает экран снова (FR-RING-5, R17).
  */
 @AndroidEntryPoint
 class RingingActivity : ComponentActivity() {
@@ -59,6 +64,13 @@ class RingingActivity : ComponentActivity() {
                 RingingRoute(viewModel = viewModel)
             }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Поворот — не уход с экрана; выключение дисплея — тоже (звонок продолжится, экран — поверх блокировки).
+        val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
+        if (!isChangingConfigurations && interactive) viewModel.onScreenHidden()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean =

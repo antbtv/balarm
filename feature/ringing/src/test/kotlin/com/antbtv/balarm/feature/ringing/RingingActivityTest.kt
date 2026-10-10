@@ -4,12 +4,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -21,8 +24,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.antbtv.balarm.core.designsystem.component.MissionProgressBarTestTags
+import com.antbtv.balarm.core.domain.alarm.MissionRun
 import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.RingingState
+import com.antbtv.balarm.feature.missions.api.MissionRegistry
 import com.antbtv.balarm.feature.ringing.ui.RingingTestTags
 import com.antbtv.balarm.feature.ringing.ui.RingingViewModel
 import com.google.common.truth.Truth.assertThat
@@ -64,6 +70,10 @@ class RingingActivityTest {
 
     @BindValue
     @JvmField
+    val registry: MissionRegistry = fakeRegistry()
+
+    @BindValue
+    @JvmField
     val clock: Clock = Clock.fixed(Instant.parse("2026-10-03T06:30:00Z"), ZoneOffset.UTC)
 
     @Before
@@ -78,6 +88,90 @@ class RingingActivityTest {
 
             assertThat(fakeController.dismissCalls).isEqualTo(1)
         }
+    }
+
+    @Test
+    fun `dismiss button of an alarm with a mission starts the mission instead of dismissing`() {
+        fakeController.state.value = ringing(mission = FakeMissionSpec)
+
+        ActivityScenario.launch(RingingActivity::class.java).use {
+            composeRule.onNodeWithTag(RingingTestTags.DISMISS).performClick()
+
+            assertThat(fakeController.missionStarts).isEqualTo(1)
+            assertThat(fakeController.dismissCalls).isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `running mission replaces the ringing screen and talks to the controller`() {
+        fakeController.state.value = ringing(mission = FakeMissionSpec, missionRun = MissionRun(seed = 42))
+
+        ActivityScenario.launch(RingingActivity::class.java).use {
+            composeRule.onNodeWithTag(RingingTestTags.MISSION).assertIsDisplayed()
+            composeRule.onNodeWithTag(RingingTestTags.DISMISS).assertDoesNotExist()
+            composeRule.onNodeWithTag(FakeMission.INFO).assertTextEquals("seed=42 reset=0")
+            composeRule.onNodeWithTag(MissionProgressBarTestTags.BAR)
+                .assertContentDescriptionEquals("Solved 1 of 3")
+
+            composeRule.onNodeWithTag(FakeMission.TOUCH).performClick()
+            assertThat(fakeController.missionTouches).isEqualTo(1)
+
+            // Бездействие в сервисе → сигнал сброса доходит до миссии.
+            fakeController.state.value = ringing(
+                mission = FakeMissionSpec,
+                missionRun = MissionRun(seed = 42, idleResets = 1),
+            )
+            composeRule.onNodeWithTag(FakeMission.INFO).assertTextEquals("seed=42 reset=1")
+
+            composeRule.onNodeWithTag(FakeMission.SOLVE).performClick()
+            assertThat(fakeController.missionCompletions).isEqualTo(1)
+            assertThat(fakeController.dismissCalls).isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `back in a mission leaves it instead of closing the screen`() {
+        fakeController.state.value = ringing(mission = FakeMissionSpec, missionRun = MissionRun(seed = 1))
+        val activity = Robolectric.buildActivity(RingingActivity::class.java).setup().get()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        activity.onBackPressedDispatcher.onBackPressed()
+
+        assertThat(fakeController.missionLeaves).isEqualTo(1)
+        assertThat(activity.isFinishing).isFalse()
+
+        // Сервис закончил сессию — снова экран звонка, Back снова поглощается.
+        fakeController.state.value = ringing(mission = FakeMissionSpec)
+        shadowOf(Looper.getMainLooper()).idle()
+        activity.onBackPressedDispatcher.onBackPressed()
+        assertThat(fakeController.missionLeaves).isEqualTo(1)
+        assertThat(activity.isFinishing).isFalse()
+    }
+
+    @Test
+    fun `leaving the screen of an alarm with a mission reports it, rotation does not`() {
+        fakeController.state.value = ringing(mission = FakeMissionSpec, missionRun = MissionRun(seed = 1))
+        val controller = Robolectric.buildActivity(RingingActivity::class.java).setup()
+
+        val landscape = Configuration(controller.get().resources.configuration).apply {
+            orientation = Configuration.ORIENTATION_LANDSCAPE
+        }
+        controller.configurationChange(landscape)
+        assertThat(fakeController.screenHidden).isEqualTo(0)
+
+        controller.pause().stop()
+
+        assertThat(fakeController.screenHidden).isEqualTo(1)
+    }
+
+    @Test
+    fun `leaving the screen of a plain alarm changes nothing`() {
+        val controller = Robolectric.buildActivity(RingingActivity::class.java).setup()
+
+        controller.pause().stop()
+
+        assertThat(fakeController.screenHidden).isEqualTo(0)
+        assertThat(fakeController.dismissCalls).isEqualTo(0)
     }
 
     @Test

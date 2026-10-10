@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="math_title">Math</string>
+    <!-- Сводка в редакторе: %1$d — уровень, %2$d — число примеров. -->
+    <plurals name="math_summary">
+        <item quantity="one">Level %1$d, %2$d problem</item>
+        <item quantity="other">Level %1$d, %2$d problems</item>
+    </plurals>
+
+    <!-- Экран миссии. -->
+    <string name="math_answer_placeholder">?</string>
+    <string name="math_answer_description">Answer: %1$s</string>
+    <string name="math_answer_empty">Answer: empty</string>
+    <string name="math_key_erase">Erase</string>
+    <string name="math_key_enter">OK</string>
+    <string name="math_key_enter_description">Check answer</string>
+    <string name="math_completed">Done!</string>
+
+    <!-- Редактор настроек. -->
+    <string name="math_level">Difficulty</string>
+    <string name="math_level_value">Level %1$d</string>
+    <string name="math_count">Number of problems</string>
+    <plurals name="math_count_value">
+        <item quantity="one">%1$d problem</item>
+        <item quantity="other">%1$d problems</item>
+    </plurals>
+    <!-- %1$s — пример задачи выбранного уровня, например «47 + 38». -->
+    <string name="math_example">Example: %1$s</string>
+</resources>

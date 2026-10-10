@@ -1,9 +1,11 @@
 package com.antbtv.balarm.feature.ringing
 
+import com.antbtv.balarm.core.domain.alarm.MissionRun
 import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.MissionSpec
 import java.time.Instant
 import java.time.LocalTime
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,10 +58,17 @@ class FakeRingingController(initial: RingingState = RingingState.Idle) : Ringing
     }
 }
 
-fun ringing(label: String = "Morning run", canSnooze: Boolean = true, snoozesLeft: Int? = 2): RingingState.Ringing =
-    RingingState.Ringing(
-        alarm = Alarm(id = AlarmId(1), time = LocalTime.of(6, 30), label = label),
-        startedAt = Instant.parse("2026-10-03T06:30:00Z"),
-        canSnooze = canSnooze,
-        snoozesLeft = snoozesLeft,
-    )
+fun ringing(
+    label: String = "Morning run",
+    canSnooze: Boolean = true,
+    snoozesLeft: Int? = 2,
+    mission: MissionSpec? = null,
+    missionRun: MissionRun? = null,
+): RingingState.Ringing = RingingState.Ringing(
+    alarm = Alarm(id = AlarmId(1), time = LocalTime.of(6, 30), label = label, mission = mission),
+    startedAt = Instant.parse("2026-10-03T06:30:00Z"),
+    canSnooze = canSnooze,
+    snoozesLeft = snoozesLeft,
+    mission = mission,
+    missionRun = missionRun,
+)

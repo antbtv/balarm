@@ -29,6 +29,7 @@ dependencies {
     implementation(projects.feature.onboarding)
     implementation(projects.feature.sounds)
     implementation(projects.feature.missions.api)
+    implementation(projects.feature.missions.math)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

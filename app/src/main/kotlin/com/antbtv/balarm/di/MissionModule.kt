@@ -3,6 +3,7 @@ package com.antbtv.balarm.di
 import com.antbtv.balarm.core.domain.alarm.MissionCatalog
 import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import com.antbtv.balarm.feature.missions.api.MissionRegistry
+import com.antbtv.balarm.feature.missions.math.MathMission
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,7 +16,7 @@ import javax.inject.Singleton
 object MissionModule {
     @Provides
     @Singleton
-    fun provideRegistry(flags: FeatureFlagProvider): MissionRegistry = MissionRegistry(emptyList(), flags)
+    fun provideRegistry(flags: FeatureFlagProvider): MissionRegistry = MissionRegistry(listOf(MathMission), flags)
 
     @Provides
     fun provideCatalog(registry: MissionRegistry): MissionCatalog = registry

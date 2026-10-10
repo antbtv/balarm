@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="math_title">Математика</string>
+    <plurals name="math_summary">
+        <item quantity="one">Уровень %1$d, %2$d пример</item>
+        <item quantity="few">Уровень %1$d, %2$d примера</item>
+        <item quantity="many">Уровень %1$d, %2$d примеров</item>
+        <item quantity="other">Уровень %1$d, %2$d примера</item>
+    </plurals>
+
+    <string name="math_answer_placeholder">?</string>
+    <string name="math_answer_description">Ответ: %1$s</string>
+    <string name="math_answer_empty">Ответ: пусто</string>
+    <string name="math_key_erase">Стереть</string>
+    <string name="math_key_enter">ОК</string>
+    <string name="math_key_enter_description">Проверить ответ</string>
+    <string name="math_completed">Готово!</string>
+
+    <string name="math_level">Сложность</string>
+    <string name="math_level_value">Уровень %1$d</string>
+    <string name="math_count">Количество примеров</string>
+    <plurals name="math_count_value">
+        <item quantity="one">%1$d пример</item>
+        <item quantity="few">%1$d примера</item>
+        <item quantity="many">%1$d примеров</item>
+        <item quantity="other">%1$d примера</item>
+    </plurals>
+    <string name="math_example">Например: %1$s</string>
+</resources>

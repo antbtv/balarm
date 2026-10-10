@@ -26,7 +26,7 @@
 | [x] | M5-T01 | Модель, домен и Room v4: `MissionSpec`, `effectiveMission`, `MissionPolicy`, контракт в `:feature:missions:api` 🔔 | FR-MIS-4 | M | — | |
 | [x] | M5-T02 | Math: генератор, конфиг, unit-тесты 🔔 | NFR-6 | S | T01 | |
 | [x] | M5-T03 | `RingingService`: сессия миссии, приглушение, таймер, отклонение dismiss 🔔 | FR-MIS-2,3, FR-RING-4 | L | T01 | |
-| [ ] | M5-T04 | Экран Math + хост в `RingingActivity` + возврат после Home 🎨🔔 | FR-MIS-1,3, FR-RING-3,5 | L | T02, T03 | |
+| [x] | M5-T04 | Экран Math + хост в `RingingActivity` + возврат после Home 🎨🔔 | FR-MIS-1,3, FR-RING-3,5 | L | T02, T03 | |
 | [ ] | M5-T05 | Редактор: секция «Миссия» (уровень, количество) + превью, навигация 🎨 | FR-MIS-5 | M | T02 | |
 | [ ] | M5-T-test | Тестирование: R16, R17, R3 (smoke), R1 | | M | все | |
 | [ ] | M5-T-review | Ревью этапа | | S | T-test | |
@@ -68,6 +68,7 @@
 | Память машины | одна Gradle-сборка, эмулятор без окна |
 
 ## Добавлено по ходу
+* T04: при Home/Recents во время миссии сессия завершается (сервис на `MISSION_HIDDEN`), прогресс теряется — расходится с ADR-019 §6 (решённые задачи сохраняются); безопаснее для отключения — поправить ADR в T-docs. Отличия от ADR-019: нет `idleDeadline` (полоска бездействия считается на UI), вместо `screenVisible` — `missionScreenHidden()`, команды идут интентами. Клавиша «−» не нужна (ответы положительные). Возврат экрана после Home: `RingingService.scheduleScreenReturn` (1 с, при overlay). Визуальная проверка (fontScale 2, 360dp) — в T-test.
 
 ## Уроки
 

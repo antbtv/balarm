@@ -83,6 +83,18 @@ object BalarmDimens {
     /** Ширина сегмента индикатора шагов; текущий шаг — [StepIndicatorSegmentCurrent] (не только цвет — WCAG 1.4.1). */
     val StepIndicatorSegment = 16.dp
     val StepIndicatorSegmentCurrent = 32.dp
+
+    /** Высота сегмента `MissionProgressBar` (решённые задачи). */
+    val MissionProgressSegment = 8.dp
+
+    /** Высота полоски таймера бездействия под сегментами `MissionProgressBar`. */
+    val MissionIdleBar = 4.dp
+
+    /** Амплитуда тряски `ShakeOnError` (неверный ответ в миссии). */
+    val ShakeOffset = 12.dp
+
+    /** Контент миссии (пример, клавиатура) не растягивается шире — в ландшафте и на планшете. */
+    val MissionContentMaxWidth = 480.dp
 }
 
 /** Формы Balarm: кнопки — 16dp, карточки — 20dp, FAB и точки-индикаторы — круг. */

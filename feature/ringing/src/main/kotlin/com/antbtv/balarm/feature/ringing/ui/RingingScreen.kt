@@ -1,5 +1,6 @@
 package com.antbtv.balarm.feature.ringing.ui
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,10 @@ import com.antbtv.balarm.core.designsystem.component.SecondaryButton
 import com.antbtv.balarm.core.designsystem.theme.BalarmDimens
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.format.rememberClockFormat
+import com.antbtv.balarm.core.model.MissionTypeId
+import com.antbtv.balarm.core.model.feature.Feature
+import com.antbtv.balarm.feature.missions.api.MissionDefinition
+import com.antbtv.balarm.feature.missions.api.MissionSession
 import com.antbtv.balarm.feature.ringing.R
 import java.time.LocalDateTime
 
@@ -44,9 +49,20 @@ fun RingingRoute(viewModel: RingingViewModel, modifier: Modifier = Modifier) {
 /**
  * Экран звонка (FR-RING-2, скилл alarmy-ui): дата, огромное текущее время, метка; снизу «Отложить (N)» и
  * пульсирующая «Отключить». Кнопок нет, пока звонок не начался ([RingingPhase.WAITING]) и после его конца.
+ * Во время сессии миссии ([RingingUiState.mission]) вместо него — экран миссии ([MissionHost]).
  */
 @Composable
 fun RingingScreen(state: RingingUiState, onEvent: (RingingEvent) -> Unit, modifier: Modifier = Modifier) {
+    val mission = state.mission
+    if (mission != null && state.phase == RingingPhase.RINGING) {
+        MissionHost(mission = mission, onEvent = onEvent, modifier = modifier)
+    } else {
+        RingingContent(state = state, onEvent = onEvent, modifier = modifier)
+    }
+}
+
+@Composable
+private fun RingingContent(state: RingingUiState, onEvent: (RingingEvent) -> Unit, modifier: Modifier = Modifier) {
     val colors = BalarmTheme.colors
     Surface(
         modifier = modifier
@@ -215,4 +231,41 @@ private fun RingingNoSnoozePreview() {
 @Composable
 private fun RingingWaitingPreview() {
     BalarmTheme { RingingScreen(state = RingingUiState(now = PreviewNow, phase = RingingPhase.WAITING), onEvent = {}) }
+}
+
+/** Заглушка плагина для превью: настоящие миссии подключает только `:app`. */
+private object PreviewMission : MissionDefinition {
+    override val type = MissionTypeId("preview")
+    override val feature = Feature.MISSION_MATH
+    override val titleRes = R.string.ringing_dismiss
+
+    override fun defaultConfig() = "{}"
+
+    override fun normalize(config: String) = config
+
+    override fun summary(context: Context, config: String) = ""
+
+    @Composable
+    override fun ConfigEditor(config: String, onChange: (String) -> Unit, modifier: Modifier) = Unit
+
+    @Composable
+    override fun Content(config: String, session: MissionSession, modifier: Modifier) {
+        Text(text = "7 × 8", style = BalarmTheme.typography.timeHuge, color = BalarmTheme.colors.textPrimary)
+    }
+}
+
+private val PreviewMissionState = PreviewRinging.copy(
+    mission = MissionUi(definition = PreviewMission, config = "{}", seed = 1L, resetSignal = 0, done = 1, total = 3),
+)
+
+@Preview(name = "Ringing — mission, dark", widthDp = 360, heightDp = 720)
+@Composable
+private fun RingingMissionPreview() {
+    BalarmTheme { RingingScreen(state = PreviewMissionState, onEvent = {}) }
+}
+
+@Preview(name = "Ringing — mission, light, RU", widthDp = 360, heightDp = 720, locale = "ru")
+@Composable
+private fun RingingMissionLightPreview() {
+    BalarmTheme(darkTheme = false) { RingingScreen(state = PreviewMissionState, onEvent = {}) }
 }

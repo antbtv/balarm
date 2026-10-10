@@ -127,3 +127,14 @@ object TextInputDialogTestTags {
 object SnackbarTestTags {
     const val SNACKBAR = "balarmSnackbar"
 }
+
+/** Теги [MissionProgressBar]: индикатор целиком (один узел TalkBack), подпись «2/3», полоска бездействия. */
+object MissionProgressBarTestTags {
+    const val BAR = "missionProgressBar"
+    const val LABEL = "missionProgressLabel"
+    const val IDLE = "missionProgressIdle"
+}
+
+object ShakeOnErrorTestTags {
+    const val CONTAINER = "shakeOnError"
+}

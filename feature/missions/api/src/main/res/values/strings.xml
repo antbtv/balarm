@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- MissionFrame: подпись прогресса «2/3» и её описание для TalkBack. -->
+    <string name="mission_progress">%1$d/%2$d</string>
+    <string name="mission_progress_description">Solved %1$d of %2$d</string>
+</resources>

@@ -361,6 +361,76 @@ class RingingServiceTest {
     }
 
     @Test
+    fun `hidden screen of a mission alarm comes back once after the return delay`() {
+        ShadowSettings.setCanDrawOverlays(true)
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        val shadow = shadowOf(service.get())
+        assertThat(shadow.nextStartedActivity).isNotNull() // старт экрана при начале звонка
+
+        mission(AlarmIntents.ACTION_MISSION_HIDDEN)
+        mission(AlarmIntents.ACTION_MISSION_HIDDEN) // повторное скрытие не копит запуски
+        assertThat(shadow.nextStartedActivity).isNull()
+
+        idle(RingingService.SCREEN_RETURN_DELAY)
+
+        assertThat(shadow.nextStartedActivity.action).isEqualTo(FakeUiIntents.RINGING_SCREEN)
+        assertThat(shadow.nextStartedActivity).isNull()
+        assertThat(events.count { it == AlarmEvent.Mission(ALARM.id, "screen_returned") }).isEqualTo(1)
+        assertThat(fakeSound.playing).isTrue()
+        idle(RingingService.SCREEN_RETURN_DELAY.multipliedBy(5))
+        assertThat(shadow.nextStartedActivity).isNull() // без нового скрытия — без повторов
+    }
+
+    @Test
+    fun `hidden screen is not returned without overlay permission, without a mission or after the ring ends`() {
+        ShadowSettings.setCanDrawOverlays(false)
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        val shadow = shadowOf(service.get())
+        mission(AlarmIntents.ACTION_MISSION_HIDDEN)
+        idle(RingingService.SCREEN_RETURN_DELAY)
+        assertThat(shadow.nextStartedActivity).isNull()
+
+        ShadowSettings.setCanDrawOverlays(true)
+        mission(AlarmIntents.ACTION_MISSION_HIDDEN)
+        mission(AlarmIntents.ACTION_MISSION_START)
+        mission(AlarmIntents.ACTION_MISSION_DONE) // звонок закончился раньше, чем подошло время возврата
+        idle(RingingService.SCREEN_RETURN_DELAY)
+        assertThat(shadow.nextStartedActivity).isNull()
+        assertThat(controller.state.value).isEqualTo(RingingState.Idle)
+    }
+
+    @Test
+    fun `hidden screen of an alarm without a mission is not returned`() {
+        ShadowSettings.setCanDrawOverlays(true)
+        start(ringIntent(ALARM.id))
+        val shadow = shadowOf(service.get())
+        assertThat(shadow.nextStartedActivity).isNotNull()
+
+        mission(AlarmIntents.ACTION_MISSION_HIDDEN)
+        idle(RingingService.SCREEN_RETURN_DELAY)
+
+        assertThat(shadow.nextStartedActivity).isNull()
+        assertThat(fakeSound.playing).isTrue()
+    }
+
+    @Test
+    fun `hidden screen is not pushed over a phone call`() {
+        ShadowSettings.setCanDrawOverlays(true)
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        val shadow = shadowOf(service.get())
+        assertThat(shadow.nextStartedActivity).isNotNull()
+
+        service.get().onAudioMode(AudioManager.MODE_IN_CALL)
+        mission(AlarmIntents.ACTION_MISSION_HIDDEN)
+        idle(RingingService.SCREEN_RETURN_DELAY)
+
+        assertThat(shadow.nextStartedActivity).isNull()
+    }
+
+    @Test
     fun `completing a started mission dismisses the alarm`() {
         save(withMission)
         start(ringIntent(ALARM.id))

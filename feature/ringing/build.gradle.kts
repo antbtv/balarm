@@ -7,6 +7,8 @@ dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.model)
     implementation(projects.core.format)
+    // Миссия звонка — через контракт и реестр (ADR-018 §5); конкретные миссии подключает только :app.
+    implementation(projects.feature.missions.api)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
 

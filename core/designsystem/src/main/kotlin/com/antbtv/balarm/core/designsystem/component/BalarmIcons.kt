@@ -57,4 +57,8 @@ object BalarmIcons {
     /** Карандаш: «Переименовать». */
     @DrawableRes
     val Edit: Int = R.drawable.ic_edit
+
+    /** «Стереть» на клавиатуре миссии. Зеркалится в RTL (`autoMirrored`). */
+    @DrawableRes
+    val Backspace: Int = R.drawable.ic_backspace
 }

@@ -1,6 +1,7 @@
 package com.antbtv.balarm.feature.ringing.ui
 
 import androidx.compose.runtime.Immutable
+import com.antbtv.balarm.feature.missions.api.MissionDefinition
 import java.time.LocalDateTime
 
 /**
@@ -8,6 +9,7 @@ import java.time.LocalDateTime
  *
  * @property now текущее локальное время с точностью до минуты — часы на экране тикают, а не показывают время
  * срабатывания.
+ * @property mission идёт сессия миссии (FR-RING-3) — вместо экрана звонка показывается экран миссии.
  */
 @Immutable
 data class RingingUiState(
@@ -15,6 +17,23 @@ data class RingingUiState(
     val phase: RingingPhase,
     val label: String = "",
     val snooze: SnoozeUi = SnoozeUi.Hidden,
+    val mission: MissionUi? = null,
+)
+
+/**
+ * Экран миссии на звонке (ADR-019): [definition] — плагин из реестра, [config] — его JSON, [seed] и [resetSignal]
+ * — из сессии сервиса (`MissionRun`). [done]/[total] — прогресс, о котором сообщила сама миссия; [interactions] —
+ * счётчик касаний (перезапуск полоски бездействия).
+ */
+@Immutable
+data class MissionUi(
+    val definition: MissionDefinition,
+    val config: String,
+    val seed: Long,
+    val resetSignal: Int,
+    val done: Int = 0,
+    val total: Int = 0,
+    val interactions: Int = 0,
 )
 
 enum class RingingPhase {
@@ -37,9 +56,20 @@ sealed interface SnoozeUi {
 }
 
 sealed interface RingingEvent {
+    /** «Отключить»: без миссии — отключение, с миссией — начало миссии (FR-RING-3). */
     data object Dismiss : RingingEvent
 
     data object Snooze : RingingEvent
+
+    /** Любое касание в миссии (FR-MIS-2). */
+    data object MissionInteraction : RingingEvent
+
+    data class MissionProgress(val done: Int, val total: Int) : RingingEvent
+
+    data object MissionCompleted : RingingEvent
+
+    /** Back на экране миссии: назад на звонок, звук снова громкий (FR-MIS-3). */
+    data object MissionBack : RingingEvent
 }
 
 /** Теги для Compose UI-тестов. */
@@ -50,4 +80,5 @@ object RingingTestTags {
     const val LABEL = "ringing_label"
     const val SNOOZE = "ringing_snooze"
     const val DISMISS = "ringing_dismiss"
+    const val MISSION = "ringing_mission"
 }

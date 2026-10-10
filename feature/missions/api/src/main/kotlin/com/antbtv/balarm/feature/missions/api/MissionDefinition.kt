@@ -3,6 +3,7 @@ package com.antbtv.balarm.feature.missions.api
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
 import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.feature.Feature
@@ -10,7 +11,10 @@ import com.antbtv.balarm.core.model.feature.Feature
 /**
  * Миссия как плагин (FR-MIS-4, ADR-018): ядро хранит только [MissionTypeId] и непрозрачный JSON-конфиг,
  * всё остальное знает сама миссия. Добавление новой миссии не требует правок ядра (скилл `add-mission`).
+ *
+ * Реализации — объекты без изменяемого состояния (`@Stable`: их можно класть в `UiState`).
  */
+@Stable
 interface MissionDefinition {
     val type: MissionTypeId
 
