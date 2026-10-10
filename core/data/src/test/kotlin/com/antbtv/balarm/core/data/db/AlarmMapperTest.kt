@@ -4,6 +4,8 @@ import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
 import com.antbtv.balarm.core.model.CustomSoundId
+import com.antbtv.balarm.core.model.MissionSpec
+import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.SnoozeSettings
 import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.core.model.SoundSettings
@@ -123,6 +125,18 @@ class AlarmMapperTest {
         assertThat(entity.volumePercent).isEqualTo(40)
         assertThat(entity.fadeInSec).isEqualTo(30)
         assertThat(AlarmMapper.toDomain(entity).sound).isEqualTo(alarm.sound)
+    }
+
+    @Test
+    fun `mission round trip and blank type means no mission`() {
+        val mission = MissionSpec(MissionTypeId.MATH, "{\"level\":2,\"count\":3}")
+        val entity = AlarmMapper.toEntity(Alarm(time = LocalTime.NOON, mission = mission))
+
+        assertThat(entity.missionType).isEqualTo("math")
+        assertThat(AlarmMapper.toDomain(entity).mission).isEqualTo(mission)
+        assertThat(AlarmMapper.toDomain(entity.copy(missionType = " ")).mission).isNull()
+        assertThat(AlarmMapper.toDomain(entity.copy(missionType = null)).mission).isNull()
+        assertThat(AlarmMapper.toDomain(entity.copy(missionConfig = null)).mission?.config).isEmpty()
     }
 
     @Test

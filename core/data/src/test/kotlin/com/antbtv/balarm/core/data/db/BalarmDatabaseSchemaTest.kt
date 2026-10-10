@@ -100,4 +100,26 @@ class BalarmDatabaseSchemaTest {
             }
         }
     }
+
+    @Test
+    fun `auto migration 3 to 4 keeps alarms and leaves them without a mission`() {
+        helper.createDatabase(3).use { db ->
+            db.execSQL(
+                "INSERT INTO alarm (id, hour, minute, repeat_days, label, enabled, vibrate, snooze_interval_min, " +
+                    "snooze_limit, sound, volume_percent, fade_in_sec) VALUES (1, 6, 30, 31, 'work', 1, 1, 5, 3, " +
+                    "'custom:4', 60, 15)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(4, emptyList()).use { db ->
+            db.prepare("SELECT label, sound, volume_percent, mission_type, mission_config FROM alarm").use {
+                assertThat(it.step()).isTrue()
+                assertThat(it.getText(0)).isEqualTo("work")
+                assertThat(it.getText(1)).isEqualTo("custom:4")
+                assertThat(it.getLong(2)).isEqualTo(60)
+                assertThat(it.isNull(3)).isTrue()
+                assertThat(it.isNull(4)).isTrue()
+            }
+        }
+    }
 }

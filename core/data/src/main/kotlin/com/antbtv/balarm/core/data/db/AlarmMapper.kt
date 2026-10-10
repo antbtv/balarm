@@ -3,6 +3,8 @@ package com.antbtv.balarm.core.data.db
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
+import com.antbtv.balarm.core.model.MissionSpec
+import com.antbtv.balarm.core.model.MissionTypeId
 import com.antbtv.balarm.core.model.SnoozeSettings
 import com.antbtv.balarm.core.model.SoundRef
 import com.antbtv.balarm.core.model.SoundSettings
@@ -31,6 +33,7 @@ internal object AlarmMapper {
         vibrate = entity.vibrate,
         snooze = snoozeFrom(entity.snoozeIntervalMin, entity.snoozeLimit),
         sound = soundFrom(entity),
+        mission = missionFrom(entity),
     )
 
     fun toEntity(alarm: Alarm): AlarmEntity = AlarmEntity(
@@ -46,6 +49,8 @@ internal object AlarmMapper {
         sound = alarm.sound.sound.encode(),
         volumePercent = alarm.sound.volumePercent,
         fadeInSec = alarm.sound.fadeIn.seconds.toInt(),
+        missionType = alarm.mission?.type?.value,
+        missionConfig = alarm.mission?.config,
     )
 
     fun toDomain(entity: AlarmRuntimeEntity): AlarmRuntimeState = AlarmRuntimeState(
@@ -95,6 +100,12 @@ internal object AlarmMapper {
             volumePercent = volume,
             fadeIn = fadeIn,
         )
+    }
+
+    /** Пустой тип → без миссии; неизвестный тип сохраняется как есть (решает каталог), конфиг по умолчанию — пустой. */
+    private fun missionFrom(entity: AlarmEntity): MissionSpec? {
+        val type = entity.missionType?.takeIf { it.isNotBlank() } ?: return null
+        return MissionSpec(MissionTypeId(type), entity.missionConfig.orEmpty())
     }
 
     private const val MAX_HOUR = 23

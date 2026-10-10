@@ -24,6 +24,9 @@ data class AlarmEntity(
     @ColumnInfo(defaultValue = "'builtin:alarm_default'") val sound: String = DEFAULT_SOUND,
     @ColumnInfo(name = "volume_percent", defaultValue = "80") val volumePercent: Int = DEFAULT_VOLUME_PERCENT,
     @ColumnInfo(name = "fade_in_sec", defaultValue = "0") val fadeInSec: Int = 0,
+    /** Тип миссии и её JSON-конфиг (схема v4, ADR-020); `null` — без миссии. */
+    @ColumnInfo(name = "mission_type") val missionType: String? = null,
+    @ColumnInfo(name = "mission_config") val missionConfig: String? = null,
 ) {
     companion object {
         const val DEFAULT_SOUND = "builtin:alarm_default"

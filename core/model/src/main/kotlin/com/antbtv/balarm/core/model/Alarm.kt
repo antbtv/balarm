@@ -16,6 +16,8 @@ data class Alarm(
     val vibrate: Boolean = true,
     val snooze: SnoozeSettings = SnoozeSettings.DEFAULT,
     val sound: SoundSettings = SoundSettings.DEFAULT,
+    /** Миссия для отключения (FR-MIS); `null` — отключается сразу. */
+    val mission: MissionSpec? = null,
 ) {
     init {
         require(time.second == 0 && time.nano == 0) { "Alarm time must have whole minutes, was $time" }
