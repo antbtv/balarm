@@ -21,9 +21,13 @@ android {
     val keystoreProps = rootProject.file("keystore.properties")
         .takeIf { it.exists() }
         ?.inputStream()?.use { Properties().apply { load(it) } }
-    if (keystoreProps != null) {
+    val keystoreFile = keystoreProps?.getProperty("storeFile")?.let { rootProject.file(it) }
+    if (keystoreProps != null && keystoreFile?.exists() != true) {
+        logger.warn("keystore.properties: ключ $keystoreFile не найден — release соберётся неподписанным")
+    }
+    if (keystoreProps != null && keystoreFile?.exists() == true) {
         signingConfigs.create("release") {
-            storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+            storeFile = keystoreFile
             storePassword = keystoreProps.getProperty("storePassword")
             keyAlias = keystoreProps.getProperty("keyAlias")
             keyPassword = keystoreProps.getProperty("keyPassword")

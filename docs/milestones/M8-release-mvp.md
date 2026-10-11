@@ -26,8 +26,8 @@ Play-декларации (battery optimizations, SYSTEM_ALERT_WINDOW), реал
 |---|---|---|---|---|---|
 | [x] | M8-T01 | R8: minify + shrink resources, правила, release-сборка 🔔 | M | — | |
 | [x] | M8-T02 | Подпись release из `keystore.properties` | S | T01 | |
-| [~] | M8-T03 | Release-проверки: размер, `check-permissions.sh`, холодный старт | S | T02 | |
-| [ ] | M8-T-test | Матрица R1–R20 на release-APK, эмулятор API 37 (tester) 🔔 | L | T03 | |
+| [x] | M8-T03 | Release-проверки: размер, `check-permissions.sh`, холодный старт | S | T02 | |
+| [~] | M8-T-test | Матрица R1–R20 на release-APK, эмулятор API 37 (tester) 🔔 | L | T03 | |
 | [ ] | M8-T-review | Ревью reviewer (build-конфигурация, правила R8) | S | T-test | |
 | [ ] | M8-T-docs | PRD §8 (M8 ✅), CLAUDE.md, инструкция релиза | S | T-review | |
 
@@ -76,6 +76,18 @@ Play-декларации (battery optimizations, SYSTEM_ALERT_WINDOW), реал
 * T01: R8 включён (`proguard-android-optimize` + `app/proguard-rules.pro`, только sourcefile/line numbers; consumer-rules библиотек хватило), `missing_rules.txt` нет. Smoke на эмуляторе и чтение конфига миссии после R8 — в T-test (release-APK подписывается ключом T02).
 * T02: подпись из `keystore.properties` (в `.gitignore`), без файла — `app-release-unsigned.apk`; проверено одноразовым ключом (`apksigner verify` ок, ключ не в репозитории). Инструкция — `docs/RELEASE.md`. Постоянный ключ создаёт пользователь.
 * T03: APK 3,4 МБ (≤ 15), `check-permissions.sh` ок (11 разрешений, без INTERNET). Холодный старт на эмуляторе — в T-test.
+
+* T-test (прогон 1, эмулятор API 37): 21 pass, 0 critical, 1 major, 4 skip. Release (R8): холодный старт 316–439 мс (NFR-2 ок), конфиг Math читается после R8, R1, R3 (до разблокировки), R17, тест-звонок, запуск приложения во время звонка — pass. Debug: R1–R6, R8–R11, R13, R16, R17, R19, R20 и M7 (пропуск > 10 мин → `FIRE_SKIPPED MISSED` + канал `alarm_missed`) — pass.
+* **Дефект (major) — исправлен, не перепроверен на эмуляторе:** resource shrinker вырезал `res/raw` (встроенные мелодии адресуются по имени через URI), в release звонок шёл резервным тоном (`SOUND_FALLBACK`). Фикс: `core/alarm/src/main/res/raw/keep.xml` (`tools:keep="@raw/*"`); в release-APK снова 10 аудиофайлов. Проверить на эмуляторе `SOUND_STARTED source=default|builtin`.
+* Сборка: если `keystore.properties` есть, но файла ключа нет, release собирается неподписанным с предупреждением (раньше падала).
+
+## Остаётся на завтра
+1. Создать постоянный ключ (`docs/RELEASE.md`, шаги 1–3; `keystore.properties` уже создан пользователем, но указывает на ещё не существующий `~/balarm-release.jks`), бэкап ключа.
+2. Собрать подписанный release (`./gradlew --stop; ./gradlew :app:assembleRelease`), `apksigner verify`.
+3. T-test, прогон 2 на release: звук встроенной мелодии после фикса (`SOUND_STARTED`, не `SOUND_FALLBACK`), R3 со встроенной мелодией.
+4. Добрать пропущенное: R4 (строка `BOOT`), R12, R14, R15 (битая/удалённая мелодия), R3 с кастомной мелодией, автостоп 30 мин и его уведомление, проверить текст уведомления «Пропущен будильник» (проверена только длина заголовка); R7 (DST) — по возможности. Что не воспроизводится на эмуляторе — в «Перенесено».
+5. Добавить в юнит-тесты проверку, что аудио в release не вырезается (или хотя бы пункт в `docs/RELEASE.md`: `unzip -l … | grep -ci "ogg\|wav"` = 10).
+6. M8-T-review (reviewer: build-конфиг, R8-правила, keep.xml, подпись) и M8-T-docs (PRD §8 M8 ✅, CLAUDE.md, «Перенесено»). Закрыть этап.
 
 ## Уроки
 
