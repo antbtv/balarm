@@ -29,7 +29,7 @@ class TestAlarmRunnerTest {
     private val log = RecordingEventLog()
     private val store = InMemoryTestAlarmStore()
     private val runner = TestAlarmRunner(scheduler, store, clock, log)
-    private val engine = AlarmEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, log, runner)
+    private val engine = AlarmEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, log, runner) { _, _ -> }
 
     private val draft = Alarm(time = LocalTime.of(7, 30), label = "Draft", snooze = SnoozeSettings.DEFAULT)
     private val daily = Alarm(time = LocalTime.of(6, 30), repeatDays = DayOfWeek.entries.toSet())

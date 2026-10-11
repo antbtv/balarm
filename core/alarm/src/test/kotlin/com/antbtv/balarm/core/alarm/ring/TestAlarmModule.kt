@@ -74,7 +74,15 @@ object TestAlarmModule {
         clock: MutableClock,
         log: RecordingEventLog,
         store: InMemoryTestAlarmStore,
-    ) = AlarmEngine(repository, scheduler, clock, { true }, log, TestAlarmRunner(scheduler, store, clock, log))
+    ) = AlarmEngine(
+        repository = repository,
+        scheduler = scheduler,
+        clock = clock,
+        flags = { true },
+        log = log,
+        testAlarms = TestAlarmRunner(scheduler, store, clock, log),
+        missedNotifier = { _, _ -> },
+    )
 
     @Provides @Singleton
     fun fakeMissions() = FakeMissionCatalog()

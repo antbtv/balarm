@@ -39,6 +39,7 @@ class AlarmEngine @Inject constructor(
     private val flags: FeatureFlagProvider,
     private val log: AlarmEventLog,
     private val testAlarms: TestAlarmRunner,
+    private val missedNotifier: MissedAlarmNotifier,
 ) {
     private val mutex = Mutex()
 
@@ -93,7 +94,11 @@ class AlarmEngine @Inject constructor(
     suspend fun rescheduleAll(reason: RescheduleReason): Int = locked {
         val count = repository.loadAll().count { (alarm, runtime) ->
             try {
-                applySchedule(alarm, restoredPlan(alarm, runtime)) == Outcome.SCHEDULED
+                val plan = restoredPlan(alarm, runtime)
+                val outcome = applySchedule(alarm, plan)
+                // Только после сохранения: при сбое записи следующий rescheduleAll не продублирует уведомление.
+                plan.missedAt?.let { notifyMissed(alarm, it) }
+                outcome == Outcome.SCHEDULED
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -281,7 +286,7 @@ class AlarmEngine @Inject constructor(
 
     // region Планирование
 
-    private data class Plan(val runtime: AlarmRuntimeState, val kind: FireKind?)
+    private data class Plan(val runtime: AlarmRuntimeState, val kind: FireKind?, val missedAt: Instant? = null)
 
     private suspend fun commit(alarm: Alarm, plan: Plan): ScheduleResult {
         val outcome = applySchedule(alarm, plan)
@@ -327,8 +332,10 @@ class AlarmEngine @Inject constructor(
 
             else -> {
                 val fired = runtime.hasFiredFor(next)
-                val alarm = if (next.isAfter(now) || fired) stored else disableIfMissedOneShot(stored)
+                val overdue = !next.isAfter(now) && !fired
+                val alarm = if (overdue) disableIfMissedOneShot(stored) else stored
                 regularPlan(alarm, runtime.copy(nextTriggerKind = TriggerKind.REGULAR))
+                    .copy(missedAt = next.takeIf { overdue && stored.enabled })
             }
         }
     }
@@ -346,6 +353,16 @@ class AlarmEngine @Inject constructor(
         repository.setEnabled(alarm.id, false)
         log.log(AlarmEvent.FireSkipped(alarm.id, SkipReason.MISSED))
         return alarm.copy(enabled = false)
+    }
+
+    private fun notifyMissed(alarm: Alarm, missedAt: Instant) {
+        try {
+            missedNotifier.onMissed(alarm, missedAt)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.log(AlarmEvent.RescheduleError(alarm.id, e.javaClass.simpleName))
+        }
     }
 
     private fun isMissed(runtime: AlarmRuntimeState, next: Instant, now: Instant): Boolean {

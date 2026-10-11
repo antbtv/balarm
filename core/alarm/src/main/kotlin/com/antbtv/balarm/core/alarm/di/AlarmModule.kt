@@ -2,6 +2,7 @@ package com.antbtv.balarm.core.alarm.di
 
 import com.antbtv.balarm.core.alarm.AlarmSchedulerImpl
 import com.antbtv.balarm.core.alarm.LogcatAlarmEventLog
+import com.antbtv.balarm.core.alarm.notification.NotificationMissedAlarmNotifier
 import com.antbtv.balarm.core.alarm.ring.RingingControllerImpl
 import com.antbtv.balarm.core.alarm.sound.AlarmSoundPlayer
 import com.antbtv.balarm.core.alarm.sound.AlarmVibrator
@@ -11,6 +12,7 @@ import com.antbtv.balarm.core.alarm.sound.SystemAlarmVibrator
 import com.antbtv.balarm.core.domain.alarm.AlarmEventLog
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
 import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
+import com.antbtv.balarm.core.domain.alarm.MissedAlarmNotifier
 import com.antbtv.balarm.core.domain.alarm.RingingController
 import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.schedule.SystemZoneClock
@@ -27,6 +29,9 @@ import java.time.Clock
 interface AlarmModule {
     @Binds
     fun bindScheduler(impl: AlarmSchedulerImpl): AlarmScheduler
+
+    @Binds
+    fun bindMissedNotifier(impl: NotificationMissedAlarmNotifier): MissedAlarmNotifier
 
     @Binds
     fun bindEventLog(impl: LogcatAlarmEventLog): AlarmEventLog

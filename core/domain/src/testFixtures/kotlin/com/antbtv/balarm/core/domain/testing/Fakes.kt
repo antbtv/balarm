@@ -7,6 +7,7 @@ import com.antbtv.balarm.core.domain.alarm.AlarmRepository
 import com.antbtv.balarm.core.domain.alarm.AlarmScheduler
 import com.antbtv.balarm.core.domain.alarm.AlarmWithRuntime
 import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
+import com.antbtv.balarm.core.domain.alarm.MissedAlarmNotifier
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.model.Alarm
@@ -140,6 +141,15 @@ class RecordingEventLog : AlarmEventLog {
     }
 }
 
+class RecordingMissedNotifier : MissedAlarmNotifier {
+    val missed = mutableListOf<Pair<Alarm, Instant>>()
+
+    @Synchronized
+    override fun onMissed(alarm: Alarm, missedAt: Instant) {
+        missed += alarm to missedAt
+    }
+}
+
 /** Тестовый звонок на фейках (ADR-010): общий снимок в памяти, настоящий [TestAlarmRunner]. */
 fun testAlarmRunner(scheduler: AlarmScheduler, clock: Clock, log: AlarmEventLog) =
     TestAlarmRunner(scheduler, InMemoryTestAlarmStore(), clock, log)
@@ -151,4 +161,13 @@ fun testEngine(
     clock: Clock,
     flags: FeatureFlagProvider,
     log: AlarmEventLog,
-) = AlarmEngine(repository, scheduler, clock, flags, log, testAlarmRunner(scheduler, clock, log))
+    missedNotifier: MissedAlarmNotifier = RecordingMissedNotifier(),
+) = AlarmEngine(
+    repository = repository,
+    scheduler = scheduler,
+    clock = clock,
+    flags = flags,
+    log = log,
+    testAlarms = testAlarmRunner(scheduler, clock, log),
+    missedNotifier = missedNotifier,
+)
