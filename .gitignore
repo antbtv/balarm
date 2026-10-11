@@ -28,3 +28,6 @@ captures/
 
 # OS
 .DS_Store
+
+# Подпись release (M8)
+keystore.properties

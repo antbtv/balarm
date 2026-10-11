@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("balarm.android.application")
     id("balarm.android.compose")
@@ -12,6 +14,21 @@ android {
         applicationId = "com.antbtv.balarm"
         versionCode = 1
         versionName = "0.0.1"
+    }
+
+    // Подпись release: keystore.properties (storeFile, storePassword, keyAlias, keyPassword) лежит вне git.
+    // Без файла собирается неподписанный APK (CI, чужие машины), а не падает сборка. См. docs/RELEASE.md.
+    val keystoreProps = rootProject.file("keystore.properties")
+        .takeIf { it.exists() }
+        ?.inputStream()?.use { Properties().apply { load(it) } }
+    if (keystoreProps != null) {
+        signingConfigs.create("release") {
+            storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+            storePassword = keystoreProps.getProperty("storePassword")
+            keyAlias = keystoreProps.getProperty("keyAlias")
+            keyPassword = keystoreProps.getProperty("keyPassword")
+        }
+        buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
     }
 }
 

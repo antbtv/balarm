@@ -15,7 +15,11 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             configureAndroidCommon(this)
             defaultConfig.targetSdk = libs.intVersion("targetSdk")
             androidResources.generateLocaleConfig = true
-            buildTypes.getByName("release").isMinifyEnabled = false // R8 — в M8
+            buildTypes.getByName("release").apply {
+                isMinifyEnabled = true
+                isShrinkResources = true
+                proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            }
         }
     }
 }

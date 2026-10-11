@@ -24,9 +24,9 @@ Play-декларации (battery optimizations, SYSTEM_ALERT_WINDOW), реал
 ## Задачи
 | ✓ | ID | Задача | Оценка | Зависит от | Commit |
 |---|---|---|---|---|---|
-| [ ] | M8-T01 | R8: minify + shrink resources, правила, release-сборка 🔔 | M | — | |
-| [ ] | M8-T02 | Подпись release из `keystore.properties` | S | T01 | |
-| [ ] | M8-T03 | Release-проверки: размер, `check-permissions.sh`, холодный старт | S | T02 | |
+| [x] | M8-T01 | R8: minify + shrink resources, правила, release-сборка 🔔 | M | — | |
+| [x] | M8-T02 | Подпись release из `keystore.properties` | S | T01 | |
+| [~] | M8-T03 | Release-проверки: размер, `check-permissions.sh`, холодный старт | S | T02 | |
 | [ ] | M8-T-test | Матрица R1–R20 на release-APK, эмулятор API 37 (tester) 🔔 | L | T03 | |
 | [ ] | M8-T-review | Ревью reviewer (build-конфигурация, правила R8) | S | T-test | |
 | [ ] | M8-T-docs | PRD §8 (M8 ✅), CLAUDE.md, инструкция релиза | S | T-review | |
@@ -73,6 +73,9 @@ Play-декларации (battery optimizations, SYSTEM_ALERT_WINDOW), реал
 | Память машины (15 ГБ) | одна Gradle-сборка, лимиты не повышать |
 
 ## Добавлено по ходу
+* T01: R8 включён (`proguard-android-optimize` + `app/proguard-rules.pro`, только sourcefile/line numbers; consumer-rules библиотек хватило), `missing_rules.txt` нет. Smoke на эмуляторе и чтение конфига миссии после R8 — в T-test (release-APK подписывается ключом T02).
+* T02: подпись из `keystore.properties` (в `.gitignore`), без файла — `app-release-unsigned.apk`; проверено одноразовым ключом (`apksigner verify` ок, ключ не в репозитории). Инструкция — `docs/RELEASE.md`. Постоянный ключ создаёт пользователь.
+* T03: APK 3,4 МБ (≤ 15), `check-permissions.sh` ок (11 разрешений, без INTERNET). Холодный старт на эмуляторе — в T-test.
 
 ## Уроки
 
