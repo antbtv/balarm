@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Статус | In progress |
+| Статус | Done (MVP-срез) |
 | Утверждён | 2026-10-11 |
-| Завершён | — |
+| Завершён | 2026-10-12 |
 | Требования | NFR-2, NFR-3, NFR-4, NFR-5, §9.2 (R1–R20) |
 | Definition of Done | Release candidate: подписанный release-APK с R8, на котором пройдена матрица надёжности на эмуляторе API 37 |
 
@@ -27,9 +27,9 @@ Play-декларации (battery optimizations, SYSTEM_ALERT_WINDOW), реал
 | [x] | M8-T01 | R8: minify + shrink resources, правила, release-сборка 🔔 | M | — | |
 | [x] | M8-T02 | Подпись release из `keystore.properties` | S | T01 | |
 | [x] | M8-T03 | Release-проверки: размер, `check-permissions.sh`, холодный старт | S | T02 | |
-| [~] | M8-T-test | Матрица R1–R20 на release-APK, эмулятор API 37 (tester) 🔔 | L | T03 | |
-| [ ] | M8-T-review | Ревью reviewer (build-конфигурация, правила R8) | S | T-test | |
-| [ ] | M8-T-docs | PRD §8 (M8 ✅), CLAUDE.md, инструкция релиза | S | T-review | |
+| [x] | M8-T-test | Матрица R1–R20 на release-APK, эмулятор API 37 (tester) 🔔 | L | T03 | |
+| [x] | M8-T-review | Ревью reviewer (build-конфигурация, правила R8) | S | T-test | |
+| [x] | M8-T-docs | PRD §8 (M8 ✅), CLAUDE.md, инструкция релиза | S | T-review | |
 
 ### M8-T01 — R8 🔔
 **Описание:** включить `isMinifyEnabled`/`isShrinkResources` для release в `AndroidApplicationConventionPlugin`; правила для Hilt/Dagger, Room, kotlinx.serialization (миссии, `MathConfig`), `CrashGuard`, ресиверов/сервисов из манифеста, Compose. Debug-код (`DebugAlarmReceiver`) в release отсутствует.
@@ -81,14 +81,17 @@ Play-декларации (battery optimizations, SYSTEM_ALERT_WINDOW), реал
 * **Дефект (major) — исправлен, не перепроверен на эмуляторе:** resource shrinker вырезал `res/raw` (встроенные мелодии адресуются по имени через URI), в release звонок шёл резервным тоном (`SOUND_FALLBACK`). Фикс: `core/alarm/src/main/res/raw/keep.xml` (`tools:keep="@raw/*"`); в release-APK снова 10 аудиофайлов. Проверить на эмуляторе `SOUND_STARTED source=default|builtin`.
 * Сборка: если `keystore.properties` есть, но файла ключа нет, release собирается неподписанным с предупреждением (раньше падала).
 
-## Остаётся на завтра
-1. Создать постоянный ключ (`docs/RELEASE.md`, шаги 1–3; `keystore.properties` уже создан пользователем, но указывает на ещё не существующий `~/balarm-release.jks`), бэкап ключа.
-2. Собрать подписанный release (`./gradlew --stop; ./gradlew :app:assembleRelease`), `apksigner verify`.
-3. T-test, прогон 2 на release: звук встроенной мелодии после фикса (`SOUND_STARTED`, не `SOUND_FALLBACK`), R3 со встроенной мелодией.
-4. Добрать пропущенное: R4 (строка `BOOT`), R12, R14, R15 (битая/удалённая мелодия), R3 с кастомной мелодией, автостоп 30 мин и его уведомление, проверить текст уведомления «Пропущен будильник» (проверена только длина заголовка); R7 (DST) — по возможности. Что не воспроизводится на эмуляторе — в «Перенесено».
-5. Добавить в юнит-тесты проверку, что аудио в release не вырезается (или хотя бы пункт в `docs/RELEASE.md`: `unzip -l … | grep -ci "ogg\|wav"` = 10).
-6. M8-T-review (reviewer: build-конфиг, R8-правила, keep.xml, подпись) и M8-T-docs (PRD §8 M8 ✅, CLAUDE.md, «Перенесено»). Закрыть этап.
+* T-test (прогон 2, release, подписан постоянным ключом `~/balarm-release.jks`, `apksigner verify` ок, APK 4,6 МБ, 10 аудиофайлов): фикс `keep.xml` подтверждён — тестовый звонок `SOUND_STARTED source=default volume=6/7`, без `SOUND_FALLBACK`, `late_ms=21`, отключение чисто. **R3** (PIN, перезагрузка, без разблокировки, будильник со встроенной мелодией): `RESCHEDULE_ALL reason=LOCKED_BOOT`, звонок в 21:00:00 (`late_ms=87`, `RINGING_STARTED degraded=false`, `SOUND_STARTED`, `deviceLocked=1`) — pass. **R4**: после разблокировки `RESCHEDULE_ALL reason=BOOT count=1`, один alarm в `dumpsys` — pass. Эмулятор погашен, PIN снят, приложение удалено.
+* T-test (прогон 2, debug, API 37): **R14** — `CALL_MUTED muted=true` при gsm call, `muted=false` после cancel, pass. **R12** — при `USE_FULL_SCREEN_INTENT deny` звонок всё равно открыл `RingingActivity`, звук есть, pass. **Пропуск > 10 мин** (время +50 мин): `FIRE_SKIPPED MISSED`, уведомление `alarm_missed` «Missed alarm» / «8:41 PM · Work», pass. **Автостоп**: звонок 20:12:00 → `RINGING_STOPPED auto_stop` ровно через 30 мин (20:42:00), `DISMISSED AUTO_STOP`, уведомление «Missed alarm» / «8:12 PM · Auto», pass.
+* Не прогнано на эмуляторе → «Перенесено»: R15 (битая мелодия) и R3 с кастомной мелодией — нужен системный файловый пикер; логика резервного звука покрыта `MediaAlarmSoundPlayerTest`/`RingingServiceTest`. R7 (DST) — ручной.
+
+## Остаётся (пользователю)
+1. бэкап `balarm-release.jks` вне машины; установить release-APK на телефон (R18/NFR-8 — только там).
+
+* T-review: critical/major нет; приняты minor — `requireNotNull` для полей `keystore.properties`, проверка аудио в RELEASE.md привязана к числу `BuiltinSound`.
 
 ## Уроки
 
 ## Перенесено в следующий этап
+* R7 (DST, ручной), R15 и R3 с кастомной мелодией (системный пикер; логика покрыта юнит-тестами), R18 и NFR-8 (реальные устройства/OEM), API 34.
+* Из «Вне скоупа»: Play-декларации, живой TalkBack, общий Kover, `VolumeGuard`/Recents-возврат, маркер R20, бэкап, светлая тема, иконка.

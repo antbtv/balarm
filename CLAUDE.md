@@ -14,7 +14,7 @@
 5. Коммиты — только по просьбе пользователя, формат `M<N>-T<NN>: описание`.
 
 ## Состояние
-M0–M5 и M7 завершены (движок, список/редактор, онбординг и здоровье, звуки, миссия Math, уведомление о пропущенном будильнике). Модули: `:core:{model,designsystem,format,domain,data,alarm,permissions}`, `:feature:{alarmlist,alarmedit,ringing,onboarding,settings,sounds}`, `:feature:missions:{api,math}`.
+M0–M5, M7 и M8 завершены (движок, список/редактор, онбординг и здоровье, звуки, миссия Math, уведомление о пропущенном будильнике, release-APK с R8 и подписью — `docs/RELEASE.md`). Дальше — эксплуатация MVP на реальном телефоне (R18/NFR-8). Модули: `:core:{model,designsystem,format,domain,data,alarm,permissions}`, `:feature:{alarmlist,alarmedit,ringing,onboarding,settings,sounds}`, `:feature:missions:{api,math}`.
 
 ## Стек и соглашения
 Kotlin · Jetpack Compose + Material 3 · Hilt · Room · DataStore · Coroutines/Flow · kotlinx.serialization · java.time. minSdk 34 (Android 14+), compileSdk/targetSdk 37, сборка на JDK 21 (`.sdkmanrc`). Многомодульность по PRD §6.2, version catalog `gradle/libs.versions.toml`.

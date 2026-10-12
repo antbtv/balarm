@@ -4,7 +4,7 @@
 Ключ создаёт владелец и хранит **вне репозитория** (потеря ключа = нельзя обновить установленное приложение; сделайте бэкап).
 
 ```bash
-keytool -genkeypair -v -keystore ~/balarm-release.jks -alias balarm \
+keytool -genkeypair -v -keystore ~/Work/IdeaProjects/balarm-release.jks -alias balarm \
   -keyalg RSA -keysize 4096 -validity 10000
 ```
 
@@ -29,4 +29,4 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 Mapping для расшифровки стектрейсов: `app/build/outputs/mapping/release/mapping.txt` — сохраняйте вместе с каждой выданной сборкой.
 
 ## Проверки перед выдачей
-Размер APK ≤ 15 МБ, `./scripts/check-permissions.sh`, матрица надёжности PRD §9.2 на release-APK (скилл `verify-alarm-reliability`).
+Размер APK ≤ 15 МБ, встроенные мелодии не вырезаны shrinker'ом (`unzip -l app/build/outputs/apk/release/app-release.apk | grep -ciE "ogg|wav|mp3"` = числу `BuiltinSound` (сейчас 10); иначе звонок идёт резервным тоном, `SOUND_FALLBACK`), `./scripts/check-permissions.sh`, матрица надёжности PRD §9.2 на release-APK (скилл `verify-alarm-reliability`).

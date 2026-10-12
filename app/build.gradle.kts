@@ -25,12 +25,14 @@ android {
     if (keystoreProps != null && keystoreFile?.exists() != true) {
         logger.warn("keystore.properties: ключ $keystoreFile не найден — release соберётся неподписанным")
     }
+    fun Properties.required(name: String): String =
+        requireNotNull(getProperty(name)) { "keystore.properties: нет $name" }
     if (keystoreProps != null && keystoreFile?.exists() == true) {
         signingConfigs.create("release") {
             storeFile = keystoreFile
-            storePassword = keystoreProps.getProperty("storePassword")
-            keyAlias = keystoreProps.getProperty("keyAlias")
-            keyPassword = keystoreProps.getProperty("keyPassword")
+            storePassword = keystoreProps.required("storePassword")
+            keyAlias = keystoreProps.required("keyAlias")
+            keyPassword = keystoreProps.required("keyPassword")
         }
         buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
     }
