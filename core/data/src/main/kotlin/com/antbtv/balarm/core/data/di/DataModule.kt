@@ -2,8 +2,11 @@ package com.antbtv.balarm.core.data.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import com.antbtv.balarm.core.data.DataStoreSettingsRepository
 import com.antbtv.balarm.core.data.DataStoreSetupStateRepository
 import com.antbtv.balarm.core.data.R
 import com.antbtv.balarm.core.data.RoomAlarmRepository
@@ -17,6 +20,7 @@ import com.antbtv.balarm.core.data.sound.RoomSoundRepository
 import com.antbtv.balarm.core.data.sound.SoundSourceOpener
 import com.antbtv.balarm.core.domain.alarm.AlarmRepository
 import com.antbtv.balarm.core.domain.health.SetupStateRepository
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
 import com.antbtv.balarm.core.domain.sound.RingVolumeStore
 import com.antbtv.balarm.core.domain.sound.SoundFileStore
 import com.antbtv.balarm.core.domain.sound.SoundRepository
@@ -41,6 +45,9 @@ interface DataModule {
     fun bindSetupStateRepository(impl: DataStoreSetupStateRepository): SetupStateRepository
 
     @Binds
+    fun bindSettingsRepository(impl: DataStoreSettingsRepository): SettingsRepository
+
+    @Binds
     fun bindSoundFileStore(impl: DeviceProtectedSoundFileStore): SoundFileStore
 
     @Binds
@@ -58,13 +65,15 @@ interface DataModule {
         fun provideDeviceProtectedContext(@ApplicationContext context: Context): Context =
             context.createDeviceProtectedStorageContext()
 
-        /** Один DataStore на файл `app_prefs` (device-protected); позже примет глобальные настройки (PRD §3.9). */
+        /** Один DataStore `app_prefs` (device-protected), в т.ч. настройки (ADR-021); битый файл → пустой. */
         @Provides
         @Singleton
         fun providePreferencesDataStore(@DeviceProtected context: Context): DataStore<Preferences> =
             // preferencesDataStoreFile берёт applicationContext и теряет device-protected:
             // путь строим от своего контекста.
-            PreferenceDataStoreFactory.create { File(context.filesDir, "datastore/app_prefs.preferences_pb") }
+            PreferenceDataStoreFactory.create(
+                corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+            ) { File(context.filesDir, "datastore/app_prefs.preferences_pb") }
 
         @Provides
         @Singleton
