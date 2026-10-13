@@ -11,6 +11,7 @@ import com.antbtv.balarm.core.domain.health.HealthStatus
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.FakePermissionHealthChecker
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.FakeSetupStateRepository
 import com.antbtv.balarm.core.domain.testing.HEALTHY_SNAPSHOT
 import com.antbtv.balarm.core.domain.testing.MutableClock
@@ -51,7 +52,15 @@ class HealthViewModelTest {
     private val scheduler = FakeAlarmScheduler()
     private val log = RecordingEventLog()
     private val testRunner = TestAlarmRunner(scheduler, InMemoryTestAlarmStore(), clock, log)
-    private val engine = AlarmEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, log, testRunner)
+    private val engine = AlarmEngine(
+        repository,
+        scheduler,
+        clock,
+        ConfigFeatureFlagProvider,
+        log,
+        testRunner,
+        FakeSettingsRepository(),
+    ) { _, _ -> }
 
     @Before
     fun setUp() {

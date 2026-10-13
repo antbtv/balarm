@@ -1,6 +1,7 @@
 package com.antbtv.balarm.core.domain.alarm
 
 import com.antbtv.balarm.core.model.Alarm
+import com.antbtv.balarm.core.model.AutoStop
 import com.antbtv.balarm.core.model.MissionSpec
 import java.time.Duration
 import java.time.Instant
@@ -57,4 +58,14 @@ data class MissionRun(val seed: Long, val idleResets: Int = 0)
 object RingingPolicy {
     /** Автостоп без реакции пользователя (FR-RING-6); в M1 — константа, настройка — с экраном настроек. */
     val AUTO_STOP_AFTER: Duration = Duration.ofMinutes(30)
+
+    /** Задержка возобновления звонка после падения процесса (crash re-arm, ADR-007 §7; `rescheduleAll`, ADR-020 §4). */
+    val CRASH_RESUME_DELAY: Duration = Duration.ofSeconds(3)
+
+    /** Потолок окна возобновления звонка: при автостопе «никогда» звонок старше часа не оживает (ADR-021 §6). */
+    val RESUME_WINDOW_CAP: Duration = Duration.ofMinutes(60)
+
+    /** Сколько после начала звонка его ещё возвращают при перепланировании. */
+    fun resumeWindow(autoStop: AutoStop): Duration =
+        autoStop.duration?.coerceAtMost(RESUME_WINDOW_CAP) ?: RESUME_WINDOW_CAP
 }

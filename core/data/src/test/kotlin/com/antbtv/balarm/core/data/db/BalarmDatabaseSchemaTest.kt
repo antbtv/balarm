@@ -122,4 +122,33 @@ class BalarmDatabaseSchemaTest {
             }
         }
     }
+
+    @Test
+    fun `auto migration 4 to 5 keeps runtime and leaves alarms not ringing`() {
+        helper.createDatabase(4).use { db ->
+            db.execSQL(
+                "INSERT INTO alarm (id, hour, minute, repeat_days, label, enabled, vibrate, snooze_interval_min, " +
+                    "snooze_limit, sound, volume_percent, fade_in_sec) VALUES (1, 6, 30, 31, 'work', 1, 1, 5, 3, " +
+                    "'builtin:alarm_default', 80, 0)",
+            )
+            db.execSQL(
+                "INSERT INTO alarm_runtime (alarm_id, next_trigger_at, next_trigger_kind, snooze_count, " +
+                    "last_fired_at, schedule_failed) VALUES (1, 9000, 'SNOOZE', 2, 8000, 0)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(5, emptyList()).use { db ->
+            db.prepare(
+                "SELECT next_trigger_at, next_trigger_kind, snooze_count, last_fired_at, ringing_since " +
+                    "FROM alarm_runtime",
+            ).use {
+                assertThat(it.step()).isTrue()
+                assertThat(it.getLong(0)).isEqualTo(9000)
+                assertThat(it.getText(1)).isEqualTo("SNOOZE")
+                assertThat(it.getLong(2)).isEqualTo(2)
+                assertThat(it.getLong(3)).isEqualTo(8000)
+                assertThat(it.isNull(4)).isTrue()
+            }
+        }
+    }
 }

@@ -15,6 +15,7 @@ import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.FakePermissionHealthChecker
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.FakeSetupStateRepository
 import com.antbtv.balarm.core.domain.testing.HEALTHY_SNAPSHOT
 import com.antbtv.balarm.core.domain.testing.MutableClock
@@ -46,7 +47,15 @@ class SettingsRoutesTest {
     private val scheduler = FakeAlarmScheduler()
     private val log = RecordingEventLog()
     private val testRunner = TestAlarmRunner(scheduler, InMemoryTestAlarmStore(), clock, log)
-    private val engine = AlarmEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, log, testRunner)
+    private val engine = AlarmEngine(
+        repository,
+        scheduler,
+        clock,
+        ConfigFeatureFlagProvider,
+        log,
+        testRunner,
+        FakeSettingsRepository(),
+    ) { _, _ -> }
 
     @Test
     fun `settings route reads health on resume`() {

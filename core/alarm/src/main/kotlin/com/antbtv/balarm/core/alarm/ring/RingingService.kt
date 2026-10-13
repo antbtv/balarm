@@ -32,6 +32,7 @@ import com.antbtv.balarm.core.domain.alarm.MissionRun
 import com.antbtv.balarm.core.domain.alarm.RingingPolicy
 import com.antbtv.balarm.core.domain.alarm.RingingState
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
+import com.antbtv.balarm.core.domain.alarm.SkipReason
 import com.antbtv.balarm.core.domain.alarm.SnoozeResult
 import com.antbtv.balarm.core.domain.alarm.effectiveMission
 import com.antbtv.balarm.core.model.AlarmId
@@ -110,6 +111,9 @@ class RingingService : Service() {
     private var unhandled = 0
     private var destroyed = false
     private var crashGuard: CrashGuard? = null
+
+    /** Будильник, у которого сейчас идёт миссия: при падении его RESUME ставится без миссии (ADR-019 §7). */
+    @Volatile private var missionAlarmId: AlarmId? = null
 
     /** Будильники сессии для crash re-arm: обработчик падения может читать с любого потока. */
     @Volatile private var rearmIds: List<AlarmId> = emptyList()
@@ -236,7 +240,7 @@ class RingingService : Service() {
     private fun rearmAfterCrash() {
         val at = clock.instant() + CRASH_RESUME_DELAY
         rearmIds.forEach { id ->
-            scheduler.schedule(ScheduleRequest(id, at, FireKind.RESUME))
+            scheduler.schedule(ScheduleRequest(id, at, FireKind.RESUME, skipMission = id == missionAlarmId))
             log.log(AlarmEvent.CrashRearmed(id, at))
         }
     }
@@ -246,6 +250,13 @@ class RingingService : Service() {
     // region Срабатывание и очередь
 
     private suspend fun fire(request: ScheduleRequest) {
+        // RESUME живого звонка (APP_LAUNCH во время звонка, ADR-020 §5) — не второй звонок.
+        if (request.kind == FireKind.RESUME && isActive(request.alarmId)) {
+            log.log(AlarmEvent.FireSkipped(request.alarmId, SkipReason.ALREADY_RINGING))
+            // Этот RESUME заменил в системе обычное срабатывание — вернуть его, не дожидаясь dismiss.
+            record("restore_plan") { engine.restoreRegularPlan(request.alarmId) }
+            return
+        }
         deciding = request
         updateRearmIds()
         // deciding снимается после ring/queue: снимок для crash re-arm не пустеет между решением и звонком.
@@ -265,7 +276,8 @@ class RingingService : Service() {
 
                 is FireDecision.Ring -> {
                     fireKinds[request.alarmId] = request.kind
-                    if (current == null) ring(decision) else queue(decision)
+                    val toRing = if (request.skipMission) withoutMission(decision) else decision
+                    if (current == null) ring(toRing) else queue(toRing)
                     // Движок был занят — срабатывание не записано: дописать, когда освободится.
                     if (decision.degraded) {
                         scope.launch {
@@ -280,6 +292,13 @@ class RingingService : Service() {
             deciding = null
             updateRearmIds()
         }
+    }
+
+    /** После падения посреди миссии звонок возвращается без неё (ADR-019 §7); один раз на падение. */
+    private fun withoutMission(decision: FireDecision.Ring): FireDecision.Ring {
+        if (decision.alarm.mission == null) return decision
+        log.log(AlarmEvent.Mission(decision.alarm.id, "skipped_after_crash"))
+        return decision.copy(alarm = decision.alarm.copy(mission = null))
     }
 
     private suspend fun startEarly(id: AlarmId) {
@@ -412,6 +431,7 @@ class RingingService : Service() {
     private fun startMission(id: AlarmId) {
         if (!isCurrent(id) || !hasMission() || missionRun != null) return
         missionRun = MissionRun(seed = clock.millis() xor id.value)
+        missionAlarmId = id
         sound.setDuck(MissionPolicy.DUCK_GAIN)
         vibrator.stop() // пока миссия приглушена, вибрация на паузе
         armMissionIdle(id)
@@ -490,6 +510,7 @@ class RingingService : Service() {
         missionIdle?.cancel()
         missionIdle = null
         missionRun = null
+        missionAlarmId = null
     }
 
     // endregion
@@ -658,6 +679,8 @@ class RingingService : Service() {
 
     private fun isCurrent(id: AlarmId) = current?.alarm?.id == id
 
+    private fun isActive(id: AlarmId) = isCurrent(id) || waiting.any { it.alarm.id == id }
+
     private val ringing get() = current != null || earlySound
 
     private val hasWork get() = waiting.isNotEmpty() || unhandled > 0
@@ -687,7 +710,7 @@ class RingingService : Service() {
         val SCREEN_RETURN_DELAY: Duration = Duration.ofSeconds(1)
 
         /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
-        val CRASH_RESUME_DELAY: Duration = Duration.ofSeconds(3)
+        val CRASH_RESUME_DELAY: Duration = RingingPolicy.CRASH_RESUME_DELAY
 
         private val CALL_MODES = setOf(
             AudioManager.MODE_RINGTONE,

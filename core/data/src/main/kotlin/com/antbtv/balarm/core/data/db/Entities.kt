@@ -65,4 +65,6 @@ data class AlarmRuntimeEntity(
     @ColumnInfo(name = "last_fired_at") val lastFiredAt: Long?,
     /** Система отказала в `setAlarmClock` (схема v2, ADR-015). */
     @ColumnInfo(name = "schedule_failed", defaultValue = "0") val scheduleFailed: Boolean = false,
+    /** Epoch ms начала текущего звонка; `null` — не звонит (схема v5, ADR-020). */
+    @ColumnInfo(name = "ringing_since") val ringingSince: Long? = null,
 )

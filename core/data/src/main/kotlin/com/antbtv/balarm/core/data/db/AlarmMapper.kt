@@ -60,6 +60,7 @@ internal object AlarmMapper {
         snoozeCount = entity.snoozeCount.coerceAtLeast(0),
         lastFiredAt = entity.lastFiredAt?.let(Instant::ofEpochMilli),
         scheduleFailed = entity.scheduleFailed,
+        ringingSince = entity.ringingSince?.let(Instant::ofEpochMilli),
     )
 
     fun toEntity(state: AlarmRuntimeState): AlarmRuntimeEntity = AlarmRuntimeEntity(
@@ -69,6 +70,7 @@ internal object AlarmMapper {
         snoozeCount = state.snoozeCount,
         lastFiredAt = state.lastFiredAt?.toEpochMilli(),
         scheduleFailed = state.scheduleFailed,
+        ringingSince = state.ringingSince?.toEpochMilli(),
     )
 
     fun maskFromDays(days: Set<DayOfWeek>): Int = days.fold(0) { mask, day -> mask or (1 shl (day.value - 1)) }

@@ -10,9 +10,12 @@ import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
 import com.antbtv.balarm.core.domain.alarm.MissedAlarmNotifier
 import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
+import com.antbtv.balarm.core.domain.settings.SettingsPolicy
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
+import com.antbtv.balarm.core.model.AppSettings
 import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import java.time.Clock
 import java.time.Duration
@@ -150,6 +153,16 @@ class RecordingMissedNotifier : MissedAlarmNotifier {
     }
 }
 
+/** Настройки в памяти; по умолчанию — [SettingsPolicy.DEFAULTS]. */
+class FakeSettingsRepository(initial: AppSettings = SettingsPolicy.DEFAULTS) : SettingsRepository {
+    private val state = MutableStateFlow(initial)
+    override val settings: Flow<AppSettings> = state
+
+    override suspend fun update(transform: (AppSettings) -> AppSettings) {
+        state.value = SettingsPolicy.sanitize(transform(state.value))
+    }
+}
+
 /** Тестовый звонок на фейках (ADR-010): общий снимок в памяти, настоящий [TestAlarmRunner]. */
 fun testAlarmRunner(scheduler: AlarmScheduler, clock: Clock, log: AlarmEventLog) =
     TestAlarmRunner(scheduler, InMemoryTestAlarmStore(), clock, log)
@@ -162,6 +175,7 @@ fun testEngine(
     flags: FeatureFlagProvider,
     log: AlarmEventLog,
     missedNotifier: MissedAlarmNotifier = RecordingMissedNotifier(),
+    settings: SettingsRepository = FakeSettingsRepository(),
 ) = AlarmEngine(
     repository = repository,
     scheduler = scheduler,
@@ -169,5 +183,6 @@ fun testEngine(
     flags = flags,
     log = log,
     testAlarms = testAlarmRunner(scheduler, clock, log),
+    settings = settings,
     missedNotifier = missedNotifier,
 )

@@ -25,6 +25,7 @@ internal object AlarmIntents {
     const val ACTION_MISSION_HIDDEN = "com.antbtv.balarm.action.MISSION_HIDDEN"
     const val EXTRA_SCHEDULED_FOR = "scheduled_for"
     const val EXTRA_KIND = "kind"
+    const val EXTRA_SKIP_MISSION = "skip_mission"
 
     private const val SCHEME = "balarm"
     private const val HOST = "alarm"
@@ -36,12 +37,14 @@ internal object AlarmIntents {
     fun fire(context: Context, request: ScheduleRequest): Intent = fire(context, request.alarmId)
         .putExtra(EXTRA_SCHEDULED_FOR, request.triggerAt.toEpochMilli())
         .putExtra(EXTRA_KIND, request.kind.name)
+        .putExtra(EXTRA_SKIP_MISSION, request.skipMission)
 
     /** Тот же запрос — сервису звонка (`AlarmReceiver` → `RingingService`). */
     fun ring(context: Context, request: ScheduleRequest): Intent =
         Intent(ACTION_RING, uri(request.alarmId), context, RingingService::class.java)
             .putExtra(EXTRA_SCHEDULED_FOR, request.triggerAt.toEpochMilli())
             .putExtra(EXTRA_KIND, request.kind.name)
+            .putExtra(EXTRA_SKIP_MISSION, request.skipMission)
 
     /** Команда текущему звонку; id в data отсекает команды из устаревшего уведомления. */
     fun command(context: Context, action: String, id: AlarmId): Intent =
@@ -57,6 +60,6 @@ internal object AlarmIntents {
         val id = alarmId(intent) ?: return null
         val kind = FireKind.entries.firstOrNull { it.name == intent.getStringExtra(EXTRA_KIND) } ?: FireKind.REGULAR
         val scheduledFor = Instant.ofEpochMilli(intent.getLongExtra(EXTRA_SCHEDULED_FOR, System.currentTimeMillis()))
-        return ScheduleRequest(id, scheduledFor, kind)
+        return ScheduleRequest(id, scheduledFor, kind, intent.getBooleanExtra(EXTRA_SKIP_MISSION, false))
     }
 }

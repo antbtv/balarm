@@ -308,6 +308,64 @@ class RingingServiceTest {
     }
 
     @Test
+    fun `resume for an alarm that is already ringing is ignored`() {
+        start(ringIntent(ALARM.id))
+        val started = events.count { it is AlarmEvent.RingingStarted }
+
+        start(AlarmIntents.ring(app, ScheduleRequest(ALARM.id, NOW, FireKind.RESUME)))
+
+        assertThat(events).contains(AlarmEvent.FireSkipped(ALARM.id, SkipReason.ALREADY_RINGING))
+        assertThat(events.count { it is AlarmEvent.RingingStarted }).isEqualTo(started)
+        assertThat(ringState().alarm.id).isEqualTo(ALARM.id)
+    }
+
+    @Test
+    fun `ignored resume puts the regular schedule back instead of itself`() {
+        save(DAILY)
+        start(ringIntent(ALARM.id))
+        scheduler.scheduled[ALARM.id] = ScheduleRequest(ALARM.id, NOW + Duration.ofSeconds(3), FireKind.RESUME)
+
+        start(AlarmIntents.ring(app, ScheduleRequest(ALARM.id, NOW, FireKind.RESUME)))
+
+        assertThat(scheduler.scheduled[ALARM.id]?.kind).isEqualTo(FireKind.REGULAR)
+    }
+
+    @Test
+    fun `crash during a mission re-arms the alarm without the mission`() {
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+
+        Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(Thread.currentThread(), IllegalStateException())
+
+        assertThat(scheduler.scheduled[ALARM.id]?.skipMission).isTrue()
+    }
+
+    @Test
+    fun `crash outside a mission keeps the mission for the resumed ring`() {
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+        save(withMission)
+        start(ringIntent(ALARM.id))
+
+        Thread.getDefaultUncaughtExceptionHandler()!!.uncaughtException(Thread.currentThread(), IllegalStateException())
+
+        assertThat(scheduler.scheduled[ALARM.id]?.skipMission).isFalse()
+    }
+
+    @Test
+    fun `resume flagged skip-mission rings without the mission`() {
+        save(withMission)
+
+        start(AlarmIntents.ring(app, ScheduleRequest(ALARM.id, NOW, FireKind.RESUME, skipMission = true)))
+
+        assertThat(ringState().mission).isNull()
+        assertThat(events).contains(AlarmEvent.Mission(ALARM.id, "skipped_after_crash"))
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        assertThat(events).contains(AlarmEvent.Dismissed(ALARM.id, DismissReason.USER))
+    }
+
+    @Test
     fun `starting a mission ducks the sound and pauses vibration, leaving restores them`() {
         save(withMission)
         start(ringIntent(ALARM.id))

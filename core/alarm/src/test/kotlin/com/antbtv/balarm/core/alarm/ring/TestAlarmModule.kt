@@ -15,6 +15,7 @@ import com.antbtv.balarm.core.domain.di.ApplicationScope
 import com.antbtv.balarm.core.domain.sound.RingVolumeStore
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
@@ -81,6 +82,7 @@ object TestAlarmModule {
         flags = { true },
         log = log,
         testAlarms = TestAlarmRunner(scheduler, store, clock, log),
+        settings = FakeSettingsRepository(),
         missedNotifier = { _, _ -> },
     )
 

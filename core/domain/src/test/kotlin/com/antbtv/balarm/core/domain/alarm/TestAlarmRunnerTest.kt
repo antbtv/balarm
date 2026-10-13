@@ -2,6 +2,7 @@ package com.antbtv.balarm.core.domain.alarm
 
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.model.Alarm
@@ -29,7 +30,15 @@ class TestAlarmRunnerTest {
     private val log = RecordingEventLog()
     private val store = InMemoryTestAlarmStore()
     private val runner = TestAlarmRunner(scheduler, store, clock, log)
-    private val engine = AlarmEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, log, runner) { _, _ -> }
+    private val engine = AlarmEngine(
+        repository,
+        scheduler,
+        clock,
+        ConfigFeatureFlagProvider,
+        log,
+        runner,
+        FakeSettingsRepository(),
+    ) { _, _ -> }
 
     private val draft = Alarm(time = LocalTime.of(7, 30), label = "Draft", snooze = SnoozeSettings.DEFAULT)
     private val daily = Alarm(time = LocalTime.of(6, 30), repeatDays = DayOfWeek.entries.toSet())

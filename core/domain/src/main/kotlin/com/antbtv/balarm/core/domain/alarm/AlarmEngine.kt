@@ -1,6 +1,8 @@
 package com.antbtv.balarm.core.domain.alarm
 
 import com.antbtv.balarm.core.domain.schedule.NextTriggerCalculator
+import com.antbtv.balarm.core.domain.settings.SettingsPolicy
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
@@ -15,6 +17,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -39,6 +42,7 @@ class AlarmEngine @Inject constructor(
     private val flags: FeatureFlagProvider,
     private val log: AlarmEventLog,
     private val testAlarms: TestAlarmRunner,
+    private val settings: SettingsRepository,
     private val missedNotifier: MissedAlarmNotifier,
 ) {
     private val mutex = Mutex()
@@ -54,7 +58,9 @@ class AlarmEngine @Inject constructor(
         return locked {
             val id = repository.save(alarm)
             val saved = alarm.copy(id = id)
-            commit(saved, editedPlan(saved, repository.getRuntime(id) ?: AlarmRuntimeState(id)))
+            val runtime = repository.getRuntime(id) ?: AlarmRuntimeState(id)
+            // Выключенный будильник не возвращаем после падения звонка: пользователь его отключил (ADR-020 §4).
+            commit(saved, editedPlan(saved, if (saved.enabled) runtime else runtime.copy(ringingSince = null)))
         }
     }
 
@@ -71,7 +77,7 @@ class AlarmEngine @Inject constructor(
             if (enabled && stored.enabled) return@locked commit(stored, editedPlan(stored, runtime))
             repository.setEnabled(id, enabled)
             val alarm = stored.copy(enabled = enabled)
-            commit(alarm, regularPlan(alarm, runtime.copy(snoozeCount = 0)))
+            commit(alarm, regularPlan(alarm, runtime.copy(snoozeCount = 0, ringingSince = null)))
         }
     }
 
@@ -91,11 +97,17 @@ class AlarmEngine @Inject constructor(
      * (телефон перезагружался в момент звонка) догоняется через [CATCH_UP_DELAY].
      * Возвращает число будильников, успешно отданных системе.
      */
-    suspend fun rescheduleAll(reason: RescheduleReason): Int = locked {
+    suspend fun rescheduleAll(reason: RescheduleReason): Int {
+        val resumeWindow = resumeWindow()
+        return locked { rescheduleLocked(reason, resumeWindow) }
+    }
+
+    private suspend fun rescheduleLocked(reason: RescheduleReason, resumeWindow: Duration): Int {
         val count = repository.loadAll().count { (alarm, runtime) ->
             try {
-                val plan = restoredPlan(alarm, runtime)
+                val plan = restoredPlan(alarm, runtime, resumeWindow)
                 val outcome = applySchedule(alarm, plan)
+                if (plan.resume) scheduleResume(alarm.id)
                 // Только после сохранения: при сбое записи следующий rescheduleAll не продублирует уведомление.
                 plan.missedAt?.let { notifyMissed(alarm, it) }
                 outcome == Outcome.SCHEDULED
@@ -107,7 +119,31 @@ class AlarmEngine @Inject constructor(
             }
         }
         log.log(AlarmEvent.RescheduledAll(reason, count))
-        count
+        return count
+    }
+
+    /**
+     * Звонок, начатый в окне автостопа и не законченный (падение процесса, перезагрузка), возвращается через
+     * [RingingPolicy.CRASH_RESUME_DELAY]. RESUME ставится **поверх** обычного срабатывания, а в runtime остаётся
+     * обычный план: его вернёт `dismiss`/`snooze` (ADR-020 §4). Живой звонок такой RESUME игнорирует (ADR-020 §5).
+     */
+    private fun scheduleResume(id: AlarmId) {
+        val at = clock.instant() + RingingPolicy.CRASH_RESUME_DELAY
+        val accepted = scheduler.schedule(ScheduleRequest(id, at, FireKind.RESUME))
+        log.log(if (accepted) AlarmEvent.ResumeScheduled(id, at) else AlarmEvent.ScheduleFailed(id, at))
+    }
+
+    /** Окно возврата звонка из настройки автостопа; нет ответа за [SETTINGS_TIMEOUT] → умолчание (ADR-021 §4). */
+    private suspend fun resumeWindow(): Duration {
+        val autoStop = try {
+            withTimeoutOrNull(SETTINGS_TIMEOUT.toMillis()) { settings.settings.first().autoStop }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.log(AlarmEvent.RescheduleError(AlarmId.UNSAVED, e.javaClass.simpleName))
+            null
+        } ?: SettingsPolicy.DEFAULTS.autoStop
+        return RingingPolicy.resumeWindow(autoStop)
     }
 
     /**
@@ -144,6 +180,25 @@ class AlarmEngine @Inject constructor(
     }
 
     /**
+     * RESUME живого звонка проигнорирован сервисом, но он стоит в `AlarmManager` вместо обычного срабатывания
+     * (одна идентичность `PendingIntent` на будильник): возвращает в систему план из runtime — иначе смерть
+     * процесса до `dismiss` оставила бы будильник без завтрашнего срабатывания (ADR-020 §4–5).
+     */
+    suspend fun restoreRegularPlan(id: AlarmId) {
+        if (id.isTest) return
+        locked {
+            val alarm = repository.get(id) ?: return@locked
+            val runtime = repository.getRuntime(id) ?: return@locked
+            val at = runtime.nextTriggerAt?.takeIf { it.isAfter(clock.instant()) } ?: return@locked
+            if (scheduler.schedule(ScheduleRequest(id, at, runtime.nextTriggerKind.toFireKind()))) {
+                log.log(AlarmEvent.Scheduled(alarm.id, at, runtime.nextTriggerKind.toFireKind()))
+            } else {
+                log.log(AlarmEvent.ScheduleFailed(id, at))
+            }
+        }
+    }
+
+    /**
      * Откладывает текущий звонок. [SnoozeResult.NotAllowed] — фича выключена, snooze запрещён, лимит исчерпан
      * или система не приняла будильник (тогда звонок должен продолжаться). Повторное нажатие, пока snooze
      * уже стоит, лимит не тратит.
@@ -177,7 +232,8 @@ class AlarmEngine @Inject constructor(
         }
         locked {
             val alarm = repository.get(id) ?: return@locked
-            val runtime = (repository.getRuntime(id) ?: AlarmRuntimeState(id)).copy(snoozeCount = 0)
+            val stored = repository.getRuntime(id) ?: AlarmRuntimeState(id)
+            val runtime = stored.copy(snoozeCount = 0, ringingSince = null)
             applySchedule(alarm, regularPlan(alarm, runtime))
             log.log(AlarmEvent.Dismissed(id, reason))
         }
@@ -216,7 +272,13 @@ class AlarmEngine @Inject constructor(
         val alarm = if (stored.isOneShot && kind != FireKind.SNOOZE) stored.copy(enabled = false) else stored
         try {
             if (alarm.enabled != stored.enabled) repository.setEnabled(alarm.id, false)
-            applySchedule(alarm, regularPlan(alarm, runtime.copy(snoozeCount = snoozeCount, lastFiredAt = now)))
+            applySchedule(
+                alarm,
+                regularPlan(
+                    alarm,
+                    runtime.copy(snoozeCount = snoozeCount, lastFiredAt = now, ringingSince = now),
+                ),
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -233,7 +295,13 @@ class AlarmEngine @Inject constructor(
      * срабатывание узнаётся по `nextTriggerAt` в прошлом: у разового, отредактированного во время snooze,
      * там уже новое время впереди — его выключать нельзя.
      */
-    private suspend fun resume(stored: Alarm, runtime: AlarmRuntimeState): FireDecision.Ring {
+    private suspend fun resume(stored: Alarm, storedRuntime: AlarmRuntimeState): FireDecision.Ring {
+        // Маркер «звонит» ставится, если срабатывание не успело его записать; начало звонка не сдвигаем.
+        val runtime = if (storedRuntime.ringingSince == null) {
+            storedRuntime.copy(ringingSince = clock.instant()).also { repository.updateRuntime(it) }
+        } else {
+            storedRuntime
+        }
         val unrecorded = runtime.nextTriggerAt?.let { !it.isAfter(clock.instant()) } ?: true
         val snoozeCount = runtime.snoozeCount
         val alarm = if (stored.isOneShot && stored.enabled && unrecorded) {
@@ -253,7 +321,7 @@ class AlarmEngine @Inject constructor(
 
     private suspend fun skipStale(alarm: Alarm, runtime: AlarmRuntimeState): FireDecision.Skip {
         val current = disableIfMissedOneShot(alarm)
-        applySchedule(current, regularPlan(current, runtime.copy(snoozeCount = 0)))
+        applySchedule(current, regularPlan(current, runtime.copy(snoozeCount = 0, ringingSince = null)))
         return skip(alarm.id, SkipReason.STALE)
     }
 
@@ -274,7 +342,12 @@ class AlarmEngine @Inject constructor(
     /** Runtime сохраняется только если система приняла будильник — иначе потеряли бы обычное расписание. */
     private suspend fun scheduleSnooze(alarm: Alarm, runtime: AlarmRuntimeState, until: Instant): SnoozeResult {
         val count = runtime.snoozeCount + 1
-        val snoozed = runtime.copy(nextTriggerAt = until, nextTriggerKind = TriggerKind.SNOOZE, snoozeCount = count)
+        val snoozed = runtime.copy(
+            nextTriggerAt = until,
+            nextTriggerKind = TriggerKind.SNOOZE,
+            snoozeCount = count,
+            ringingSince = null,
+        )
         if (applySchedule(alarm, Plan(snoozed, FireKind.SNOOZE), persistOnFailure = false) != Outcome.SCHEDULED) {
             return SnoozeResult.NotAllowed
         }
@@ -286,7 +359,13 @@ class AlarmEngine @Inject constructor(
 
     // region Планирование
 
-    private data class Plan(val runtime: AlarmRuntimeState, val kind: FireKind?, val missedAt: Instant? = null)
+    /** [resume] — звонок прерван и должен вернуться: поверх плана ставится RESUME (ADR-020 §4). */
+    private data class Plan(
+        val runtime: AlarmRuntimeState,
+        val kind: FireKind?,
+        val missedAt: Instant? = null,
+        val resume: Boolean = false,
+    )
 
     private suspend fun commit(alarm: Alarm, plan: Plan): ScheduleResult {
         val outcome = applySchedule(alarm, plan)
@@ -312,7 +391,19 @@ class AlarmEngine @Inject constructor(
 
     private enum class Outcome { SCHEDULED, FAILED, CANCELLED }
 
-    private suspend fun restoredPlan(stored: Alarm, storedRuntime: AlarmRuntimeState?): Plan {
+    /**
+     * Маркер звонка в окне [resumeWindow] → обычный план + `resume`; старше окна или из будущего (часы назад) →
+     * маркер снимается (уведомление о пропуске — M7).
+     */
+    private suspend fun restoredPlan(stored: Alarm, storedRuntime: AlarmRuntimeState?, resumeWindow: Duration): Plan {
+        val now = clock.instant()
+        val since = storedRuntime?.ringingSince
+        val ringing = since != null && !since.isAfter(now) && Duration.between(since, now) < resumeWindow
+        val runtime = if (since != null && !ringing) storedRuntime?.copy(ringingSince = null) else storedRuntime
+        return planFor(stored, runtime).let { if (ringing) it.copy(resume = true) else it }
+    }
+
+    private suspend fun planFor(stored: Alarm, storedRuntime: AlarmRuntimeState?): Plan {
         val runtime = storedRuntime ?: AlarmRuntimeState(stored.id)
         val next = runtime.nextTriggerAt ?: return regularPlan(stored, runtime)
         val now = clock.instant()
@@ -437,6 +528,9 @@ class AlarmEngine @Inject constructor(
 
         /** Сколько срабатывание ждёт занятый движок, прежде чем звонить с настройками по умолчанию. */
         val FIRE_LOCK_TIMEOUT: Duration = Duration.ofSeconds(2)
+
+        /** Сколько `rescheduleAll` ждёт настройки автостопа, прежде чем взять умолчание. */
+        private val SETTINGS_TIMEOUT: Duration = Duration.ofSeconds(1)
 
         private const val TEST_NOT_STORED = "The test alarm is not stored, use TestAlarmRunner"
     }

@@ -10,6 +10,8 @@ enum class TriggerKind { REGULAR, SNOOZE, CATCH_UP }
  * [nextTriggerAt] — ровно то, что отдано `setAlarmClock`; `null` — ничего не запланировано.
  * [scheduleFailed] — система отказала в `setAlarmClock` (ADR-015): [nextTriggerAt] тогда лишь момент «для повтора»,
  * в `AlarmManager` его нет. Снимается успешным планированием (любой `rescheduleAll`) или выключением.
+ * [ringingSince] — начало текущего звонка (ADR-020 §1): по нему `rescheduleAll` возвращает звонок, прерванный
+ * падением процесса или перезагрузкой; `null` — не звонит.
  */
 data class AlarmRuntimeState(
     val alarmId: AlarmId,
@@ -18,6 +20,7 @@ data class AlarmRuntimeState(
     val snoozeCount: Int = 0,
     val lastFiredAt: Instant? = null,
     val scheduleFailed: Boolean = false,
+    val ringingSince: Instant? = null,
 ) {
     init {
         require(alarmId.isSaved && !alarmId.isTest) { "Runtime state belongs to a stored alarm" }

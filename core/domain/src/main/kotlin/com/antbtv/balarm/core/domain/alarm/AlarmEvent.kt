@@ -47,6 +47,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("at" to at)
     }
 
+    /** Звонок, прерванный падением/перезагрузкой, возвращается (ADR-020 §4, R20). */
+    data class ResumeScheduled(val id: AlarmId, val at: Instant) : AlarmEvent {
+        override val name = "RESUME_SCHEDULED"
+        override val fields = mapOf("id" to id.value, "at" to at)
+    }
+
     data class Cancelled(val id: AlarmId) : AlarmEvent {
         override val name = "CANCELLED"
         override val fields = mapOf("id" to id.value)
