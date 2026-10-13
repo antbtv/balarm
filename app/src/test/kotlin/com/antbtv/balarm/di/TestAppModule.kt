@@ -8,11 +8,13 @@ import com.antbtv.balarm.core.domain.alarm.AlarmRepository
 import com.antbtv.balarm.core.domain.di.ApplicationScope
 import com.antbtv.balarm.core.domain.health.PermissionHealthChecker
 import com.antbtv.balarm.core.domain.health.SetupStateRepository
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
 import com.antbtv.balarm.core.domain.sound.RingVolumeStore
 import com.antbtv.balarm.core.domain.sound.SoundFileStore
 import com.antbtv.balarm.core.domain.sound.SoundRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakePermissionHealthChecker
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.permissions.di.PermissionsModule
 import dagger.Binds
 import dagger.Module
@@ -55,6 +57,9 @@ interface TestAppModule {
     @Binds
     fun bindRingVolumeStore(fake: TestRingVolumeStore): RingVolumeStore
 
+    @Binds
+    fun bindSettings(fake: FakeSettingsRepository): SettingsRepository
+
     companion object {
         @Provides
         @Singleton
@@ -75,6 +80,10 @@ interface TestAppModule {
         @Provides
         @Singleton
         fun ringVolumeStore() = TestRingVolumeStore()
+
+        @Provides
+        @Singleton
+        fun settings() = FakeSettingsRepository()
 
         @Provides
         fun soundFileStore(@ApplicationContext context: Context): SoundFileStore =
