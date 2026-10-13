@@ -1,17 +1,22 @@
 package com.antbtv.balarm.feature.settings
 
 import android.content.Context
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.antbtv.balarm.core.designsystem.component.SingleChoiceDialogTestTags
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.InMemoryTestAlarmStore
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
+import com.antbtv.balarm.core.domain.settings.SettingsPolicy
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.FakePermissionHealthChecker
@@ -22,9 +27,14 @@ import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.format.ClockFormat
 import com.antbtv.balarm.core.model.feature.ConfigFeatureFlagProvider
+import com.antbtv.balarm.core.model.feature.Feature
+import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
 import com.google.common.truth.Truth.assertThat
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,7 +70,8 @@ class SettingsRoutesTest {
     @Test
     fun `settings route reads health on resume`() {
         checker.current = HEALTHY_SNAPSHOT.copy(notificationsEnabled = false, exactAlarms = false)
-        val viewModel = SettingsViewModel(checker, setup, repository, ConfigFeatureFlagProvider)
+        val viewModel =
+            SettingsViewModel(checker, setup, repository, ConfigFeatureFlagProvider, FakeSettingsRepository())
         val callsBefore = checker.calls
 
         composeRule.setContent {
@@ -70,6 +81,40 @@ class SettingsRoutesTest {
         composeRule.onNodeWithTag(SettingsTestTags.HEALTH_ROW).assertTextContains("2 problems")
         assertThat(checker.calls).isGreaterThan(callsBefore)
     }
+
+    @Test
+    fun `settings route - chosen value is saved and shown`() {
+        val settings = FakeSettingsRepository()
+        val viewModel = SettingsViewModel(checker, setup, repository, generalFlags(enabled = true), settings)
+        composeRule.setContent {
+            TestTheme { SettingsRoute(onOpenHealth = {}, onOpenAbout = {}, onOpenSounds = {}, viewModel = viewModel) }
+        }
+
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(SettingsTestTags.MISSION_IDLE_ROW))
+        composeRule.onNodeWithTag(SettingsTestTags.MISSION_IDLE_ROW).performClick()
+        composeRule.onNodeWithTag(SingleChoiceDialogTestTags.option(SettingsPolicy.IDLE_TIMEOUT_SECONDS.indexOf(45L)))
+            .performScrollTo()
+            .performClick()
+
+        composeRule.onNodeWithTag(SettingsTestTags.MISSION_IDLE_ROW)
+            .assertContentDescriptionEquals("Mission inactivity, 45 seconds")
+        assertThat(runBlocking { settings.settings.first() }.missionIdleTimeout).isEqualTo(Duration.ofSeconds(45))
+    }
+
+    @Test
+    fun `settings route - no general section when the flag is off`() {
+        val viewModel =
+            SettingsViewModel(checker, setup, repository, generalFlags(enabled = false), FakeSettingsRepository())
+        composeRule.setContent {
+            TestTheme { SettingsRoute(onOpenHealth = {}, onOpenAbout = {}, onOpenSounds = {}, viewModel = viewModel) }
+        }
+
+        composeRule.onNodeWithTag(SettingsTestTags.ABOUT_ROW).assertExists()
+        composeRule.onNodeWithTag(SettingsTestTags.GENERAL_SECTION).assertDoesNotExist()
+    }
+
+    private fun generalFlags(enabled: Boolean) =
+        FeatureFlagProvider { if (it == Feature.GLOBAL_SETTINGS) enabled else it.defaultEnabled }
 
     @Test
     fun `health route - test alarm shows when it rings`() {

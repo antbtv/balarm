@@ -58,4 +58,10 @@ data class SettingsUiState(
     val problems: Int = 0,
     /** Строка «Мелодии» (библиотека своих мелодий) — только при `feature.customSounds` (ADR-016 §7). */
     val soundsVisible: Boolean = false,
+    /** Секция «Общие» — только при `feature.globalSettings` (ADR-021 п. 7); выключен — секции нет вовсе. */
+    val generalVisible: Boolean = false,
+    /** Значения секции «Общие»; `null` — ещё читаются (строки без значений). */
+    val general: GeneralSettingsUi? = null,
+    /** Последнее изменение не сохранилось — снекбар; снимается [SettingsEvent.SaveFailedShown]. */
+    val saveFailed: Boolean = false,
 )

@@ -14,6 +14,45 @@
     <string name="settings_action_open">Открыть</string>
     <string name="settings_back">Назад</string>
 
+    <string name="settings_general">Общие</string>
+    <string name="settings_general_apply_next">Изменения применятся со следующего звонка.</string>
+    <string name="settings_row_description">%1$s, %2$s</string>
+    <string name="settings_action_change">Изменить</string>
+    <string name="settings_cancel">Отмена</string>
+    <string name="settings_save_failed">Не удалось сохранить настройку. Попробуйте ещё раз</string>
+    <string name="settings_auto_stop">Автостоп звонка</string>
+    <string name="settings_auto_stop_hint">Сколько звонит будильник, если вы не реагируете.</string>
+    <string name="settings_auto_stop_never">Никогда</string>
+    <string name="settings_auto_stop_never_option">Никогда — звонит, пока не отключите</string>
+    <string name="settings_minutes_short">%1$d\u00A0мин</string>
+    <plurals name="settings_minutes">
+        <item quantity="one">%1$d минута</item>
+        <item quantity="few">%1$d минуты</item>
+        <item quantity="many">%1$d минут</item>
+        <item quantity="other">%1$d минуты</item>
+    </plurals>
+    <string name="settings_mission_idle">Бездействие в миссии</string>
+    <string name="settings_mission_idle_hint">Если не решать столько времени, звонок снова станет громким, а текущий пример начнётся заново.</string>
+    <string name="settings_seconds_short">%1$d\u00A0с</string>
+    <plurals name="settings_seconds">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунды</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунды</item>
+    </plurals>
+    <string name="settings_mission_volume">Громкость при решении миссии</string>
+    <string name="settings_mission_volume_hint">Насколько тише звонок, пока вы решаете миссию: доля от обычной громкости. Меньше — тише.</string>
+    <string name="settings_percent">%1$d\u00A0%%</string>
+    <plurals name="settings_percent_full">
+        <item quantity="one">%1$d процент</item>
+        <item quantity="few">%1$d процента</item>
+        <item quantity="many">%1$d процентов</item>
+        <item quantity="other">%1$d процента</item>
+    </plurals>
+    <string name="settings_first_day">Первый день недели</string>
+    <string name="settings_first_day_locale">Как в регионе</string>
+    <string name="settings_first_day_locale_option">Как в регионе (%1$s)</string>
+
     <string name="health_title">Здоровье будильника</string>
     <string name="health_fix">Исправить</string>
     <string name="health_open_settings">Открыть настройки</string>

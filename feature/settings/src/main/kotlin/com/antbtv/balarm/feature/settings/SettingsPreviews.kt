@@ -7,6 +7,8 @@ import androidx.compose.ui.unit.dp
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.domain.health.HealthItem
 import com.antbtv.balarm.core.domain.health.HealthStatus
+import com.antbtv.balarm.core.model.AutoStop
+import java.time.DayOfWeek
 
 // Превью экранов настроек: тёмная тема (светлая — бэклог, PRD §2; одно светлое — контроль), 360dp, fontScale 2,
 // RU. Отступы «как у телефона» (статус-бар и панель жестов 24dp) — в превью баров нет.
@@ -38,6 +40,7 @@ private fun Settings(state: SettingsUiState) {
         onOpenHealth = {},
         onOpenAbout = {},
         onOpenSounds = {},
+        onEvent = {},
         windowInsets = PreviewInsets,
     )
 }
@@ -87,6 +90,58 @@ private fun SettingsLoadingPreview() {
 @Composable
 private fun SettingsLightPreview() {
     BalarmTheme(darkTheme = false) { Settings(SettingsUiState(loading = false, problems = 1, soundsVisible = true)) }
+}
+
+private val PreviewGeneral = GeneralSettingsUi(
+    autoStop = AutoStop.MIN_30,
+    missionIdleSeconds = 15,
+    missionDuckPercent = 30,
+    firstDayOfWeek = null,
+)
+
+private val PreviewWithGeneral = SettingsUiState(
+    loading = false,
+    problems = 0,
+    soundsVisible = true,
+    generalVisible = true,
+    general = PreviewGeneral,
+)
+
+@Preview(name = "Settings — General, 360dp", widthDp = 360, heightDp = 900)
+@Composable
+private fun SettingsGeneralPreview() {
+    BalarmTheme { Settings(PreviewWithGeneral) }
+}
+
+@Preview(name = "Settings — General, never, Sunday, RU", widthDp = 360, heightDp = 900, locale = "ru")
+@Composable
+private fun SettingsGeneralRuPreview() {
+    BalarmTheme {
+        Settings(
+            PreviewWithGeneral.copy(
+                problems = 2,
+                general = PreviewGeneral.copy(autoStop = AutoStop.NEVER, firstDayOfWeek = DayOfWeek.SUNDAY),
+            ),
+        )
+    }
+}
+
+@Preview(name = "Settings — General, RU, fontScale 2", widthDp = 360, heightDp = 640, fontScale = 2f, locale = "ru")
+@Composable
+private fun SettingsGeneralLargeFontPreview() {
+    BalarmTheme { Settings(PreviewWithGeneral) }
+}
+
+@Preview(name = "Settings — General loading", widthDp = 360, heightDp = 900)
+@Composable
+private fun SettingsGeneralLoadingPreview() {
+    BalarmTheme { Settings(SettingsUiState(soundsVisible = true, generalVisible = true)) }
+}
+
+@Preview(name = "Settings — General, light", widthDp = 360, heightDp = 900)
+@Composable
+private fun SettingsGeneralLightPreview() {
+    BalarmTheme(darkTheme = false) { Settings(PreviewWithGeneral) }
 }
 
 // --- Здоровье ---

@@ -52,6 +52,7 @@ object SettingRowTestTags {
 object SingleChoiceDialogTestTags {
     const val DIALOG = "singleChoiceDialog"
     const val DISMISS = "singleChoiceDialogDismiss"
+    const val DESCRIPTION = "singleChoiceDialogDescription"
 
     /** Вариант по индексу: `singleChoiceOption_0`. */
     fun option(index: Int): String = "singleChoiceOption_$index"

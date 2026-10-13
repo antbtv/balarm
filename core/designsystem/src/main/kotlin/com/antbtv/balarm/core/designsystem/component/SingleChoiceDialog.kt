@@ -40,6 +40,7 @@ import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
  * @param options подписи вариантов (готовые строки: «5 мин», «Без ограничений»).
  * @param selectedIndex индекс выбранного варианта; вне `options.indices` — ничего не выбрано.
  * @param dismissText подпись кнопки отмены («Отмена»).
+ * @param description необязательное пояснение над вариантами (что делает настройка), `body` цветом `textSecondary`.
  */
 @Composable
 fun SingleChoiceDialog(
@@ -50,6 +51,7 @@ fun SingleChoiceDialog(
     onDismiss: () -> Unit,
     dismissText: String,
     modifier: Modifier = Modifier,
+    description: String? = null,
 ) {
     val colors = BalarmTheme.colors
     val type = BalarmTheme.typography
@@ -66,17 +68,26 @@ fun SingleChoiceDialog(
         title = { Text(text = title, style = type.title, modifier = Modifier.semantics { heading() }) },
         text = {
             Column(
-                modifier = Modifier
-                    .selectableGroup()
-                    .verticalScroll(rememberScrollState()),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(BalarmDimens.SpacingSmall),
             ) {
-                options.forEachIndexed { index, option ->
-                    RadioRow(
-                        text = option,
-                        selected = index == selectedIndex,
-                        onClick = { onSelect(index) },
-                        modifier = Modifier.testTag(SingleChoiceDialogTestTags.option(index)),
+                if (description != null) {
+                    Text(
+                        text = description,
+                        style = type.body,
+                        color = colors.textSecondary,
+                        modifier = Modifier.testTag(SingleChoiceDialogTestTags.DESCRIPTION),
                     )
+                }
+                Column(modifier = Modifier.selectableGroup()) {
+                    options.forEachIndexed { index, option ->
+                        RadioRow(
+                            text = option,
+                            selected = index == selectedIndex,
+                            onClick = { onSelect(index) },
+                            modifier = Modifier.testTag(SingleChoiceDialogTestTags.option(index)),
+                        )
+                    }
                 }
             }
         },
@@ -151,6 +162,7 @@ private fun SingleChoiceDialogRuPreview() {
             onSelect = {},
             onDismiss = {},
             dismissText = "Отмена",
+            description = "Сколько раз можно отложить будильник.",
         )
     }
 }

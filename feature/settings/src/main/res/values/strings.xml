@@ -14,6 +14,42 @@
     <string name="settings_action_open">Open</string>
     <string name="settings_back">Back</string>
 
+    <!-- Секция «Общие» (PRD §3.9, ADR-021, feature.globalSettings) -->
+    <string name="settings_general">General</string>
+    <string name="settings_general_apply_next">Changes apply from the next alarm.</string>
+    <!-- TalkBack: «Auto-stop alarm, 30 minutes». -->
+    <string name="settings_row_description">%1$s, %2$s</string>
+    <string name="settings_action_change">Change</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_save_failed">Couldn\'t save the setting. Try again</string>
+    <string name="settings_auto_stop">Auto-stop alarm</string>
+    <string name="settings_auto_stop_hint">How long the alarm rings if you don\'t react.</string>
+    <string name="settings_auto_stop_never">Never</string>
+    <string name="settings_auto_stop_never_option">Never — rings until you turn it off</string>
+    <string name="settings_minutes_short">%1$d\u00A0min</string>
+    <plurals name="settings_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="settings_mission_idle">Mission inactivity</string>
+    <string name="settings_mission_idle_hint">If you stop solving for this long, the alarm gets loud again and the current task starts over.</string>
+    <string name="settings_seconds_short">%1$d\u00A0s</string>
+    <plurals name="settings_seconds">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <string name="settings_mission_volume">Volume while solving</string>
+    <string name="settings_mission_volume_hint">How quiet the alarm is while you solve a mission, as a share of its normal volume. Lower is quieter.</string>
+    <string name="settings_percent">%1$d%%</string>
+    <plurals name="settings_percent_full">
+        <item quantity="one">%1$d percent</item>
+        <item quantity="other">%1$d percent</item>
+    </plurals>
+    <string name="settings_first_day">First day of week</string>
+    <string name="settings_first_day_locale">By region</string>
+    <!-- %1$s — первый день недели региона («Monday»). -->
+    <string name="settings_first_day_locale_option">By region (%1$s)</string>
+
     <!-- «Здоровье будильника» (FR-REL-7) -->
     <string name="health_title">Alarm health</string>
     <string name="health_fix">Fix</string>

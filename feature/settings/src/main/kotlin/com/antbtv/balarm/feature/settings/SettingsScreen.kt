@@ -14,10 +14,15 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +35,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.antbtv.balarm.core.designsystem.component.BalarmIcons
+import com.antbtv.balarm.core.designsystem.component.BalarmSnackbarHost
 import com.antbtv.balarm.core.designsystem.component.ScrimEdge
 import com.antbtv.balarm.core.designsystem.component.SettingRow
 import com.antbtv.balarm.core.designsystem.component.SystemBarScrim
@@ -63,14 +69,16 @@ fun SettingsRoute(
         onOpenHealth = onOpenHealth,
         onOpenAbout = onOpenAbout,
         onOpenSounds = onOpenSounds,
+        onEvent = viewModel::onEvent,
         modifier = modifier,
     )
 }
 
 /**
- * Вкладка «Настройки»: заголовок, «Здоровье будильника» со сводкой (✅ «Всё в порядке» / ⚠️ «N проблем»),
- * «Мелодии» (если [SettingsUiState.soundsVisible]) и «О приложении». Пока сводка считается — строка без значения
- * и иконки: «Всё в порядке» не мигает перед «2 проблемы».
+ * Вкладка «Настройки»: заголовок, карточка «Здоровье будильника» со сводкой (✅ «Всё в порядке» / ⚠️ «N проблем»)
+ * и «Мелодии» (если [SettingsUiState.soundsVisible]), секция «Общие» (если [SettingsUiState.generalVisible],
+ * ADR-021), карточка «О приложении». Пока сводка считается — строка без значения и иконки: «Всё в порядке» не
+ * мигает перед «2 проблемы». Ошибка сохранения настройки — снекбар внизу.
  *
  * @param windowInsets системные отступы (в приложении — `safeDrawing`); тесты и превью задают свои.
  */
@@ -80,10 +88,13 @@ fun SettingsScreen(
     onOpenHealth: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenSounds: () -> Unit,
+    onEvent: (SettingsEvent) -> Unit,
     modifier: Modifier = Modifier,
     windowInsets: WindowInsets = WindowInsets.safeDrawing,
 ) {
     val colors = BalarmTheme.colors
+    val snackbar = remember { SnackbarHostState() }
+    SaveFailedEffect(saveFailed = state.saveFailed, hostState = snackbar, onEvent = onEvent)
     Surface(
         modifier = modifier
             .fillMaxSize()
@@ -114,11 +125,12 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .semantics { heading() },
                 )
-                SettingsCard(
+                SettingsItems(
                     state = state,
                     onOpenHealth = onOpenHealth,
-                    onOpenSounds = onOpenSounds,
                     onOpenAbout = onOpenAbout,
+                    onOpenSounds = onOpenSounds,
+                    onEvent = onEvent,
                 )
             }
             // При fontScale 2 на низком экране контент прокручивается под прозрачный статус-бар.
@@ -127,39 +139,69 @@ fun SettingsScreen(
                 inset = vertical.calculateTopPadding(),
                 modifier = Modifier.align(Alignment.TopCenter),
             )
+            BalarmSnackbarHost(
+                hostState = snackbar,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(windowInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)),
+            )
         }
     }
 }
 
-/** Карточка пунктов: «Здоровье будильника», «Мелодии» (по флагу), «О приложении». */
+/** Карточка «Здоровье»/«Мелодии», секция «Общие» (по флагу), карточка «О приложении». */
 @Composable
-private fun SettingsCard(
+private fun SettingsItems(
     state: SettingsUiState,
     onOpenHealth: () -> Unit,
-    onOpenSounds: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenSounds: () -> Unit,
+    onEvent: (SettingsEvent) -> Unit,
 ) {
     val openLabel = stringResource(R.string.settings_action_open)
-    Surface(shape = BalarmShapes.Card, color = BalarmTheme.colors.surface, modifier = Modifier.fillMaxWidth()) {
-        Column {
-            HealthRow(state = state, onClick = onOpenHealth)
-            if (state.soundsVisible) {
-                SettingRow(
-                    title = stringResource(R.string.settings_sounds),
-                    value = null,
-                    onClick = onOpenSounds,
-                    onClickLabel = openLabel,
-                    modifier = Modifier.testTag(SettingsTestTags.SOUNDS_ROW),
-                )
-            }
+    SettingsCard {
+        HealthRow(state = state, onClick = onOpenHealth)
+        if (state.soundsVisible) {
             SettingRow(
-                title = stringResource(R.string.settings_about),
+                title = stringResource(R.string.settings_sounds),
                 value = null,
-                onClick = onOpenAbout,
+                onClick = onOpenSounds,
                 onClickLabel = openLabel,
-                modifier = Modifier.testTag(SettingsTestTags.ABOUT_ROW),
+                modifier = Modifier.testTag(SettingsTestTags.SOUNDS_ROW),
             )
         }
+    }
+    if (state.generalVisible) {
+        GeneralSettingsSection(general = state.general, onEvent = onEvent)
+    }
+    SettingsCard {
+        SettingRow(
+            title = stringResource(R.string.settings_about),
+            value = null,
+            onClick = onOpenAbout,
+            onClickLabel = openLabel,
+            modifier = Modifier.testTag(SettingsTestTags.ABOUT_ROW),
+        )
+    }
+}
+
+/** Показывает снекбар «Не удалось сохранить настройку»; когда он скрылся — [SettingsEvent.SaveFailedShown]. */
+@Composable
+private fun SaveFailedEffect(saveFailed: Boolean, hostState: SnackbarHostState, onEvent: (SettingsEvent) -> Unit) {
+    val message = stringResource(R.string.settings_save_failed)
+    val currentOnEvent by rememberUpdatedState(onEvent)
+    LaunchedEffect(saveFailed, hostState, message) {
+        if (!saveFailed) return@LaunchedEffect
+        hostState.showSnackbar(message, duration = SnackbarDuration.Short)
+        currentOnEvent(SettingsEvent.SaveFailedShown)
+    }
+}
+
+/** Карточка-группа строк настроек. */
+@Composable
+private fun SettingsCard(content: @Composable () -> Unit) {
+    Surface(shape = BalarmShapes.Card, color = BalarmTheme.colors.surface, modifier = Modifier.fillMaxWidth()) {
+        Column { content() }
     }
 }
 

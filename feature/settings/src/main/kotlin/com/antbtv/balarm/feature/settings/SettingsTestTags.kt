@@ -8,6 +8,14 @@ object SettingsTestTags {
     const val HEALTH_ROW = "settingsHealthRow"
     const val SOUNDS_ROW = "settingsSoundsRow"
     const val ABOUT_ROW = "settingsAboutRow"
+
+    // Секция «Общие» (feature.globalSettings).
+    const val GENERAL_SECTION = "settingsGeneral"
+    const val AUTO_STOP_ROW = "settingsAutoStopRow"
+    const val MISSION_IDLE_ROW = "settingsMissionIdleRow"
+    const val MISSION_VOLUME_ROW = "settingsMissionVolumeRow"
+    const val FIRST_DAY_ROW = "settingsFirstDayRow"
+    const val APPLY_NEXT = "settingsApplyNext"
 }
 
 /**
