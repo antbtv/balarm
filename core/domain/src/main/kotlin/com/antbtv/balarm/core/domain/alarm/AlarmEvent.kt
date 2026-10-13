@@ -128,6 +128,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("to" to to)
     }
 
+    /** `VolumeGuard` (ADR-019 §6): громкость звонка с миссией понизили кнопками — возвращена с [from] на [to]. */
+    data class VolumeGuard(val from: Int, val to: Int) : AlarmEvent {
+        override val name = "VOLUME_GUARD"
+        override val fields = mapOf("from" to from, "to" to to)
+    }
+
     /** FR-RING-8: мелодия приглушена ([muted]) или возвращена из-за режима аудио [mode]; [timeout] — по таймауту. */
     data class CallMuted(val muted: Boolean, val mode: Int, val timeout: Boolean = false) : AlarmEvent {
         override val name = "CALL_MUTED"

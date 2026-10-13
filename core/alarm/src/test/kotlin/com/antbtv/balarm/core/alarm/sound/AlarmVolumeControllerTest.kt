@@ -69,6 +69,40 @@ class AlarmVolumeControllerTest {
     }
 
     @Test
+    fun `guard puts a lowered stream back only while ringing`() {
+        volume = 1
+        controller.guardLowered() // звонка нет
+        assertThat(volume).isEqualTo(1)
+
+        controller.acquire(VolumeOwner.RINGING, 80)
+        volume = 2
+        controller.guardLowered()
+        assertThat(volume).isEqualTo(6)
+        assertThat(events).contains(AlarmEvent.VolumeGuard(from = 2, to = 6))
+
+        volume = MAX
+        controller.guardLowered()
+        assertThat(volume).isEqualTo(MAX)
+
+        controller.release(VolumeOwner.RINGING)
+    }
+
+    @Test
+    fun `guard does nothing for a preview or when the sound flag is off`() {
+        volume = 2
+        controller.acquire(VolumeOwner.PREVIEW, 80)
+        volume = 1
+        controller.guardLowered()
+        assertThat(volume).isEqualTo(1)
+        controller.release(VolumeOwner.PREVIEW)
+
+        val off = AlarmVolumeController(context, store, AlarmEventLog { events += it }, FeatureFlagProvider { false })
+        off.acquire(VolumeOwner.RINGING, 80)
+        off.guardLowered()
+        assertThat(volume).isEqualTo(1)
+    }
+
+    @Test
     fun `volume the user changed during the ring is left alone`() {
         volume = 1
         controller.acquire(VolumeOwner.RINGING, 80)

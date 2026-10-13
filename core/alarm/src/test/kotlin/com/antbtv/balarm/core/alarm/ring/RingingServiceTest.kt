@@ -401,6 +401,36 @@ class RingingServiceTest {
         assertThat(events).contains(AlarmEvent.RingingStopped(OTHER.id, "auto_stop"))
     }
 
+    private fun alarmStream() = app.getSystemService(AudioManager::class.java)
+
+    @Test
+    fun `volume guard restores a lowered stream during a mission ring but leaves a raise alone`() {
+        shadowOf(alarmStream()).setStreamMaxVolume(MAX_VOLUME)
+        shadowOf(alarmStream()).setStreamMinVolume(1)
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        val applied = alarmStream().getStreamVolume(AudioManager.STREAM_ALARM)
+
+        alarmStream().setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+        idle(Duration.ofSeconds(2))
+        assertThat(alarmStream().getStreamVolume(AudioManager.STREAM_ALARM)).isEqualTo(applied)
+        assertThat(events.filterIsInstance<AlarmEvent.VolumeGuard>()).hasSize(1)
+
+        alarmStream().setStreamVolume(AudioManager.STREAM_ALARM, MAX_VOLUME, 0)
+        idle(Duration.ofSeconds(2))
+        assertThat(alarmStream().getStreamVolume(AudioManager.STREAM_ALARM)).isEqualTo(MAX_VOLUME)
+    }
+
+    @Test
+    fun `volume guard is off for a ring without a mission and after the ring ends`() {
+        shadowOf(alarmStream()).setStreamMaxVolume(MAX_VOLUME)
+        shadowOf(alarmStream()).setStreamMinVolume(1)
+        start(ringIntent(ALARM.id))
+        alarmStream().setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+        idle(Duration.ofSeconds(3))
+        assertThat(events.filterIsInstance<AlarmEvent.VolumeGuard>()).isEmpty()
+    }
+
     @Test
     fun `resume for an alarm that is already ringing is ignored`() {
         start(ringIntent(ALARM.id))
@@ -1159,6 +1189,7 @@ class RingingServiceTest {
     private fun idle(duration: Duration = Duration.ZERO) = shadowOf(Looper.getMainLooper()).idleFor(duration)
 
     private companion object {
+        const val MAX_VOLUME = 7
         val NOW: Instant = TestAlarmModule.NOW
         val ALARM = Alarm(id = AlarmId(1), time = LocalTime.of(7, 30), label = "Work")
         val OTHER = Alarm(id = AlarmId(2), time = LocalTime.of(7, 30))

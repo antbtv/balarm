@@ -106,6 +106,7 @@ class RingingService : Service() {
     private var startedAt: Instant = Instant.EPOCH
     private var autoStop: Job? = null
     private var lockRenewal: Job? = null
+    private var volumeGuard: Job? = null
     private var settingsJob: Job? = null
 
     /** Снимок настроек текущего звонка; до прочтения — умолчания (звук не ждёт настройки, ADR-021 §4). */
@@ -356,10 +357,24 @@ class RingingService : Service() {
         syncCallMode()
         val id = decision.alarm.id
         ringSettings = RingSettings.DEFAULTS
+        armVolumeGuard()
         armAutoStop(id)
         loadSettings(id)
         publish()
         startRingingScreen()
+    }
+
+    /** `VolumeGuard` (ADR-019 §6): у звонка с миссией громкость, сниженную кнопками, возвращаем раз в секунду. */
+    private fun armVolumeGuard() {
+        volumeGuard?.cancel()
+        volumeGuard = null
+        if (!hasMission()) return
+        volumeGuard = scope.launch {
+            while (true) {
+                delay(VOLUME_GUARD_PERIOD.toMillis())
+                safely("volume_guard") { volume.guardLowered() }
+            }
+        }
     }
 
     /**
@@ -447,6 +462,8 @@ class RingingService : Service() {
         autoStop = null
         lockRenewal?.cancel()
         lockRenewal = null
+        volumeGuard?.cancel()
+        volumeGuard = null
         settingsJob?.cancel()
         settingsJob = null
         screenReturn?.cancel()
@@ -799,6 +816,8 @@ class RingingService : Service() {
 
         /** Сколько ждём настройки звонка, прежде чем взять умолчания. */
         private val SETTINGS_TIMEOUT: Duration = Duration.ofSeconds(1)
+
+        private val VOLUME_GUARD_PERIOD: Duration = Duration.ofSeconds(1)
 
         private val NO_FADE_KINDS = setOf(FireKind.RESUME, FireKind.CATCH_UP)
 

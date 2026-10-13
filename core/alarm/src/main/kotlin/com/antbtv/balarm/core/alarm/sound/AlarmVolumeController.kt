@@ -64,6 +64,26 @@ class AlarmVolumeController @Inject constructor(
         log.log(AlarmEvent.VolumeApplied(original, actual, max))
     }
 
+    /**
+     * `VolumeGuard` (ADR-019 §6): пока звонит будильник с миссией, громкость ниже выставленной нами возвращается
+     * (кнопки громкости без фокуса экрана меняют `STREAM_ALARM`). Повышение пользователем не трогаем.
+     * Только из `RingingService` (foreground) и пока держится [VolumeOwner.RINGING].
+     */
+    fun guardLowered() {
+        if (VolumeOwner.RINGING !in owners) return
+        val applied = saved?.applied ?: return
+        if (audio.isVolumeFixed) return
+        val current = audio.getStreamVolume(STREAM)
+        if (current >= applied) return
+        try {
+            audio.setStreamVolume(STREAM, applied, 0)
+        } catch (_: RuntimeException) {
+            log.log(AlarmEvent.VolumeNotApplied(applied, current))
+            return
+        }
+        log.log(AlarmEvent.VolumeGuard(from = current, to = audio.getStreamVolume(STREAM)))
+    }
+
     fun release(owner: VolumeOwner) {
         owners -= owner
         if (owners.isNotEmpty()) return
