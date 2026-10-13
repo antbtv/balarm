@@ -165,6 +165,24 @@ class RingingActivityTest {
     }
 
     @Test
+    fun `pause and resume of a mission alarm screen are reported, rotation is not`() {
+        fakeController.state.value = ringing(mission = FakeMissionSpec, missionRun = MissionRun(seed = 1))
+        val controller = Robolectric.buildActivity(RingingActivity::class.java).setup()
+        val shownAtStart = fakeController.screenShown
+
+        val landscape = Configuration(controller.get().resources.configuration).apply {
+            orientation = Configuration.ORIENTATION_LANDSCAPE
+        }
+        controller.configurationChange(landscape)
+        assertThat(fakeController.screenPaused).isEqualTo(0)
+
+        controller.pause()
+        assertThat(fakeController.screenPaused).isEqualTo(1)
+        controller.resume()
+        assertThat(fakeController.screenShown).isGreaterThan(shownAtStart)
+    }
+
+    @Test
     fun `leaving the screen of a plain alarm changes nothing`() {
         val controller = Robolectric.buildActivity(RingingActivity::class.java).setup()
 

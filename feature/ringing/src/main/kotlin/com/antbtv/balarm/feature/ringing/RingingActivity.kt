@@ -66,6 +66,17 @@ class RingingActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
+        if (!isChangingConfigurations && !isFinishing && interactive) viewModel.onScreenPaused()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.onScreenShown()
+    }
+
     override fun onStop() {
         super.onStop()
         // Поворот — не уход с экрана; выключение дисплея — тоже (звонок продолжится, экран — поверх блокировки).

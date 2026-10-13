@@ -81,7 +81,8 @@ class AlarmVolumeController @Inject constructor(
             log.log(AlarmEvent.VolumeNotApplied(applied, current))
             return
         }
-        log.log(AlarmEvent.VolumeGuard(from = current, to = audio.getStreamVolume(STREAM)))
+        val now = audio.getStreamVolume(STREAM)
+        if (now > current) log.log(AlarmEvent.VolumeGuard(from = current, to = now)) // без шума, если система не дала
     }
 
     fun release(owner: VolumeOwner) {

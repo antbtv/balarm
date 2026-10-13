@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Looper
+import android.os.PowerManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.core.alarm.AlarmIntents
@@ -429,6 +430,102 @@ class RingingServiceTest {
         alarmStream().setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
         idle(Duration.ofSeconds(3))
         assertThat(events.filterIsInstance<AlarmEvent.VolumeGuard>()).isEmpty()
+    }
+
+    private fun startMissionRing() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        mission(AlarmIntents.ACTION_MISSION_START)
+        assertThat(ringState().missionRun).isNotNull()
+    }
+
+    @Test
+    fun `paused screen that stays paused ends the mission session and comes back`() {
+        shadowOf(app).grantPermissions(android.Manifest.permission.SYSTEM_ALERT_WINDOW)
+        startMissionRing()
+
+        mission(AlarmIntents.ACTION_MISSION_PAUSED)
+        idle(Duration.ofMillis(500))
+        assertThat(ringState().missionRun).isNotNull() // ещё в пределах паузы
+        idle(Duration.ofMillis(600))
+
+        assertThat(ringState().missionRun).isNull()
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(events).contains(AlarmEvent.Mission(ALARM.id, "hidden"))
+    }
+
+    @Test
+    fun `pause check waits for a phone call to end`() {
+        startMissionRing()
+        app.getSystemService(AudioManager::class.java).mode = AudioManager.MODE_IN_CALL
+        mission(AlarmIntents.ACTION_MISSION_PAUSED)
+        idle(Duration.ofSeconds(5))
+        assertThat(ringState().missionRun).isNotNull()
+
+        service.get().onAudioMode(AudioManager.MODE_NORMAL)
+        idle(Duration.ofSeconds(3))
+
+        assertThat(events).contains(AlarmEvent.Mission(ALARM.id, "hidden"))
+    }
+
+    @Test
+    fun `screen that returns quickly keeps the mission session`() {
+        startMissionRing()
+
+        mission(AlarmIntents.ACTION_MISSION_PAUSED)
+        idle(Duration.ofMillis(300))
+        mission(AlarmIntents.ACTION_MISSION_SHOWN)
+        idle(Duration.ofSeconds(2))
+
+        assertThat(ringState().missionRun).isNotNull()
+        assertThat(events).doesNotContain(AlarmEvent.Mission(ALARM.id, "hidden"))
+    }
+
+    @Test
+    fun `pause with the display off is not a hidden screen`() {
+        startMissionRing()
+        shadowOf(app.getSystemService(PowerManager::class.java)).turnScreenOn(false)
+
+        mission(AlarmIntents.ACTION_MISSION_PAUSED)
+        idle(Duration.ofSeconds(2))
+
+        assertThat(events).doesNotContain(AlarmEvent.Mission(ALARM.id, "hidden"))
+    }
+
+    @Test
+    fun `screen off during a mission makes the sound loud and ends the session`() {
+        startMissionRing()
+
+        app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        idle()
+
+        assertThat(ringState().missionRun).isNull()
+        assertThat(fakeSound.duck).isEqualTo(1f)
+        assertThat(events).contains(AlarmEvent.Mission(ALARM.id, "screen_off"))
+    }
+
+    @Test
+    fun `screen off is ignored outside of a mission session and during a call`() {
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        idle()
+        assertThat(events).doesNotContain(AlarmEvent.Mission(ALARM.id, "screen_off")) // сессии нет, ресивера нет
+
+        mission(AlarmIntents.ACTION_MISSION_START)
+        app.getSystemService(AudioManager::class.java).mode = AudioManager.MODE_IN_CALL
+        app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        idle()
+        assertThat(ringState().missionRun).isNotNull()
+    }
+
+    @Test
+    fun `screen off receiver is gone once the mission session ends`() {
+        startMissionRing()
+        mission(AlarmIntents.ACTION_MISSION_LEAVE)
+
+        assertThat(shadowOf(app).registeredReceivers.filter { it.intentFilter.hasAction(Intent.ACTION_SCREEN_OFF) })
+            .isEmpty()
     }
 
     @Test

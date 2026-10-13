@@ -40,6 +40,10 @@ class RingingControllerImpl @Inject constructor(@ApplicationContext private val 
 
     override fun missionScreenHidden() = send(AlarmIntents.ACTION_MISSION_HIDDEN)
 
+    override fun missionScreenPaused() = send(AlarmIntents.ACTION_MISSION_PAUSED)
+
+    override fun missionScreenShown() = send(AlarmIntents.ACTION_MISSION_SHOWN)
+
     private fun send(action: String) {
         val ringing = state.value as? RingingState.Ringing ?: return
         // Сервис уже в foreground — обычный startService разрешён и из фона. Гонка с его остановкой

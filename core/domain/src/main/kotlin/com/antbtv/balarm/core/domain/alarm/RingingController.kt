@@ -32,6 +32,15 @@ interface RingingController {
 
     /** Экран миссии больше не виден (Home, Recents, выключение экрана): звук сразу громкий. */
     fun missionScreenHidden()
+
+    /**
+     * Экран звонка приостановлен при включённом дисплее (в Recents `onStop` не приходит, ADR-019 §6): если он
+     * не вернулся за секунду — как [missionScreenHidden]. Отменяется [missionScreenShown].
+     */
+    fun missionScreenPaused()
+
+    /** Экран звонка снова на переднем плане: отменяет ожидающий [missionScreenPaused]. */
+    fun missionScreenShown()
 }
 
 sealed interface RingingState {

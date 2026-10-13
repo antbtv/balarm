@@ -56,6 +56,19 @@ class FakeRingingController(initial: RingingState = RingingState.Idle) : Ringing
     override fun missionScreenHidden() {
         screenHidden++
     }
+
+    var screenPaused = 0
+        private set
+    var screenShown = 0
+        private set
+
+    override fun missionScreenPaused() {
+        screenPaused++
+    }
+
+    override fun missionScreenShown() {
+        screenShown++
+    }
 }
 
 fun ringing(

@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.media.AudioManager
 import android.os.IBinder
@@ -69,7 +71,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * * Состояние меняется только на главном потоке; сервис останавливается только в [stopIfIdle].
  */
 @AndroidEntryPoint
-@Suppress("TooManyFunctions")
+// LargeClass: сессия звонка держит общее состояние (звонок, очередь, миссия); разбиение на коллабораторов - в бэклоге.
+@Suppress("TooManyFunctions", "LargeClass")
 class RingingService : Service() {
 
     @Inject lateinit var engine: AlarmEngine
@@ -107,6 +110,8 @@ class RingingService : Service() {
     private var autoStop: Job? = null
     private var lockRenewal: Job? = null
     private var volumeGuard: Job? = null
+    private var pauseCheck: Job? = null
+    private var screenOffReceiver: BroadcastReceiver? = null
     private var settingsJob: Job? = null
 
     /** Снимок настроек текущего звонка; до прочтения — умолчания (звук не ждёт настройки, ADR-021 §4). */
@@ -180,23 +185,31 @@ class RingingService : Service() {
                 scope.launch { command("snooze") { snooze(id) } }
             }
 
+            else -> if (intent != null) onMissionAction(intent)
+        }
+        stopIfIdle()
+        return START_NOT_STICKY // после гибели процесса звонок возвращает crash re-arm, а не рестарт сервиса
+    }
+
+    /** Команды сессии миссии (FR-MIS): вынесены из [onStartCommand], чтобы не раздувать его разветвление. */
+    private fun onMissionAction(intent: Intent) {
+        when (intent.action) {
             AlarmIntents.ACTION_MISSION_START -> missionCommand(intent, "mission_start", ::startMission)
 
             AlarmIntents.ACTION_MISSION_TOUCH -> missionCommand(intent, "mission_touch", ::touchMission)
 
             AlarmIntents.ACTION_MISSION_LEAVE -> missionCommand(intent, "mission_leave") { leaveMission(it, "left") }
 
-            AlarmIntents.ACTION_MISSION_HIDDEN -> missionCommand(intent, "mission_hidden") {
-                leaveMission(it, "hidden")
-                scheduleScreenReturn(it)
-            }
+            AlarmIntents.ACTION_MISSION_HIDDEN -> missionCommand(intent, "mission_hidden") { onScreenHidden(it) }
+
+            AlarmIntents.ACTION_MISSION_PAUSED -> missionCommand(intent, "mission_paused", ::armPauseCheck)
+
+            AlarmIntents.ACTION_MISSION_SHOWN -> missionCommand(intent, "mission_shown") { cancelPauseCheck() }
 
             AlarmIntents.ACTION_MISSION_DONE -> AlarmIntents.alarmId(intent)?.let { id ->
                 scope.launch { command("mission_done") { completeMission(id) } }
             }
         }
-        stopIfIdle()
-        return START_NOT_STICKY // после гибели процесса звонок возвращает crash re-arm, а не рестарт сервиса
     }
 
     override fun onDestroy() {
@@ -209,6 +222,7 @@ class RingingService : Service() {
         fireKinds.clear()
         rearmIds = emptyList()
         silence()
+        unregisterScreenOff()
         audioManager.removeOnModeChangedListener(modeListener)
         crashGuard?.uninstall()
         controller.publish(RingingState.Idle)
@@ -464,6 +478,7 @@ class RingingService : Service() {
         lockRenewal = null
         volumeGuard?.cancel()
         volumeGuard = null
+        cancelPauseCheck()
         settingsJob?.cancel()
         settingsJob = null
         screenReturn?.cancel()
@@ -524,6 +539,7 @@ class RingingService : Service() {
         if (!isCurrent(id) || !hasMission() || missionRun != null) return
         missionRun = MissionRun(seed = clock.millis() xor id.value)
         missionAlarmId = id
+        registerScreenOff()
         sound.setDuck(ringSettings.duckGain)
         vibrator.stop() // пока миссия приглушена, вибрация на паузе
         armMissionIdle(id)
@@ -570,6 +586,65 @@ class RingingService : Service() {
         record("dismiss") { engine.dismiss(id, DismissReason.USER) }
     }
 
+    private fun onScreenHidden(id: AlarmId) {
+        cancelPauseCheck()
+        leaveMission(id, "hidden")
+        // Возврат уже ждёт своей очереди (пауза, а затем onStop) — не плодим запуски экрана.
+        if (screenReturn?.isActive != true) scheduleScreenReturn(id)
+    }
+
+    /**
+     * Recents: `onStop` экрана не приходит, только `onPause` (R17). Если экран не вернулся за [PAUSE_GRACE],
+     * считаем его скрытым — как и по `onStop`, с начатой сессией миссии или без неё. Пауза дольше секунды из-за
+     * системного окна, ждущего пользователя, тоже засчитывается (миссия начнётся заново); во время телефонного
+     * разговора проверка откладывается до его конца. Сценарий PIN на keyguard проверяется в T-test.
+     */
+    private fun armPauseCheck(id: AlarmId) {
+        if (!isCurrent(id) || !hasMission()) return
+        pauseCheck?.cancel()
+        pauseCheck = scope.launch {
+            delay(PAUSE_GRACE.toMillis())
+            while (isCurrent(id) && callMuted) delay(PAUSE_GRACE.toMillis()) // разговор: экран не перекрываем
+            pauseCheck = null
+            safely("pause_check") {
+                val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
+                if (isCurrent(id) && interactive) onScreenHidden(id)
+            }
+        }
+    }
+
+    private fun cancelPauseCheck() {
+        pauseCheck?.cancel()
+        pauseCheck = null
+    }
+
+    /**
+     * Выключение экрана посреди миссии (R17): звук сразу громкий, сессия миссии заканчивается — иначе приглушение
+     * держалось бы до таймера бездействия. Ресивер живёт только на время сессии миссии. Датчик приближения во
+     * время телефонного разговора экран гасит тоже — при разговоре ([callMuted]) не реагируем.
+     */
+    private fun registerScreenOff() {
+        if (screenOffReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val id = current?.alarm?.id ?: return
+                scope.launch { command("screen_off") { if (!callMuted) leaveMission(id, "screen_off") } }
+            }
+        }
+        screenOffReceiver = receiver
+        registerReceiver(receiver, IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED)
+    }
+
+    private fun unregisterScreenOff() {
+        val receiver = screenOffReceiver ?: return
+        screenOffReceiver = null
+        try {
+            unregisterReceiver(receiver)
+        } catch (_: IllegalArgumentException) {
+            // уже снят (onDestroy после endMissionSession)
+        }
+    }
+
     /**
      * FR-RING-5, R17: экран будильника с миссией ушёл в фон при включённом дисплее (Home, Recents) — через
      * [SCREEN_RETURN_DELAY] открыть его снова (только с overlay-разрешением, см. [startRingingScreen]; без него
@@ -603,6 +678,7 @@ class RingingService : Service() {
         missionIdle = null
         missionRun = null
         missionAlarmId = null
+        unregisterScreenOff()
     }
 
     // endregion
@@ -801,6 +877,9 @@ class RingingService : Service() {
 
         /** FR-RING-5: экран будильника с миссией возвращается после Home/Recents не позже 3 с. */
         val SCREEN_RETURN_DELAY: Duration = Duration.ofSeconds(1)
+
+        /** Сколько экран может быть на паузе, прежде чем считаться скрытым (Recents, ADR-019 §6). */
+        val PAUSE_GRACE: Duration = Duration.ofSeconds(1)
 
         /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
         val CRASH_RESUME_DELAY: Duration = RingingPolicy.CRASH_RESUME_DELAY

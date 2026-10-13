@@ -23,6 +23,8 @@ internal object AlarmIntents {
     const val ACTION_MISSION_LEAVE = "com.antbtv.balarm.action.MISSION_LEAVE"
     const val ACTION_MISSION_DONE = "com.antbtv.balarm.action.MISSION_DONE"
     const val ACTION_MISSION_HIDDEN = "com.antbtv.balarm.action.MISSION_HIDDEN"
+    const val ACTION_MISSION_PAUSED = "com.antbtv.balarm.action.MISSION_PAUSED"
+    const val ACTION_MISSION_SHOWN = "com.antbtv.balarm.action.MISSION_SHOWN"
     const val EXTRA_SCHEDULED_FOR = "scheduled_for"
     const val EXTRA_KIND = "kind"
     const val EXTRA_SKIP_MISSION = "skip_mission"

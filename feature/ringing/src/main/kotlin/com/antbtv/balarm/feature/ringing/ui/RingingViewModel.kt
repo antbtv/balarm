@@ -117,6 +117,18 @@ class RingingViewModel @Inject constructor(
         if (ringing.mission != null) controller.missionScreenHidden()
     }
 
+    /** Экран приостановлен при включённом дисплее (Recents, ADR-019 §6); сервис проверит через секунду. */
+    fun onScreenPaused() {
+        val ringing = controller.state.value as? RingingState.Ringing ?: return
+        if (ringing.mission != null) controller.missionScreenPaused()
+    }
+
+    /** Экран снова виден: отмена ожидающей проверки [onScreenPaused]. */
+    fun onScreenShown() {
+        val ringing = controller.state.value as? RingingState.Ringing ?: return
+        if (ringing.mission != null) controller.missionScreenShown()
+    }
+
     private fun updateLocal(seed: Long, block: (MissionLocal) -> MissionLocal) {
         missionLocal.update { current -> block(current?.takeIf { it.seed == seed } ?: MissionLocal(seed)) }
     }
