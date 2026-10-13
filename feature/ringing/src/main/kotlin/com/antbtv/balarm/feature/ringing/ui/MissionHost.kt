@@ -33,6 +33,7 @@ internal fun MissionHost(mission: MissionUi, onEvent: (RingingEvent) -> Unit, mo
         done = mission.done,
         total = mission.total,
         idleKey = mission.interactions,
+        idleTimeout = mission.idleTimeout,
         modifier = modifier.testTag(RingingTestTags.MISSION),
     ) {
         mission.definition.Content(config = mission.config, session = session, modifier = Modifier)

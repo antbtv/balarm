@@ -1,5 +1,6 @@
 package com.antbtv.balarm.core.domain.alarm
 
+import com.antbtv.balarm.core.domain.settings.SettingsPolicy
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.MissionSpec
 import com.antbtv.balarm.core.model.MissionTypeId
@@ -13,11 +14,11 @@ fun interface MissionCatalog {
 /** Миссия, которую надо пройти на звонке; `null` — недоступный (выключен флаг, неизвестный тип) или отсутствует. */
 fun Alarm.effectiveMission(catalog: MissionCatalog): MissionSpec? = mission?.takeIf { catalog.isAvailable(it.type) }
 
-/** Политика миссии (FR-MIS-2); в MVP — константы, экран настроек — M7. */
+/** Умолчания миссии (FR-MIS-2); действующие значения — `AppSettings` (ADR-021), снимок на звонок. */
 object MissionPolicy {
     /** Бездействие в миссии: после него звук возвращается на 100 %, ввод сбрасывается. */
-    val IDLE_TIMEOUT: Duration = Duration.ofSeconds(15)
+    val IDLE_TIMEOUT: Duration = SettingsPolicy.DEFAULTS.missionIdleTimeout
 
     /** Коэффициент усиления плеера на время миссии (30 %). */
-    const val DUCK_GAIN = 0.3f
+    val DUCK_GAIN: Float = SettingsPolicy.duckGain(SettingsPolicy.DEFAULTS)
 }

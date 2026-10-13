@@ -25,9 +25,11 @@ import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.AutoStop
 import com.antbtv.balarm.core.model.BuiltinSound
 import com.antbtv.balarm.core.model.MissionSpec
 import com.antbtv.balarm.core.model.MissionTypeId
@@ -305,6 +307,98 @@ class RingingServiceTest {
         mission(AlarmIntents.ACTION_DISMISS)
 
         assertThat(events).contains(AlarmEvent.Dismissed(ALARM.id, DismissReason.USER))
+    }
+
+    @Inject lateinit var appSettings: FakeSettingsRepository
+
+    @Test
+    fun `auto stop follows the settings snapshot`() {
+        runBlocking { appSettings.update { it.copy(autoStop = AutoStop.MIN_5) } }
+        start(ringIntent(ALARM.id))
+        idle(Duration.ofMinutes(4))
+        assertThat(fakeSound.playing).isTrue()
+
+        idle(Duration.ofMinutes(2))
+
+        assertThat(fakeSound.playing).isFalse()
+        assertThat(events).contains(AlarmEvent.RingingStopped(ALARM.id, "auto_stop"))
+    }
+
+    @Test
+    fun `auto stop never keeps ringing past the default limit`() {
+        runBlocking { appSettings.update { it.copy(autoStop = AutoStop.NEVER) } }
+        start(ringIntent(ALARM.id))
+
+        var elapsed = 0L
+        for (minutes in listOf(31L, 60L, 95L)) {
+            idle(Duration.ofMinutes(minutes - elapsed))
+            elapsed = minutes
+            assertThat(fakeSound.playing).isTrue()
+            assertThat(ShadowPowerManager.getLatestWakeLock().isHeld).isTrue() // продлевается, не истекает
+        }
+        assertThat(events).doesNotContain(AlarmEvent.RingingStopped(ALARM.id, "auto_stop"))
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        assertThat(ShadowPowerManager.getLatestWakeLock().isHeld).isFalse()
+    }
+
+    @Test
+    fun `unreadable settings fall back to defaults without delaying the sound`() {
+        appSettings.hang = true
+
+        start(ringIntent(ALARM.id))
+        assertThat(fakeSound.playing).isTrue()
+        idle(Duration.ofSeconds(2))
+        assertThat(events).contains(AlarmEvent.SettingsDefaulted(ALARM.id))
+
+        idle(RingingPolicy.AUTO_STOP_AFTER)
+        assertThat(fakeSound.playing).isFalse()
+    }
+
+    @Test
+    fun `failing settings fall back to defaults`() {
+        appSettings.failure = IllegalStateException("datastore")
+
+        start(ringIntent(ALARM.id))
+        idle(Duration.ofSeconds(1))
+
+        assertThat(fakeSound.playing).isTrue()
+        assertThat(events).contains(AlarmEvent.SettingsDefaulted(ALARM.id))
+    }
+
+    @Test
+    fun `mission uses idle timeout and duck level from settings`() {
+        runBlocking {
+            appSettings.update { it.copy(missionIdleTimeout = Duration.ofSeconds(40), missionDuckPercent = 50) }
+        }
+        save(withMission)
+        start(ringIntent(ALARM.id))
+        idle(Duration.ofSeconds(1))
+        assertThat(ringState().missionIdleTimeout).isEqualTo(Duration.ofSeconds(40))
+
+        mission(AlarmIntents.ACTION_MISSION_START)
+        assertThat(fakeSound.duck).isEqualTo(0.5f)
+        idle(Duration.ofSeconds(39))
+        assertThat(ringState().missionRun?.idleResets).isEqualTo(0)
+
+        idle(Duration.ofSeconds(2))
+        assertThat(ringState().missionRun?.idleResets).isEqualTo(1)
+    }
+
+    @Test
+    fun `each alarm of the queue takes its own snapshot`() {
+        runBlocking { appSettings.update { it.copy(autoStop = AutoStop.MIN_5) } }
+        start(ringIntent(ALARM.id))
+        start(ringIntent(OTHER.id))
+        idle(Duration.ofSeconds(1))
+        runBlocking { appSettings.update { it.copy(autoStop = AutoStop.MIN_10) } }
+
+        start(AlarmIntents.command(app, AlarmIntents.ACTION_DISMISS, ALARM.id))
+        idle(Duration.ofMinutes(7))
+
+        assertThat(controller.state.value).isInstanceOf(RingingState.Ringing::class.java) // у второго — 10 мин
+        idle(Duration.ofMinutes(4))
+        assertThat(events).contains(AlarmEvent.RingingStopped(OTHER.id, "auto_stop"))
     }
 
     @Test

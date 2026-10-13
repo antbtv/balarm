@@ -1,7 +1,9 @@
 package com.antbtv.balarm.feature.ringing.ui
 
 import androidx.compose.runtime.Immutable
+import com.antbtv.balarm.core.domain.alarm.MissionPolicy
 import com.antbtv.balarm.feature.missions.api.MissionDefinition
+import java.time.Duration
 import java.time.LocalDateTime
 
 /**
@@ -34,6 +36,7 @@ data class MissionUi(
     val done: Int = 0,
     val total: Int = 0,
     val interactions: Int = 0,
+    val idleTimeout: Duration = MissionPolicy.IDLE_TIMEOUT,
 )
 
 enum class RingingPhase {

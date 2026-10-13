@@ -13,8 +13,14 @@ import java.time.Duration
 internal object RingingWakeLocks {
     private val DELIVERY_TIMEOUT: Duration = Duration.ofSeconds(60)
 
-    /** Автостоп + запас: если сессия зависнет, CPU всё равно отпустим. */
+    /** Автостоп по умолчанию + запас: если сессия зависнет, CPU всё равно отпустим. */
     val SESSION_TIMEOUT: Duration = RingingPolicy.AUTO_STOP_AFTER.plusMinutes(1)
+
+    /** Автостоп «никогда»: WakeLock с таймаутом без автостопа не берём, а продлеваем (ADR-021 §5). */
+    val UNLIMITED_TIMEOUT: Duration = Duration.ofMinutes(30)
+    val UNLIMITED_RENEW_EVERY: Duration = Duration.ofMinutes(25)
+
+    fun sessionTimeout(remaining: Duration): Duration = remaining.plusMinutes(1)
 
     private var delivery: PowerManager.WakeLock? = null
 

@@ -12,6 +12,7 @@ import com.antbtv.balarm.core.domain.alarm.MissionCatalog
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.domain.alarm.TestAlarmStore
 import com.antbtv.balarm.core.domain.di.ApplicationScope
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
 import com.antbtv.balarm.core.domain.sound.RingVolumeStore
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
@@ -69,12 +70,19 @@ object TestAlarmModule {
     fun testStore(store: InMemoryTestAlarmStore): TestAlarmStore = store
 
     @Provides @Singleton
+    fun fakeSettings() = FakeSettingsRepository()
+
+    @Provides
+    fun settings(fake: FakeSettingsRepository): SettingsRepository = fake
+
+    @Provides @Singleton
     fun engine(
         repository: FakeAlarmRepository,
         scheduler: FakeAlarmScheduler,
         clock: MutableClock,
         log: RecordingEventLog,
         store: InMemoryTestAlarmStore,
+        settings: FakeSettingsRepository,
     ) = AlarmEngine(
         repository = repository,
         scheduler = scheduler,
@@ -82,7 +90,7 @@ object TestAlarmModule {
         flags = { true },
         log = log,
         testAlarms = TestAlarmRunner(scheduler, store, clock, log),
-        settings = FakeSettingsRepository(),
+        settings = settings,
         missedNotifier = { _, _ -> },
     )
 

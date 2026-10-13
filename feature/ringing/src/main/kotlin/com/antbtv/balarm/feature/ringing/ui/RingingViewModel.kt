@@ -167,6 +167,7 @@ class RingingViewModel @Inject constructor(
             done = own?.done ?: 0,
             total = own?.total ?: 0,
             interactions = own?.interactions ?: 0,
+            idleTimeout = missionIdleTimeout,
         )
     }
 

@@ -35,6 +35,9 @@ import com.antbtv.balarm.core.domain.alarm.ScheduleRequest
 import com.antbtv.balarm.core.domain.alarm.SkipReason
 import com.antbtv.balarm.core.domain.alarm.SnoozeResult
 import com.antbtv.balarm.core.domain.alarm.effectiveMission
+import com.antbtv.balarm.core.domain.settings.RingSettings
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
+import com.antbtv.balarm.core.domain.settings.toRingSettings
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.SoundSettings
 import dagger.hilt.android.AndroidEntryPoint
@@ -50,7 +53,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Сессия звонка (ADR-007 §2–7): foreground service `systemExempted`, звук и вибрация, WakeLock на весь звонок.
@@ -89,6 +94,8 @@ class RingingService : Service() {
 
     @Inject lateinit var clock: Clock
 
+    @Inject lateinit var settings: SettingsRepository
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val fires = Channel<ScheduleRequest>(Channel.UNLIMITED)
     private val waiting = ArrayDeque<FireDecision.Ring>()
@@ -98,6 +105,11 @@ class RingingService : Service() {
     private var current: FireDecision.Ring? = null
     private var startedAt: Instant = Instant.EPOCH
     private var autoStop: Job? = null
+    private var lockRenewal: Job? = null
+    private var settingsJob: Job? = null
+
+    /** Снимок настроек текущего звонка; до прочтения — умолчания (звук не ждёт настройки, ADR-021 §4). */
+    private var ringSettings = RingSettings.DEFAULTS
 
     /** Срабатывание, по которому движок сейчас решает. */
     private var deciding: ScheduleRequest? = null
@@ -343,13 +355,72 @@ class RingingService : Service() {
         }
         syncCallMode()
         val id = decision.alarm.id
+        ringSettings = RingSettings.DEFAULTS
+        armAutoStop(id)
+        loadSettings(id)
+        publish()
+        startRingingScreen()
+    }
+
+    /**
+     * Автостоп текущего звонка по [ringSettings] (FR-RING-6): остаток от начала звонка; «никогда» — без таймера,
+     * сессионный WakeLock продлевается каждые 25 мин (ADR-021 §5).
+     */
+    private fun armAutoStop(id: AlarmId) {
+        autoStop?.cancel()
+        lockRenewal?.cancel()
+        autoStop = null
+        lockRenewal = null
+        val limit = ringSettings.autoStop.duration
+        if (limit == null) {
+            sessionLock?.acquire(RingingWakeLocks.UNLIMITED_TIMEOUT.toMillis())
+            lockRenewal = scope.launch {
+                while (true) {
+                    delay(RingingWakeLocks.UNLIMITED_RENEW_EVERY.toMillis())
+                    sessionLock?.acquire(RingingWakeLocks.UNLIMITED_TIMEOUT.toMillis())
+                }
+            }
+            return
+        }
+        val remaining = (limit - Duration.between(startedAt, clock.instant())).coerceAtLeast(Duration.ZERO)
+        sessionLock?.acquire(RingingWakeLocks.sessionTimeout(remaining).toMillis())
         autoStop = scope.launch {
-            delay(RingingPolicy.AUTO_STOP_AFTER.toMillis()) // CPU держит сессионный WakeLock
+            delay(remaining.toMillis()) // CPU держит сессионный WakeLock
             // Отдельная корутина: finishCurrent отменяет таймер, а запись в движок отменяться не должна.
             scope.launch { command("auto_stop") { autoStop(id) } }
         }
-        publish()
-        startRingingScreen()
+    }
+
+    /**
+     * Читает настройки для звонка [id] параллельно звуку: не готовы за [SETTINGS_TIMEOUT] — остаются умолчания.
+     * Снимок действует до конца этого звонка; у каждого звонка очереди свой (ADR-021 §4).
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun loadSettings(id: AlarmId) {
+        settingsJob?.cancel()
+        settingsJob = scope.launch {
+            val loaded = try {
+                withTimeoutOrNull(SETTINGS_TIMEOUT.toMillis()) { settings.settings.first() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.log(AlarmEvent.RingingCommandFailed("load_settings", e.javaClass.simpleName))
+                null
+            }
+            if (!isCurrent(id)) return@launch
+            if (loaded == null) {
+                log.log(AlarmEvent.SettingsDefaulted(id))
+                return@launch
+            }
+            ringSettings = loaded.toRingSettings()
+            armAutoStop(id)
+            // Миссия успела начаться по умолчаниям (окно ≤ 1 с): перевести её на значения снимка.
+            if (missionRun != null) {
+                sound.setDuck(ringSettings.duckGain)
+                armMissionIdle(id)
+            }
+            publish()
+        }
     }
 
     /**
@@ -374,6 +445,10 @@ class RingingService : Service() {
         val ring = current ?: return
         autoStop?.cancel()
         autoStop = null
+        lockRenewal?.cancel()
+        lockRenewal = null
+        settingsJob?.cancel()
+        settingsJob = null
         screenReturn?.cancel()
         screenReturn = null
         endMissionSession()
@@ -432,7 +507,7 @@ class RingingService : Service() {
         if (!isCurrent(id) || !hasMission() || missionRun != null) return
         missionRun = MissionRun(seed = clock.millis() xor id.value)
         missionAlarmId = id
-        sound.setDuck(MissionPolicy.DUCK_GAIN)
+        sound.setDuck(ringSettings.duckGain)
         vibrator.stop() // пока миссия приглушена, вибрация на паузе
         armMissionIdle(id)
         log.log(AlarmEvent.Mission(id, "started"))
@@ -442,7 +517,7 @@ class RingingService : Service() {
     private fun touchMission(id: AlarmId) {
         if (missionRun == null || !isCurrent(id)) return
         // После бездействия звук был громкий — первое же касание снова приглушает.
-        sound.setDuck(MissionPolicy.DUCK_GAIN)
+        sound.setDuck(ringSettings.duckGain)
         if (!callMuted) vibrator.stop() // в разговоре вибрация — единственный сигнал
         armMissionIdle(id)
     }
@@ -450,7 +525,7 @@ class RingingService : Service() {
     private fun armMissionIdle(id: AlarmId) {
         missionIdle?.cancel()
         missionIdle = scope.launch {
-            delay(MissionPolicy.IDLE_TIMEOUT.toMillis())
+            delay(ringSettings.missionIdleTimeout.toMillis())
             // Своя корутина вне command(): необработанное исключение уронило бы процесс посреди звонка.
             safely("mission_idle") {
                 val run = missionRun ?: return@safely
@@ -614,6 +689,7 @@ class RingingService : Service() {
                 queued = waiting.size,
                 mission = ring.alarm.effectiveMission(missions),
                 missionRun = missionRun,
+                missionIdleTimeout = ringSettings.missionIdleTimeout,
             ),
         )
         try {
@@ -720,6 +796,9 @@ class RingingService : Service() {
             AudioManager.MODE_CALL_REDIRECT,
             AudioManager.MODE_COMMUNICATION_REDIRECT,
         )
+
+        /** Сколько ждём настройки звонка, прежде чем взять умолчания. */
+        private val SETTINGS_TIMEOUT: Duration = Duration.ofSeconds(1)
 
         private val NO_FADE_KINDS = setOf(FireKind.RESUME, FireKind.CATCH_UP)
 

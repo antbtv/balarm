@@ -48,6 +48,8 @@ sealed interface RingingState {
         val mission: MissionSpec? = null,
         /** Идёт сессия миссии; `null` — экран звонка. */
         val missionRun: MissionRun? = null,
+        /** Таймер бездействия миссии из настроек (снимок на звонок, FR-MIS-2). */
+        val missionIdleTimeout: Duration = MissionPolicy.IDLE_TIMEOUT,
     ) : RingingState
 }
 

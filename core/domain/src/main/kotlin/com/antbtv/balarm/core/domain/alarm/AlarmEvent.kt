@@ -53,6 +53,12 @@ sealed interface AlarmEvent {
         override val fields = mapOf("id" to id.value, "at" to at)
     }
 
+    /** Настройки не прочитались за таймаут — звонок идёт с умолчаниями (ADR-021 §4). */
+    data class SettingsDefaulted(val id: AlarmId) : AlarmEvent {
+        override val name = "SETTINGS_DEFAULTED"
+        override val fields = mapOf("id" to id.value)
+    }
+
     data class Cancelled(val id: AlarmId) : AlarmEvent {
         override val name = "CANCELLED"
         override val fields = mapOf("id" to id.value)

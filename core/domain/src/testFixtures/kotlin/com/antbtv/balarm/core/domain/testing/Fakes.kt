@@ -22,9 +22,12 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 
 /** Часы, которые тест двигает вручную; зона тоже меняется (смена TZ). */
 class MutableClock(var now: Instant, var zoneId: ZoneId) : Clock() {
@@ -156,7 +159,16 @@ class RecordingMissedNotifier : MissedAlarmNotifier {
 /** Настройки в памяти; по умолчанию — [SettingsPolicy.DEFAULTS]. */
 class FakeSettingsRepository(initial: AppSettings = SettingsPolicy.DEFAULTS) : SettingsRepository {
     private val state = MutableStateFlow(initial)
-    override val settings: Flow<AppSettings> = state
+
+    /** Чтение зависает (хранилище не отвечает) или падает — для проверки умолчаний. */
+    var hang = false
+    var failure: Throwable? = null
+
+    override val settings: Flow<AppSettings> = flow {
+        if (hang) awaitCancellation()
+        failure?.let { throw it }
+        emitAll(state)
+    }
 
     override suspend fun update(transform: (AppSettings) -> AppSettings) {
         state.value = SettingsPolicy.sanitize(transform(state.value))
