@@ -344,6 +344,53 @@ class AlarmEditScreenTest {
         assertThat(sunday.left).isLessThan(monday.left)
     }
 
+    /** Дни в порядке слева направо (в RTL — справа налево не проверяем: тесты в en-US/ru-RU). */
+    private fun chipOrder(): List<DayOfWeek> {
+        node(DayChipsTestTags.ROW).performScrollTo()
+        return DayOfWeek.entries.sortedBy { node(DayChipsTestTags.chip(it)).getBoundsInRoot().left }
+    }
+
+    private fun weekFrom(first: DayOfWeek): List<DayOfWeek> = List(7) { first.plus(it.toLong()) }
+
+    @Test
+    fun `chips follow the first day of week from settings - sunday, monday, then locale again`() {
+        showFromSystem(existing().copy(firstDayOfWeek = DayOfWeek.SUNDAY))
+        assertThat(chipOrder()).isEqualTo(weekFrom(DayOfWeek.SUNDAY))
+
+        state = state.copy(firstDayOfWeek = DayOfWeek.MONDAY)
+        composeRule.waitForIdle()
+        assertThat(chipOrder()).isEqualTo(weekFrom(DayOfWeek.MONDAY))
+
+        // null — по локали: en-US начинает неделю с воскресенья.
+        state = state.copy(firstDayOfWeek = null)
+        composeRule.waitForIdle()
+        assertThat(chipOrder()).isEqualTo(weekFrom(DayOfWeek.SUNDAY))
+    }
+
+    @Test
+    @Config(qualifiers = "ru-rRU")
+    fun `without a setting the russian week starts on monday`() {
+        showFromSystem(existing().copy(firstDayOfWeek = null))
+
+        assertThat(chipOrder()).isEqualTo(weekFrom(DayOfWeek.MONDAY))
+    }
+
+    @Test
+    fun `the same taps give the same days whatever the display order`() {
+        val taps = listOf(DayOfWeek.SUNDAY, DayOfWeek.WEDNESDAY, DayOfWeek.SATURDAY)
+        showFromSystem(new().copy(firstDayOfWeek = DayOfWeek.SUNDAY))
+        taps.forEach { click(DayChipsTestTags.chip(it)) }
+        val fromSunday = state.draft.repeatDays
+
+        state = new().copy(firstDayOfWeek = DayOfWeek.MONDAY)
+        composeRule.waitForIdle()
+        taps.forEach { click(DayChipsTestTags.chip(it)) }
+        val fromMonday = state.draft.repeatDays
+
+        assertThat(fromSunday).containsExactlyElementsIn(taps)
+        assertThat(fromMonday).isEqualTo(fromSunday)
+    }
+
     @Test
     @Config(qualifiers = "en-rUS-w360dp-h640dp")
     fun `day chips are at least 48dp wide on a 360dp screen`() {

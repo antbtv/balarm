@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
@@ -285,6 +286,47 @@ class AlarmListScreenTest {
         switch(gym.id).assertContentDescriptionEquals("Alarm 06:30, Gym")
         card(late.id).assertContentDescriptionEquals("Alarm 23:59, once, off")
         card(gym.id).assert(hasClickLabels(click = "Edit", longClick = "Show actions"))
+    }
+
+    // --- Первый день недели ---
+
+    private fun cardDescription(id: AlarmId): String =
+        card(id).fetchSemanticsNode().config[SemanticsProperties.ContentDescription].joinToString()
+
+    @Test
+    fun `card days follow the first day of week from settings`() {
+        val custom = gym.copy(repeatDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.SUNDAY))
+        var state by mutableStateOf(data.copy(alarms = listOf(custom), firstDayOfWeek = DayOfWeek.SUNDAY))
+        composeRule.setContent {
+            BalarmTheme {
+                AlarmListScreen(
+                    state = state,
+                    onEvent = { events += it },
+                    onAddAlarm = { added++ },
+                    onOpenAlarm = { opened += it },
+                    onOpenHealth = { healthOpened++ },
+                )
+            }
+        }
+        assertThat(cardDescription(custom.id)).contains("Sunday, Monday, Wednesday")
+
+        state = state.copy(firstDayOfWeek = DayOfWeek.MONDAY)
+        composeRule.waitForIdle()
+        assertThat(cardDescription(custom.id)).contains("Monday, Wednesday, Sunday")
+
+        // null — по локали: en-US начинает неделю с воскресенья.
+        state = state.copy(firstDayOfWeek = null)
+        composeRule.waitForIdle()
+        assertThat(cardDescription(custom.id)).contains("Sunday, Monday, Wednesday")
+    }
+
+    @Test
+    @Config(qualifiers = "ru-rRU")
+    fun `without a setting the russian card starts the week on monday`() {
+        val custom = gym.copy(repeatDays = setOf(DayOfWeek.MONDAY, DayOfWeek.SUNDAY))
+        showFromSystem(data.copy(alarms = listOf(custom), firstDayOfWeek = null))
+
+        assertThat(cardDescription(custom.id)).contains("понедельник, воскресенье")
     }
 
     @Test

@@ -154,7 +154,7 @@ fun AlarmEditScreen(state: AlarmEditUiState, onEvent: (AlarmEditEvent) -> Unit, 
     AlarmEditScreen(
         state = state,
         clockFormat = rememberClockFormat(),
-        weekdayFormat = rememberWeekdayFormat(),
+        weekdayFormat = rememberWeekdayFormat(state.firstDayOfWeek),
         onEvent = onEvent,
         modifier = modifier,
     )

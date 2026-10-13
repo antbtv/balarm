@@ -108,4 +108,17 @@ class AlarmCardTextsTest {
         assertThat(us.first().label).isEqualTo(usWeek.shortName(DayOfWeek.SUNDAY))
         assertThat(us[1].selected).isTrue()
     }
+
+    @Test
+    fun `first day from settings reorders russian pills and repeat text but not the selection`() {
+        val days = setOf(DayOfWeek.MONDAY, DayOfWeek.SUNDAY)
+        val ruFromSunday = WeekdayFormat.forLocale(Locale.forLanguageTag("ru-RU"), DayOfWeek.SUNDAY)
+
+        val pills = dayPills(days, ruFromSunday)
+
+        assertThat(pills.map { it.label }.take(2)).containsExactly("Вс", "Пн").inOrder()
+        assertThat(pills.count { it.selected }).isEqualTo(2)
+        assertThat(repeatText(days, ruFromSunday, resources)).isEqualTo("воскресенье, понедельник")
+        assertThat(repeatText(days, ruWeek, resources)).isEqualTo("понедельник, воскресенье")
+    }
 }

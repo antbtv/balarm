@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.domain.testing.testAlarmRunner
@@ -64,6 +65,7 @@ class AlarmEditMissionViewModelTest {
         FakeSoundRepository(),
         preview,
         missionRegistry(enabled = missionFlag),
+        FakeSettingsRepository(),
     ).also { runCurrent() }
 
     private fun stored(alarm: Alarm): Long = runBlocking { engine.save(alarm).id.value }

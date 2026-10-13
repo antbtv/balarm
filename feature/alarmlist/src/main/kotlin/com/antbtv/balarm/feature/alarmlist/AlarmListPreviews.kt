@@ -81,7 +81,7 @@ private fun PreviewScreen(
     AlarmListScreen(
         state = state,
         clockFormat = ClockFormat(locale, is24Hour),
-        weekdayFormat = WeekdayFormat.forLocale(locale),
+        weekdayFormat = WeekdayFormat.forLocale(locale, state.firstDayOfWeek),
         onEvent = {},
         onAddAlarm = {},
         onOpenAlarm = {},
@@ -112,6 +112,14 @@ private fun AlarmListLargeFontPreview() {
 @Composable
 private fun AlarmListRuPreview() {
     BalarmTheme { PreviewScreen(PreviewData, locale = Locale.forLanguageTag("ru-RU")) }
+}
+
+@Preview(name = "List — RU, week from Sunday (setting)", widthDp = 360, heightDp = 720, locale = "ru")
+@Composable
+private fun AlarmListRuSundayPreview() {
+    BalarmTheme {
+        PreviewScreen(PreviewData.copy(firstDayOfWeek = DayOfWeek.SUNDAY), locale = Locale.forLanguageTag("ru-RU"))
+    }
 }
 
 @Preview(name = "List — light", widthDp = 360, heightDp = 720)

@@ -129,7 +129,7 @@ private fun PreviewScreen(state: AlarmEditUiState, is24Hour: Boolean = true, loc
     AlarmEditScreen(
         state = state,
         clockFormat = ClockFormat(locale, is24Hour),
-        weekdayFormat = WeekdayFormat.forLocale(locale),
+        weekdayFormat = WeekdayFormat.forLocale(locale, state.firstDayOfWeek),
         onEvent = {},
         windowInsets = PreviewBarsInsets,
     )
@@ -145,6 +145,12 @@ private fun ExistingPreview() {
 @Composable
 private fun NewPreview() {
     BalarmTheme { PreviewScreen(NewState) }
+}
+
+@Preview(name = "Existing — RU, week from Sunday (setting)", widthDp = 360, heightDp = 1000, locale = "ru")
+@Composable
+private fun RussianSundayPreview() {
+    BalarmTheme { PreviewScreen(ExistingState.copy(firstDayOfWeek = DayOfWeek.SUNDAY), locale = Russian) }
 }
 
 @Preview(name = "Existing — 12h", widthDp = 360, heightDp = 1000)

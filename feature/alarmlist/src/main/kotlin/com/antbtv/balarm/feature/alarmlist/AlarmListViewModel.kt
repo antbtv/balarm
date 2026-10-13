@@ -13,10 +13,12 @@ import com.antbtv.balarm.core.domain.health.SetupStateRepository
 import com.antbtv.balarm.core.domain.health.healthReportFlow
 import com.antbtv.balarm.core.domain.schedule.minuteTicks
 import com.antbtv.balarm.core.domain.schedule.timeUntil
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.TriggerKind
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
+import java.time.DayOfWeek
 import java.time.Instant
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -26,8 +28,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,6 +41,8 @@ import kotlinx.coroutines.withContext
 /**
  * Список будильников (FR-LIST-1…4). Читает [AlarmRepository.observeAlarmsWithRuntime] и минутный тик,
  * меняет расписание только через [AlarmEngine] (ADR-011 §5). Тик живёт, пока на экран подписаны (NFR-9).
+ *
+ * Первый день недели (ADR-021 п. 8) — из [SettingsRepository], только для порядка дней в карточках.
  */
 @HiltViewModel
 class AlarmListViewModel @Inject constructor(
@@ -44,6 +51,7 @@ class AlarmListViewModel @Inject constructor(
     private val clock: Clock,
     private val checker: PermissionHealthChecker,
     setup: SetupStateRepository,
+    settings: SettingsRepository,
 ) : ViewModel() {
 
     private val snapshot = MutableStateFlow(checker.snapshot())
@@ -54,9 +62,10 @@ class AlarmListViewModel @Inject constructor(
         alarms,
         minuteTicks(clock),
         healthReportFlow(snapshot, setup.state, alarms),
-    ) { alarms, _, report ->
+        settings.firstDayOfWeek(),
+    ) { alarms, _, report, firstDay ->
         // Тик нужен только как повод пересчитать; момент берём точный, иначе «через 1 мин» округлится не туда.
-        alarms.toUiState(clock).copy(healthWarning = report.needsAttention)
+        alarms.toUiState(clock).copy(healthWarning = report.needsAttention, firstDayOfWeek = firstDay)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
@@ -117,6 +126,16 @@ class AlarmListViewModel @Inject constructor(
         const val STOP_TIMEOUT_MS = 5_000L
     }
 }
+
+/**
+ * Первый день недели из настроек; пока не прочитан, при сбое чтения или выключенном флаге (репозиторий отдаёт
+ * `null`) — `null`, то есть по локали. Список не ждёт настроек и не падает из-за них.
+ */
+private fun SettingsRepository.firstDayOfWeek(): Flow<DayOfWeek?> = settings
+    .map<_, DayOfWeek?> { it.firstDayOfWeek }
+    .catch { emit(null) }
+    .onStart { emit(null) }
+    .distinctUntilChanged()
 
 internal fun List<AlarmWithRuntime>.toUiState(clock: Clock): AlarmListUiState {
     val now = clock.instant()

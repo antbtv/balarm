@@ -34,7 +34,7 @@
 | [x] | M9-T05 | `VolumeGuard` 🔔 | FR-RING-4 | S | — | |
 | [x] | M9-T06 | Возврат экрана после Recents и SCREEN_OFF в миссии 🔔 | FR-RING-5, FR-MIS-3 | M | — | |
 | [x] | M9-T07 | 🎨 Экран настроек: секция «Общие» | §3.9 | M | T01 | |
-| [ ] | M9-T08 | 🎨 Первый день недели в `:core:format`, DayChips, список, редактор | §3.9 | S | T01, T07 | |
+| [x] | M9-T08 | 🎨 Первый день недели в `:core:format`, DayChips, список, редактор | §3.9 | S | T01, T07 | |
 | [ ] | M9-T-test | Тестирование этапа, R-матрица (tester) 🔔 | §9.2 | L | T01–T08 | |
 | [ ] | M9-T-review | Ревью этапа (reviewer) | — | S | T-test | |
 | [ ] | M9-T-docs | PRD/ADR/CLAUDE.md, флаг → true | — | S | T-review | |

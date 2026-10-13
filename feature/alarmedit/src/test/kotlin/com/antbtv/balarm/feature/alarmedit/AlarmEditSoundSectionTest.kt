@@ -36,6 +36,7 @@ import com.antbtv.balarm.core.designsystem.theme.BalarmDimens
 import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.domain.testing.testAlarmRunner
@@ -262,6 +263,7 @@ class AlarmEditSoundSectionTest {
             FakeSoundRepository(),
             preview,
             missionRegistry(enabled = false),
+            FakeSettingsRepository(),
         )
         var picked by mutableStateOf<SoundRef?>(MARIMBA)
         var consumed = 0

@@ -14,6 +14,8 @@ import java.time.LocalTime
  * @property nextIn время до ближайшего срабатывания любого будильника; `null` — «Нет активных будильников».
  * @property healthWarning баннер FR-LIST-5: отозвано критичное разрешение или планирование не удалось; показывается
  * независимо от наличия будильников.
+ * @property firstDayOfWeek первый день недели из настроек приложения (порядок дней в карточках); `null` — по локали.
+ * На расписание не влияет.
  */
 @Immutable
 data class AlarmListUiState(
@@ -21,6 +23,7 @@ data class AlarmListUiState(
     val alarms: List<AlarmItemUi> = emptyList(),
     val nextIn: TimeUntil? = null,
     val healthWarning: Boolean = false,
+    val firstDayOfWeek: DayOfWeek? = null,
 ) {
     val isEmpty: Boolean get() = !loading && alarms.isEmpty()
 }

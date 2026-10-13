@@ -28,6 +28,7 @@ import java.time.LocalTime
  * «Миссия» нет, `draft.mission` не меняется (сохранённая миссия выключенного типа сохраняется как есть).
  * @property missionSettingsOpen открыт экран настройки миссии (подэкран редактора поверх формы).
  * @property customTitles названия своих мелодий из библиотеки; `null` — ещё не загружены (или флаг выключен).
+ * @property firstDayOfWeek первый день недели из настроек приложения — только порядок чипов дней; `null` — по локали.
  * @property saving «Сохранить» нажато: повторные нажатия игнорируются, пока операция движка не закончилась.
  */
 @Immutable
@@ -41,6 +42,7 @@ data class AlarmEditUiState(
     val customTitles: Map<CustomSoundId, String>? = null,
     val missions: List<MissionDefinition> = emptyList(),
     val missionSettingsOpen: Boolean = false,
+    val firstDayOfWeek: DayOfWeek? = null,
     val saving: Boolean = false,
     val dialog: EditDialog? = null,
 ) {

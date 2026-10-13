@@ -7,6 +7,7 @@ import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.alarm.AlarmRepository
 import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.domain.schedule.timeUntil
+import com.antbtv.balarm.core.domain.settings.SettingsRepository
 import com.antbtv.balarm.core.domain.sound.SoundPreview
 import com.antbtv.balarm.core.domain.sound.SoundRepository
 import com.antbtv.balarm.core.model.Alarm
@@ -29,6 +30,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,6 +51,8 @@ import kotlinx.coroutines.withContext
  *
  * Миссия (FR-EDIT-6, FR-MIS-5, ADR-018 §6): список — `MissionRegistry.available` (флаг каждой миссии); пусто —
  * строки нет и `draft.mission` не меняется. Настройка — подэкран редактора, превью — эффект для навигации `:app`.
+ *
+ * Первый день недели (ADR-021 п. 8) — из [settings], только порядок чипов дней; `repeatDays` от него не зависят.
  */
 @HiltViewModel(assistedFactory = AlarmEditViewModel.Factory::class)
 class AlarmEditViewModel @AssistedInject constructor(
@@ -60,6 +65,7 @@ class AlarmEditViewModel @AssistedInject constructor(
     private val sounds: SoundRepository,
     private val preview: SoundPreview,
     missions: MissionRegistry,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -90,6 +96,18 @@ class AlarmEditViewModel @AssistedInject constructor(
     init {
         if (alarmId != null) load(alarmId)
         if (soundVisible) observeCustomTitles()
+        observeFirstDayOfWeek()
+    }
+
+    /** Пока настройки не прочитаны или чтение упало — `null` (порядок по локали); форма их не ждёт. */
+    private fun observeFirstDayOfWeek() {
+        viewModelScope.launch {
+            settings.settings
+                .map { it.firstDayOfWeek }
+                .distinctUntilChanged()
+                .catch { }
+                .collect { day -> _uiState.update { it.copy(firstDayOfWeek = day) } }
+        }
     }
 
     /** Названия живые: переименование/удаление в библиотеке сразу видно в строке «Мелодия». */

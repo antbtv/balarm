@@ -12,7 +12,8 @@ import java.util.Locale
 
 /**
  * Дни недели для чипов и карточек: порядок — от первого дня недели пользователя (Android 14+ учитывает
- * «Региональные настройки»), имена — по локали.
+ * «Региональные настройки») или от явной настройки приложения (ADR-021 п. 8), имена — по локали.
+ * Только отображение: на расписание порядок не влияет.
  */
 @Immutable
 class WeekdayFormat(val locale: Locale, val firstDay: DayOfWeek) {
@@ -26,7 +27,12 @@ class WeekdayFormat(val locale: Locale, val firstDay: DayOfWeek) {
     fun fullName(day: DayOfWeek): String = day.getDisplayName(TextStyle.FULL_STANDALONE, locale)
 
     companion object {
-        fun forLocale(locale: Locale): WeekdayFormat = WeekdayFormat(locale, firstDayOf(locale))
+        /**
+         * @param firstDayOverride первый день из настроек приложения (`AppSettings.firstDayOfWeek`); `null` — по
+         * локали.
+         */
+        fun forLocale(locale: Locale, firstDayOverride: DayOfWeek? = null): WeekdayFormat =
+            WeekdayFormat(locale, firstDayOverride ?: firstDayOf(locale))
 
         private fun firstDayOf(locale: Locale): DayOfWeek = runCatching {
             when (LocalePreferences.getFirstDayOfWeek(locale)) {
@@ -43,8 +49,9 @@ class WeekdayFormat(val locale: Locale, val firstDay: DayOfWeek) {
     }
 }
 
+/** Формат по текущей локали; [firstDayOverride] — первый день из настроек приложения, `null` — по локали. */
 @Composable
-fun rememberWeekdayFormat(): WeekdayFormat {
+fun rememberWeekdayFormat(firstDayOverride: DayOfWeek? = null): WeekdayFormat {
     val locale = LocalConfiguration.current.locales[0]
-    return remember(locale) { WeekdayFormat.forLocale(locale) }
+    return remember(locale, firstDayOverride) { WeekdayFormat.forLocale(locale, firstDayOverride) }
 }

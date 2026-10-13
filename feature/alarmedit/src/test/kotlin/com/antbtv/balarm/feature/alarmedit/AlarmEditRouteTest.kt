@@ -21,6 +21,7 @@ import com.antbtv.balarm.core.designsystem.theme.BalarmTheme
 import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.domain.testing.testAlarmRunner
@@ -74,7 +75,9 @@ class AlarmEditRouteTest {
 
     private fun showRoute(alarmId: Long? = null) {
         val runner = testAlarmRunner(scheduler, clock, log)
-        val viewModel = AlarmEditViewModel(alarmId, repository, engine, runner, clock, flags, sounds, preview, missions)
+        val settings = FakeSettingsRepository()
+        val viewModel =
+            AlarmEditViewModel(alarmId, repository, engine, runner, clock, flags, sounds, preview, missions, settings)
         composeRule.setContent {
             BalarmTheme { AlarmEditRoute(viewModel = viewModel, onClose = { closed++ }) }
         }

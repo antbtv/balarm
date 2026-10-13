@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.antbtv.balarm.core.domain.alarm.AlarmEngine
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.domain.testing.testAlarmRunner
@@ -78,6 +79,7 @@ class AlarmEditSoundViewModelTest {
             sounds,
             preview,
             missions,
+            FakeSettingsRepository(),
         )
         val factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -163,6 +165,7 @@ class AlarmEditSoundViewModelTest {
             sounds,
             preview,
             missions,
+            FakeSettingsRepository(),
         )
         assertThat(viewModel.uiState.value.loading).isTrue()
 

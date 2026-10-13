@@ -112,7 +112,7 @@ fun AlarmListScreen(
     AlarmListScreen(
         state = state,
         clockFormat = rememberClockFormat(),
-        weekdayFormat = rememberWeekdayFormat(),
+        weekdayFormat = rememberWeekdayFormat(state.firstDayOfWeek),
         onEvent = onEvent,
         onAddAlarm = onAddAlarm,
         onOpenAlarm = onOpenAlarm,

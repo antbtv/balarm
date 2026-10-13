@@ -13,12 +13,14 @@ import com.antbtv.balarm.core.domain.alarm.TestAlarmRunner
 import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
 import com.antbtv.balarm.core.domain.testing.testAlarmRunner
 import com.antbtv.balarm.core.domain.testing.testEngine
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
+import com.antbtv.balarm.core.model.AppSettings
 import com.antbtv.balarm.core.model.SnoozeSettings
 import com.antbtv.balarm.core.model.feature.Feature
 import com.antbtv.balarm.core.model.feature.FeatureFlagProvider
@@ -65,6 +67,7 @@ class AlarmEditViewModelTest {
     private val sounds = FakeSoundRepository()
     private val preview = RecordingSoundPreview()
     private val missions = missionRegistry(enabled = false)
+    private var settings = FakeSettingsRepository()
     private val engine: AlarmEngine = testEngine(repository, scheduler, clock, flags, log)
     private val testAlarms = testAlarmRunner(scheduler, clock, log)
 
@@ -85,7 +88,9 @@ class AlarmEditViewModelTest {
         repo: AlarmRepository = repository,
         runner: TestAlarmRunner = testAlarms,
     ): AlarmEditViewModel =
-        AlarmEditViewModel(alarmId, repo, engine, runner, clock, flags, sounds, preview, missions).also { runCurrent() }
+        AlarmEditViewModel(alarmId, repo, engine, runner, clock, flags, sounds, preview, missions, settings).also {
+            runCurrent()
+        }
 
     private suspend fun stored(alarm: Alarm = Alarm(time = LocalTime.of(7, 30), label = "Gym")): Long =
         engine.save(alarm).id.value
@@ -117,7 +122,8 @@ class AlarmEditViewModelTest {
     fun `an existing alarm loads into the draft`() = runTest(dispatcher) {
         val id = stored()
 
-        val viewModel = AlarmEditViewModel(id, repository, engine, testAlarms, clock, flags, sounds, preview, missions)
+        val viewModel =
+            AlarmEditViewModel(id, repository, engine, testAlarms, clock, flags, sounds, preview, missions, settings)
         assertThat(viewModel.uiState.value.loading).isTrue()
         runCurrent()
 
@@ -132,7 +138,7 @@ class AlarmEditViewModelTest {
     @Test
     fun `an alarm that is gone closes the editor`() = runTest(dispatcher) {
         val viewModel =
-            AlarmEditViewModel(999L, repository, engine, testAlarms, clock, flags, sounds, preview, missions)
+            AlarmEditViewModel(999L, repository, engine, testAlarms, clock, flags, sounds, preview, missions, settings)
 
         viewModel.effects.test {
             runCurrent()
@@ -237,7 +243,8 @@ class AlarmEditViewModelTest {
         launch { busyEngine.rescheduleAll(RescheduleReason.APP_LAUNCH) }
         runCurrent()
         val store = ViewModelStore()
-        val created = AlarmEditViewModel(null, busy, busyEngine, testAlarms, clock, flags, sounds, preview, missions)
+        val created =
+            AlarmEditViewModel(null, busy, busyEngine, testAlarms, clock, flags, sounds, preview, missions, settings)
         val provided = ViewModelProvider(
             store,
             object : ViewModelProvider.Factory {
@@ -556,6 +563,48 @@ class AlarmEditViewModelTest {
 
             awaitItem()
             assertThat(scheduler.scheduled.getValue(id).triggerAt).isEqualTo(snoozeAt)
+        }
+    }
+
+    @Test
+    fun `first day of week comes from settings and follows changes`() = runTest(dispatcher) {
+        settings = FakeSettingsRepository(AppSettings(firstDayOfWeek = DayOfWeek.SUNDAY))
+        val viewModel = viewModel()
+        assertThat(viewModel.uiState.value.firstDayOfWeek).isEqualTo(DayOfWeek.SUNDAY)
+
+        settings.update { it.copy(firstDayOfWeek = DayOfWeek.MONDAY) }
+        runCurrent()
+        assertThat(viewModel.uiState.value.firstDayOfWeek).isEqualTo(DayOfWeek.MONDAY)
+
+        settings.update { it.copy(firstDayOfWeek = null) }
+        runCurrent()
+        assertThat(viewModel.uiState.value.firstDayOfWeek).isNull()
+    }
+
+    @Test
+    fun `first day of week is display only - the draft stays clean and saves the same days`() = runTest(dispatcher) {
+        val id = stored(Alarm(time = LocalTime.of(7, 30), repeatDays = setOf(DayOfWeek.SUNDAY, DayOfWeek.MONDAY)))
+        settings = FakeSettingsRepository(AppSettings(firstDayOfWeek = DayOfWeek.SUNDAY))
+        val viewModel = viewModel(id)
+
+        settings.update { it.copy(firstDayOfWeek = DayOfWeek.SATURDAY) }
+        runCurrent()
+        assertThat(viewModel.uiState.value.isDirty).isFalse()
+
+        send(viewModel, AlarmEditEvent.Save)
+        assertThat(alarmInDb(id)?.repeatDays).containsExactly(DayOfWeek.SUNDAY, DayOfWeek.MONDAY)
+    }
+
+    @Test
+    fun `failing or hanging settings leave the locale order and a working editor`() = runTest(dispatcher) {
+        settings = FakeSettingsRepository().apply { failure = IllegalStateException("disk") }
+        val failed = viewModel().uiState.value
+        settings = FakeSettingsRepository().apply { hang = true }
+        val hanging = viewModel().uiState.value
+
+        listOf(failed, hanging).forEach { state ->
+            assertThat(state.loading).isFalse()
+            assertThat(state.firstDayOfWeek).isNull()
         }
     }
 }

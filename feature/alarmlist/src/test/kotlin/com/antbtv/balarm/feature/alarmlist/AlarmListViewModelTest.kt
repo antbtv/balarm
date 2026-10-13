@@ -7,6 +7,7 @@ import com.antbtv.balarm.core.domain.schedule.TimeUntil
 import com.antbtv.balarm.core.domain.testing.FakeAlarmRepository
 import com.antbtv.balarm.core.domain.testing.FakeAlarmScheduler
 import com.antbtv.balarm.core.domain.testing.FakePermissionHealthChecker
+import com.antbtv.balarm.core.domain.testing.FakeSettingsRepository
 import com.antbtv.balarm.core.domain.testing.FakeSetupStateRepository
 import com.antbtv.balarm.core.domain.testing.MutableClock
 import com.antbtv.balarm.core.domain.testing.RecordingEventLog
@@ -14,6 +15,7 @@ import com.antbtv.balarm.core.domain.testing.testEngine
 import com.antbtv.balarm.core.model.Alarm
 import com.antbtv.balarm.core.model.AlarmId
 import com.antbtv.balarm.core.model.AlarmRuntimeState
+import com.antbtv.balarm.core.model.AppSettings
 import com.antbtv.balarm.core.model.TriggerKind
 import com.antbtv.balarm.core.model.feature.ConfigFeatureFlagProvider
 import com.google.common.truth.Truth.assertThat
@@ -51,6 +53,7 @@ class AlarmListViewModelTest {
     private val repository = FakeAlarmRepository()
     private val checker = FakePermissionHealthChecker()
     private val scheduler = FakeAlarmScheduler()
+    private var settings = FakeSettingsRepository()
     private val engine: AlarmEngine =
         testEngine(repository, scheduler, clock, ConfigFeatureFlagProvider, RecordingEventLog())
 
@@ -69,7 +72,8 @@ class AlarmListViewModelTest {
 
     private fun local(iso: String): Instant = LocalDateTime.parse(iso).atZone(moscow).toInstant()
 
-    private fun viewModel() = AlarmListViewModel(repository, engine, clock, checker, FakeSetupStateRepository())
+    private fun viewModel() =
+        AlarmListViewModel(repository, engine, clock, checker, FakeSetupStateRepository(), settings)
 
     /** Подписка на состояние, как у экрана на переднем плане. */
     private fun TestScope.subscribed(viewModel: AlarmListViewModel): AlarmListViewModel {
@@ -351,7 +355,14 @@ class AlarmListViewModelTest {
         engine.save(oneShot)
         val counting = CountingClock(clock)
         val viewModel =
-            AlarmListViewModel(repository, engine, counting, FakePermissionHealthChecker(), FakeSetupStateRepository())
+            AlarmListViewModel(
+                repository,
+                engine,
+                counting,
+                FakePermissionHealthChecker(),
+                FakeSetupStateRepository(),
+                FakeSettingsRepository(),
+            )
         val subscription = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect {}
         }
@@ -418,6 +429,62 @@ class AlarmListViewModelTest {
             assertThat(viewModel.uiState.value.nextIn).isNull()
             assertThat(viewModel.uiState.value.healthWarning).isTrue()
         }
+
+    @Test
+    fun `first day of week comes from settings and follows changes`() = runTest(dispatcher) {
+        settings = FakeSettingsRepository(AppSettings(firstDayOfWeek = DayOfWeek.SUNDAY))
+        engine.save(daily)
+
+        val viewModel = subscribed(viewModel())
+        assertThat(viewModel.uiState.value.firstDayOfWeek).isEqualTo(DayOfWeek.SUNDAY)
+
+        settings.update { it.copy(firstDayOfWeek = DayOfWeek.MONDAY) }
+        runCurrent()
+        assertThat(viewModel.uiState.value.firstDayOfWeek).isEqualTo(DayOfWeek.MONDAY)
+
+        settings.update { it.copy(firstDayOfWeek = null) }
+        runCurrent()
+        assertThat(viewModel.uiState.value.firstDayOfWeek).isNull()
+    }
+
+    @Test
+    fun `first day of week does not touch the schedule`() = runTest(dispatcher) {
+        settings = FakeSettingsRepository(AppSettings(firstDayOfWeek = DayOfWeek.SUNDAY))
+        val id = engine.save(daily).id
+        val before = repository.get(id)
+
+        val viewModel = subscribed(viewModel())
+        settings.update { it.copy(firstDayOfWeek = DayOfWeek.WEDNESDAY) }
+        runCurrent()
+
+        assertThat(viewModel.item(id).repeatDays).isEqualTo(daily.repeatDays)
+        assertThat(repository.get(id)).isEqualTo(before)
+        assertThat(viewModel.uiState.value.nextIn).isEqualTo(TimeUntil(days = 0, hours = 2, minutes = 0))
+    }
+
+    @Test
+    fun `failing settings fall back to the locale order without breaking the list`() = runTest(dispatcher) {
+        settings = FakeSettingsRepository().apply { failure = IllegalStateException("disk") }
+        engine.save(daily)
+
+        val state = subscribed(viewModel()).uiState.value
+
+        assertThat(state.loading).isFalse()
+        assertThat(state.alarms).hasSize(1)
+        assertThat(state.firstDayOfWeek).isNull()
+    }
+
+    @Test
+    fun `hanging settings do not hold the list in loading`() = runTest(dispatcher) {
+        settings = FakeSettingsRepository().apply { hang = true }
+        engine.save(daily)
+
+        val state = subscribed(viewModel()).uiState.value
+
+        assertThat(state.loading).isFalse()
+        assertThat(state.alarms).hasSize(1)
+        assertThat(state.firstDayOfWeek).isNull()
+    }
 }
 
 private val STOP_TIMEOUT = 5.seconds + 1.seconds
