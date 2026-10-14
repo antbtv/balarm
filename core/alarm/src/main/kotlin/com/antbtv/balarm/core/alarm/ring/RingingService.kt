@@ -111,6 +111,7 @@ class RingingService : Service() {
     private var lockRenewal: Job? = null
     private var volumeGuard: Job? = null
     private var pauseCheck: Job? = null
+    private var resumeHeartbeat: Job? = null
     private var screenOffReceiver: BroadcastReceiver? = null
     private var settingsJob: Job? = null
 
@@ -373,9 +374,29 @@ class RingingService : Service() {
         ringSettings = RingSettings.DEFAULTS
         armVolumeGuard()
         armAutoStop(id)
+        armResumeHeartbeat()
         loadSettings(id)
         publish()
         startRingingScreen()
+    }
+
+    /**
+     * Смерть процесса без исключения (SIGKILL, OOM, чистильщик OEM) обработчик падения не видит, а система сама
+     * сервис не поднимет (R20). Поэтому пока идёт звонок, RESUME каждые [HEARTBEAT_PERIOD] переставляется на
+     * [HEARTBEAT_DELAY] вперёд: живой процесс не даёт ему сработать, мёртвый — возвращает звонок. Снимает его
+     * `dismiss`/`snooze` (обычный план возвращается в `AlarmManager`), как и crash re-arm (ADR-020 §4).
+     */
+    private fun armResumeHeartbeat() {
+        if (resumeHeartbeat?.isActive == true) return
+        resumeHeartbeat = scope.launch {
+            while (current != null) {
+                val at = clock.instant() + HEARTBEAT_DELAY
+                rearmIds.filterNot { it.isTest }.filter(::isActive).forEach { id ->
+                    scheduler.schedule(ScheduleRequest(id, at, FireKind.RESUME))
+                }
+                delay(HEARTBEAT_PERIOD.toMillis())
+            }
+        }
     }
 
     /** `VolumeGuard` (ADR-019 §6): у звонка с миссией громкость, сниженную кнопками, возвращаем раз в секунду. */
@@ -883,6 +904,10 @@ class RingingService : Service() {
 
         /** ADR-007 §7: через сколько возвращается звонок после падения процесса. */
         val CRASH_RESUME_DELAY: Duration = RingingPolicy.CRASH_RESUME_DELAY
+
+        /** RESUME на случай SIGKILL: ставится раз в [HEARTBEAT_PERIOD], срабатывает через [HEARTBEAT_DELAY]. */
+        val HEARTBEAT_PERIOD: Duration = Duration.ofSeconds(10)
+        val HEARTBEAT_DELAY: Duration = Duration.ofSeconds(25)
 
         private val CALL_MODES = setOf(
             AudioManager.MODE_RINGTONE,

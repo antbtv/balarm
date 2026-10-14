@@ -884,6 +884,17 @@ class RingingServiceTest {
     }
 
     @Test
+    fun `while an alarm rings a safety RESUME is kept ahead so SIGKILL does not silence it`() {
+        start(ringIntent(ALARM.id))
+
+        idle(RingingService.HEARTBEAT_PERIOD.multipliedBy(2))
+
+        val resume = scheduler.scheduled[ALARM.id]!!
+        assertThat(resume.kind).isEqualTo(FireKind.RESUME)
+        assertThat(resume.triggerAt).isGreaterThan(NOW + RingingService.HEARTBEAT_PERIOD)
+    }
+
+    @Test
     fun `snooze stops ringing without dismissing`() {
         start(ringIntent(ALARM.id))
 
