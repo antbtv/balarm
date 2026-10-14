@@ -36,8 +36,8 @@
 | [x] | M9-T07 | 🎨 Экран настроек: секция «Общие» | §3.9 | M | T01 | |
 | [x] | M9-T08 | 🎨 Первый день недели в `:core:format`, DayChips, список, редактор | §3.9 | S | T01, T07 | |
 | [x] | M9-T-test | Тестирование этапа, R-матрица (tester) 🔔 | §9.2 | L | T01–T08 | |
-| [ ] | M9-T-review | Ревью этапа (reviewer) | — | S | T-test | |
-| [ ] | M9-T-docs | PRD/ADR/CLAUDE.md, флаг → true | — | S | T-review | |
+| [x] | M9-T-review | Ревью этапа (reviewer) | — | S | T-test | |
+| [x] | M9-T-docs | PRD/ADR/CLAUDE.md, флаг → true | — | S | T-review | |
 
 ### M9-T01 — Модель и хранение настроек 🔔
 **Описание:** `AppSettings(autoStop, missionIdleTimeout, missionDuckPercent, firstDayOfWeek?)`, `enum AutoStop`; `SettingsPolicy` (диапазоны, умолчания, приведение); `SettingsRepository` + `DataStoreSettingsRepository` (`@Binds`), `ReplaceFileCorruptionHandler`. Флаг `feature.globalSettings=false` в `config/features.properties`.
@@ -131,6 +131,8 @@ ADR-018…021 → Accepted; «Уточнения M9» в ADR-019/020; PRD: ст�
 * Наблюдения T-test: (1) без разрешения overlay экран миссии после Home/Recents не возвращается (по дизайну, нужен `SYSTEM_ALERT_WINDOW`); живая плитка Recents не вызывает `onPause`, возврат происходит при уходе из Recents; (2) RESUME после crash/APP_LAUNCH/boot звонит на ~2 с позже плана (`RESUME_SCHEDULED at=…:12` → `RINGING_STARTED …:14`); (3) R19: кроме известной записи «background playback would be muted» появились «volume control for api 100 would be ignored» (VolumeGuard) и «focus request would be ignored» — все с `exemption: 4`, `mutedState:none`; без исключения exact alarm защита громкости перестанет работать; (4) `dbg CLEAR_ALL` во время звонка удаляет будильник, но звонок продолжается.
 
 * T-test, дефект kill -9 посреди звонка: `MainActivity` пропускал APP_LAUNCH-перепланирование при восстановленном `savedInstanceState`; теперь оно идёт раз на процесс (`launchHandled`) либо при `savedInstanceState == null`. Повторная проверка kill -9 на эмуляторе — в T-review. Не проверено: release-APK, API 34, свайп карточки в Recents, громкость 100 % после сброса миссии. Перепроверено на эмуляторе API 37 с RESUME-heartbeat (коммит 2ac3c52): kill -9 посреди звонка (с миссией Math, в том числе во время решения, и без миссии) — звонок возвращается через ~19–25 с; Dismiss/Snooze не оставляют лишнего RESUME, разовый будильник после dismiss из AlarmManager снят, звонок >90 с идёт без дублей RINGING_STARTED.
+
+* T-review: исправлены гонка heartbeat/snooze (флаг `snoozing`) и необработанные исключения heartbeat (`safely`). В бэклог: heartbeat не проверяет удаление/выключение будильника во время звонка; `restoreRegularPlan` без лога при пустом плане; автостоп заново после SIGKILL; `screenReturn` не отменяется на MISSION_SHOWN; возврат экрана миссии требует «поверх других приложений».
 
 ## Уроки
 

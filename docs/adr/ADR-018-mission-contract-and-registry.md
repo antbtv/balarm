@@ -1,7 +1,7 @@
 # ADR-018: Контракт миссий: непрозрачный `MissionSpec` в модели, плагины через реестр, редактор и превью
 
 ## Status
-Proposed (2026-10-10, план M5). Уточняет PRD §6.4 (`MissionConfig = sealed`) и скилл `add-mission` (enum `MissionType`, `sealed interface MissionConfig` в api) — см. «Правки» в конце.
+Accepted (M9, 2026-10-14; предложен 2026-10-10, план M5). Уточняет PRD §6.4 (`MissionConfig = sealed`) и скилл `add-mission` (enum `MissionType`, `sealed interface MissionConfig` в api) — см. «Правки» в конце.
 
 ## Context
 * FR-MIS-4: каждая миссия реализует общий контракт (`MissionType`, `MissionConfig`, `MissionState`, `MissionScreen`); **добавление миссии не требует правок ядра** (`:core:*`, `:feature:ringing`). FR-MIS-1/5, FR-EDIT-6, FR-FLAG-3 (выключенная миссия → будильник звонит без миссии, данные не теряются).

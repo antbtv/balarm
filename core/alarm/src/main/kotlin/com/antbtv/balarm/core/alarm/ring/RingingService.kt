@@ -112,6 +112,9 @@ class RingingService : Service() {
     private var volumeGuard: Job? = null
     private var pauseCheck: Job? = null
     private var resumeHeartbeat: Job? = null
+
+    /** Движок ставит SNOOZE: heartbeat пропускает тик, иначе его RESUME затёр бы отложенный звонок. */
+    private var snoozing = false
     private var screenOffReceiver: BroadcastReceiver? = null
     private var settingsJob: Job? = null
 
@@ -390,9 +393,13 @@ class RingingService : Service() {
         if (resumeHeartbeat?.isActive == true) return
         resumeHeartbeat = scope.launch {
             while (current != null) {
-                val at = clock.instant() + HEARTBEAT_DELAY
-                rearmIds.filterNot { it.isTest }.filter(::isActive).forEach { id ->
-                    scheduler.schedule(ScheduleRequest(id, at, FireKind.RESUME))
+                if (!snoozing) {
+                    safely("resume_heartbeat") {
+                        val at = clock.instant() + HEARTBEAT_DELAY
+                        rearmIds.filterNot { it.isTest }.filter(::isActive).forEach { id ->
+                            scheduler.schedule(ScheduleRequest(id, at, FireKind.RESUME))
+                        }
+                    }
                 }
                 delay(HEARTBEAT_PERIOD.toMillis())
             }
@@ -535,7 +542,12 @@ class RingingService : Service() {
     private suspend fun snooze(id: AlarmId) {
         if (!isCurrent(id)) return
         // Сбой движка = отложить не удалось: звонок продолжается.
-        val result = record("snooze") { engine.snooze(id) } ?: SnoozeResult.NotAllowed
+        snoozing = true
+        val result = try {
+            record("snooze") { engine.snooze(id) } ?: SnoozeResult.NotAllowed
+        } finally {
+            snoozing = false
+        }
         if (!isCurrent(id)) return // пока ждали движок, звонок уже закончился (автостоп, «Отключить»)
         when (result) {
             is SnoozeResult.Snoozed -> finishCurrent("snooze")

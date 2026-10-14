@@ -3,6 +3,7 @@ package com.antbtv.balarm.ui
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.antbtv.balarm.DebugTools
 import com.antbtv.balarm.MainActivity
@@ -50,7 +51,7 @@ class DebugFlagsEntryTest {
     @Test
     fun `seven taps on the version open the feature flags screen`() {
         composeRule.onNodeWithTag(NavigationBarTestTags.item(Tab.SETTINGS.ordinal)).performClick()
-        composeRule.onNodeWithTag(SettingsTestTags.ABOUT_ROW).performClick()
+        composeRule.onNodeWithTag(SettingsTestTags.ABOUT_ROW).performScrollTo().performClick()
         composeRule.waitForIdle()
 
         repeat(SECRET_TAPS) { composeRule.onNodeWithTag(AboutTestTags.VERSION).performClick() }
