@@ -24,6 +24,7 @@ import com.antbtv.balarm.core.domain.sound.SoundRepository
 import com.antbtv.balarm.ui.BalarmApp
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Optional
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -55,7 +56,10 @@ class MainActivity : ComponentActivity() {
         // При появлении светлой темы стиль выбирается по теме приложения, а не системы.
         enableEdgeToEdge(statusBarStyle = DarkBars, navigationBarStyle = DarkBars)
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) {
+        // Страховка раз на процесс, а не раз на задачу: после kill -9/OOM система поднимает процесс с восстановленным
+        // savedInstanceState, и маркер звонка иначе не вернул бы звонок (R20).
+        val firstInProcess = !launchHandled.getAndSet(true)
+        if (savedInstanceState == null || firstInProcess) {
             // ADR-005 §2: страховка после force-stop/восстановления — идемпотентно, переживает закрытие экрана.
             appScope.launch { rescheduler.reschedule(RescheduleReason.APP_LAUNCH) }
             // Сироты в библиотеке мелодий.
@@ -96,6 +100,11 @@ class MainActivity : ComponentActivity() {
         // Activity после SIGKILL (savedInstanceState != null). Метод идемпотентен; видимая Activity — не фон.
         volume.restorePendingIfIdle()
         ringingRedirect(ringing.state.value, uiIntents)?.let(::startActivity)
+    }
+
+    private companion object {
+        /** Первая Activity этого процесса уже запускала APP_LAUNCH-перепланирование. */
+        val launchHandled = AtomicBoolean(false)
     }
 }
 
